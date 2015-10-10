@@ -1,7 +1,9 @@
 #ECLIPSE FOLDERS
 .settings/
 bin/
+.classpath
 
+#Java things
 
 *.class
 
