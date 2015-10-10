@@ -1,3 +1,8 @@
+#ECLIPSE FOLDERS
+.settings/
+bin/
+
+
 *.class
 
 # Mobile Tools for Java (J2ME)
