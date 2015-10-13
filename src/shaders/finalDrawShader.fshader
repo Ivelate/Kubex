@@ -43,6 +43,7 @@ void main()
 	else outcolor=texture2D(normalAndLightTex,vec2(pos.x,pos.y+1));
 	}*/
 	outcolor=texture2D(colorTex,vec2((pos.x+1)/2,(pos.y+1)/2));
+
 	//outcolor=vec4(texture2D(shadowMap,vec2((pos.x+1)/2,(pos.y+1)/2)).xyz,1);
 	//outcolor=vec4(shadow.xyz,1);
 	/*if(texture2D(normal,vec2(pos.x,pos.y)).xyz == vec3(0,0,0)) discard;
