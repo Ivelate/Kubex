@@ -59,7 +59,7 @@ vec3 normal;
 	
 	float shadowAttenuation=1;
 	float dotsun=dot(sunNormal,normal);
-	if(dotsun>0){
+	if(dotsun>0 && dot(sunNormal,vec3(0,1,0))>0){
 		float bias = 0.0002;
 		vec2 shadowLoc=vec2((sunLocation.x+1)/2,(sunLocation.y+1)/2);
 		//float shadow=texture(shadowMap,vec3(shadowLoc,(sunLocation.z+1)/2 -bias));

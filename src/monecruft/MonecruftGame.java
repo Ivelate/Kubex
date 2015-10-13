@@ -216,7 +216,7 @@ public class MonecruftGame implements Cleanable
 	private void render()
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, this.sunFbo);
-		GL11.glViewport(0,0,X_RES*20,Y_RES*20);
+		GL11.glViewport(0,0,800*20,600*20);
 		//glClearColor(0.6f, 0.8f, 1.0f, 0f);
 		glClear(GL11.GL_DEPTH_BUFFER_BIT);
 		//tilesTexture.bind();
@@ -383,7 +383,7 @@ public class MonecruftGame implements Cleanable
 		
 		glActiveTexture(GL13.GL_TEXTURE4); this.sunShadowTexture=GL13.GL_TEXTURE4;
 		glBindTexture(GL_TEXTURE_2D, shadowTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0,GL14.GL_DEPTH_COMPONENT16, X_RES*20, Y_RES*20, 0,GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (FloatBuffer)null); //|TODO ASFA
+		glTexImage2D(GL_TEXTURE_2D, 0,GL14.GL_DEPTH_COMPONENT16, 800*20, 600*20, 0,GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (FloatBuffer)null); //|TODO ASFA
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
