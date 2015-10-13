@@ -15,6 +15,7 @@ import java.util.List;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.util.vector.Matrix4f;
+import org.lwjgl.util.vector.Vector3f;
 
 import ivengine.properties.Cleanable;
 import ivengine.view.Camera;
@@ -32,8 +33,8 @@ import monecruftProperties.DrawableUpdatable;
 public class World implements DrawableUpdatable, Cleanable
 {
 	private static final int MAX_CHUNK_LOADS_PER_TICK=10;
-	public static final int PLAYER_VIEW_FIELD=4;
-	public static final int HEIGHT=1;
+	public static final int PLAYER_VIEW_FIELD=9;
+	public static final int HEIGHT=4;
 	private static final float WATER_ALPHA=0.5f;
 	private static final float CHUNK_UPDATE_TICK=0.3f;
 	private static final int[] DIFTABLE=createDiftable(PLAYER_VIEW_FIELD+1);	
@@ -110,6 +111,9 @@ public class World implements DrawableUpdatable, Cleanable
 		
 		int alphaUniformLocation=glGetUniformLocation(this.getActiveShader().getID(),"alpha");
 		int shadowTexLocation=glGetUniformLocation(this.getActiveShader().getID(),"shadowMap");
+		int sunNormalLocation=glGetUniformLocation(this.getActiveShader().getID(),"sunNormal");
+		Vector3f sunNormal=this.sky.getSunNormal();
+		GL20.glUniform3f(sunNormalLocation, sunNormal.x, sunNormal.y, sunNormal.z);
 		GL20.glUniform1i(shadowTexLocation, MonecruftGame.SHADOW_TEXTURE_LOCATION);
 		int sunMvpLocation=glGetUniformLocation(this.getActiveShader().getID(),"sunMvpMatrix");
 		MatrixHelper.uploadMatrix(this.sunCamera.getProjectionViewMatrix(), sunMvpLocation);

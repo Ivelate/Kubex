@@ -19,6 +19,7 @@ void main(){
 	Properties=vec2(properties-normal*1000,normal);
 	Location=location;
 	Brightness=brightness;
-	sunLocation=(sunMvpMatrix *modelMatrix* vec4(location.xyz,1.0)).xyz;
+	vec4 sunLoc=sunMvpMatrix *modelMatrix* vec4(location.xyz,1.0);
+	sunLocation=vec3(sunLoc.x/sunLoc.w,sunLoc.y/sunLoc.w,sunLoc.z/sunLoc.w);
 	gl_Position=vpMatrix * modelMatrix * vec4(location.xyz,1.0);
 }

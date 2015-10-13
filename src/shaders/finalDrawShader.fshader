@@ -34,14 +34,15 @@ void main()
 	else if(normalAndLight.x < 4.5f) normal=vec3(0,0,1);
 	else normal=vec3(0,0,-1);*/
 	
-	if(pos.x<0){
+	/*if(pos.x<0){
 	if(pos.y>0) outcolor=texture2D(colorTex,vec2(pos.x+1,pos.y));
 	else outcolor=texture2D(positionTex,vec2(pos.x+1,pos.y+1));
 	}
 	else {
 	if(pos.y>0) outcolor=texture2D(shadowMap,vec2(pos.x,pos.y));
 	else outcolor=texture2D(normalAndLightTex,vec2(pos.x,pos.y+1));
-	}
+	}*/
+	outcolor=texture2D(colorTex,vec2((pos.x+1)/2,(pos.y+1)/2));
 	//outcolor=vec4(texture2D(shadowMap,vec2((pos.x+1)/2,(pos.y+1)/2)).xyz,1);
 	//outcolor=vec4(shadow.xyz,1);
 	/*if(texture2D(normal,vec2(pos.x,pos.y)).xyz == vec3(0,0,0)) discard;

@@ -20,6 +20,7 @@ import java.nio.FloatBuffer;
 
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
+import org.lwjgl.util.vector.Vector3f;
 
 import ivengine.view.Camera;
 import ivengine.view.MatrixHelper;
@@ -42,6 +43,7 @@ public class Sky
 	private PerezYxyCoefficients coeffs = getPerezCoefficientsForTurbidity(DEFAULT_TURBIDITY);
 	private double currentTime=0;
 	private double solarAltitude=getSolarAltitude(solarDeclination, getSolarTime(julianDay, currentTime, DEFAULT_TIMEZONE, DEFAULT_LONGITUDE), DEFAULT_LATITUDE);
+	private double solarAzimuth=getSolarAzimuth(solarDeclination, getSolarTime(julianDay, currentTime, DEFAULT_TIMEZONE, DEFAULT_LONGITUDE), DEFAULT_LATITUDE);
 	
 	public static final int NUM_COMPONENTS=6;
 	private SkyShaderProgram SSP;
@@ -85,7 +87,7 @@ public class Sky
 			double solarTime = getSolarTime(julianDay, currentTime, DEFAULT_TIMEZONE, DEFAULT_LONGITUDE);
 			this.solarAltitude = getSolarAltitude(solarDeclination, solarTime, DEFAULT_LATITUDE);
 			double zenithS = (Math.PI / 2.) - solarAltitude;
-			double azimuthS = getSolarAzimuth(solarDeclination, solarTime, DEFAULT_LATITUDE);
+			this.solarAzimuth = getSolarAzimuth(solarDeclination, solarTime, DEFAULT_LATITUDE);
 			YyxColor sunYyx = getYyxColorForZenithAndTurbidity(zenithS, DEFAULT_TURBIDITY);
 			
 			glDisable( GL11.GL_BLEND );
@@ -98,7 +100,7 @@ public class Sky
 			sunYyx.uploadToShader(this.SSP);
 			this.coeffs.uploadToShader(this.SSP);
 			glUniform1f(this.SSP.getSolarZenithUniform(),(float)zenithS);
-			glUniform1f(this.SSP.getSolarAzimuthUniform(),(float)azimuthS);
+			glUniform1f(this.SSP.getSolarAzimuthUniform(),(float)solarAzimuth);
 			glDrawArrays(GL_TRIANGLES, 0, NUM_COMPONENTS);
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
 			glDepthFunc(GL11.GL_LEQUAL);
@@ -133,14 +135,16 @@ public class Sky
 			this.xcenter=xpos;
 			this.ycenter=ypos;
 			this.zcenter=zpos;
-			//this.sunCamera.moveTo(xcenter, ycenter, zcenter);
+			this.sunCamera.moveTo(xcenter, ycenter, zcenter);
 		}
 		public void update(float tEl)
 		{
-			this.currentTime+=(tEl/1000);
+			this.currentTime+=(tEl/10);
 			if(this.currentTime>24) this.currentTime=0;
-			//this.sunCamera.setPitch((float)this.solarAltitude);
-			//this.sunCamera.setYaw(0.01f);
+			this.sunCamera.setPitch((float)this.solarAltitude);
+			this.sunCamera.setYaw(-(float)(this.solarAzimuth));
+			
+			System.out.println(this.solarAltitude+" "+this.solarAzimuth);
 		}
 		public double getSolarAltitude()
 		{
@@ -149,6 +153,16 @@ public class Sky
 		public int getVbo()
 		{
 			return this.vbo;
+		}
+		public Vector3f getSunNormal()
+		{
+			Vector3f res=new Vector3f();
+			res.y=(float)Math.sin(this.solarAltitude);
+			double dim=Math.cos(this.solarAltitude);
+			res.x=(float)(dim*Math.sin(this.solarAzimuth));
+			res.z=(float)(dim*Math.cos(this.solarAzimuth));
+			
+			return res;
 		}
 
 	/** SUN THINGS **/

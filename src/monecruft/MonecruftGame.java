@@ -211,11 +211,12 @@ public class MonecruftGame implements Cleanable
 		this.sky.update(delta);
 		
 		this.textManager.update(delta);
-		this.sunCam.setPitch((float)(Math.PI/4));
+		//this.sunCam.setPitch((float)(Math.PI/4));
 	}
 	private void render()
 	{
 		glBindFramebuffer(GL_FRAMEBUFFER, this.sunFbo);
+		GL11.glViewport(0,0,X_RES*20,Y_RES*20);
 		//glClearColor(0.6f, 0.8f, 1.0f, 0f);
 		glClear(GL11.GL_DEPTH_BUFFER_BIT);
 		//tilesTexture.bind();
@@ -225,6 +226,7 @@ public class MonecruftGame implements Cleanable
 		
 		this.tilesTexture.bind();
 		glBindFramebuffer(GL_FRAMEBUFFER, this.baseFbo);
+		GL11.glViewport(0,0,X_RES,Y_RES);
 		//glClearColor(0.6f, 0.8f, 1.0f, 0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 		//tilesTexture.bind();
@@ -287,10 +289,11 @@ public class MonecruftGame implements Cleanable
 		this.FDSP=new FinalDrawShaderProgram(true);
 		this.TM=new TimeManager();
 		this.cam=new Camera(0.02f,1000,80f,X_RES/Y_RES);
-		int maxworldsize=(int)Math.ceil(Chunk.CHUNK_DIMENSION*(World.PLAYER_VIEW_FIELD+1)*Math.sqrt(2));
-		this.sunCam=new Camera(0.5f,100,80f,X_RES/Y_RES);//new Camera(MatrixHelper.createOrthoMatix(16, -16,  16, -16,16,-16));//World.HEIGHT*Chunk.CHUNK_DIMENSION, 0));
+		int maxworldsize=(int)Math.ceil(Chunk.CHUNK_DIMENSION*(World.PLAYER_VIEW_FIELD+0.5f)*Math.sqrt(2));
+
+		this.sunCam=/*new Camera(0.5f,1000,80f,X_RES/Y_RES);//*/new Camera(MatrixHelper.createOrthoMatix(maxworldsize, -maxworldsize,  maxworldsize, -maxworldsize,maxworldsize,-maxworldsize));//World.HEIGHT*Chunk.CHUNK_DIMENSION, 0));
 		this.sunCam.moveTo(0, 5, 0);
-		this.sunCam.setPitch((float)(Math.PI/4));
+		this.sunCam.setPitch(0);
 		
 		this.sky=new Sky(SSP,BCSP,cam,this.sunCam);
 		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,sky);
@@ -380,7 +383,7 @@ public class MonecruftGame implements Cleanable
 		
 		glActiveTexture(GL13.GL_TEXTURE4); this.sunShadowTexture=GL13.GL_TEXTURE4;
 		glBindTexture(GL_TEXTURE_2D, shadowTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0,GL14.GL_DEPTH_COMPONENT16, X_RES, Y_RES, 0,GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (FloatBuffer)null); //|TODO ASFA
+		glTexImage2D(GL_TEXTURE_2D, 0,GL14.GL_DEPTH_COMPONENT16, X_RES*20, Y_RES*20, 0,GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (FloatBuffer)null); //|TODO ASFA
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);

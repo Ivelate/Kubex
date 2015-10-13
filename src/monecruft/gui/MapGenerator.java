@@ -48,14 +48,14 @@ public class MapGenerator
 				for(int cz=0;cz<Chunk.CHUNK_DIMENSION;cz++)
 				{
 					//ret[cx][cy][cz]=cy+(y*Chunk.CHUNK_DIMENSION)==50?(byte)1:0;
-					//ret[cx][cy][cz]=getCubeFromHeightMap(cx,cy+(y*Chunk.CHUNK_DIMENSION),cz);
+					ret[cx][cy][cz]=getCubeFromHeightMap(cx,cy+(y*Chunk.CHUNK_DIMENSION),cz);
 					/*ret[cx][cy][cz]=get3dValue(cx+(x*Chunk.CHUNK_DIMENSION),
 							cy+(y*Chunk.CHUNK_DIMENSION), 
 							cz+(z*Chunk.CHUNK_DIMENSION))<0 ? (byte)6: (cy+(y*Chunk.CHUNK_DIMENSION)<70? (byte)(4): (byte)(0));*/
 					/*int dist=cy-((cx-16)*(cx-16) + (cz-16)*(cz-16))/100;
 					ret[cx][cy][cz]=cy>16?(byte)0:(dist<10?(byte)1:4);
 					if(y<3) ret[cx][cy][cz]=1;*/
-					ret[cx][cy][cz]=cy==0?(byte)1:0;
+					//ret[cx][cy][cz]=cy==0?(byte)1:0;
 				}
 			}
 		}
