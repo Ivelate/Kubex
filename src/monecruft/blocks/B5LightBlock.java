@@ -1,6 +1,6 @@
 package monecruft.blocks;
 
-public class B5LightBlock implements Block{
+public class B5LightBlock extends Block{
 
 	@Override
 	public boolean isOpaque() {

@@ -1,6 +1,6 @@
 package monecruft.blocks;
 
-public abstract class OpaqueSolidBlock implements Block{
+public abstract class OpaqueSolidBlock extends Block{
 
 	@Override
 	public boolean isOpaque() {

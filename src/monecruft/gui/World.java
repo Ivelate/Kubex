@@ -53,7 +53,7 @@ public class World implements DrawableUpdatable, Cleanable
 	private WorldFacade worldFacade;
 	private Sky sky;
 	
-	private float currentTime=20;
+	private float currentTime=10;
 	private float chunkUpdateTickCont=0;
 	
 	private VoxelShaderProgram VSP;

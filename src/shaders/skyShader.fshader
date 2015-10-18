@@ -89,9 +89,9 @@ void main(){
     
     gl_FragColor=daycolor + nightcolor;
     
-    if(abs(azimuth-solar_azimuth)<0.05) {
+    /*if(abs(azimuth-solar_azimuth)<0.05) {
    		 gl_FragColor=abs(zenith-solar_zenith)<0.05?vec4(1,0,1,1):vec4(1,0,0,1);
-    }
+    }*/
     //gl_FragColor=vec4(xp,0,0,1);
 	//gl_FragColor = vec4(0,0,yp,1.0f);
 }

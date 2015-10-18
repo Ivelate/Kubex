@@ -58,6 +58,7 @@ import monecruft.shaders.FinalDrawShaderProgram;
 import monecruft.shaders.HudShaderProgram;
 import monecruft.shaders.SkyShaderProgram;
 import monecruft.shaders.UnderwaterVoxelShaderProgram;
+import monecruft.shaders.UnshadowedVoxelShaderProgram;
 import monecruft.shaders.VoxelShaderProgram;
 import monecruft.storage.ByteArrayPool;
 import monecruft.storage.FloatBufferPool;
@@ -92,8 +93,13 @@ public class MonecruftGame implements Cleanable
 {
 	public static final int SHADOW_TEXTURE_LOCATION=4; //Lookup from World
 	
+	private MonecruftSettings settings;
+	
 	private int X_RES=800;
 	private int Y_RES=600;
+	private int SHADOW_XRES=800*20;
+	private int SHADOW_YRES=600*20;
+	
 	private VoxelShaderProgram VSP;
 	private UnderwaterVoxelShaderProgram UVSP;
 	private HudShaderProgram HSP;
@@ -125,9 +131,11 @@ public class MonecruftGame implements Cleanable
 	
 	private boolean changeContext=false; //To change with option menu.
 	
-	public MonecruftGame(boolean fullscreen) throws LWJGLException, IOException 
+	public MonecruftGame(MonecruftSettings settings) throws LWJGLException, IOException 
 	{
-		if(fullscreen){
+		this.settings=settings;
+		
+		if(settings.FULLSCREEN_ENABLED){
 			DisplayMode dm=Display.getDesktopDisplayMode();
 			X_RES=dm.getWidth();
 			Y_RES=dm.getHeight();
@@ -197,7 +205,8 @@ public class MonecruftGame implements Cleanable
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {}
-			new MonecruftGame(!fullscreen);
+			this.settings.FULLSCREEN_ENABLED=!this.settings.FULLSCREEN_ENABLED;
+			new MonecruftGame(this.settings);
 		}
 	}
 	private void update(float delta)
@@ -215,17 +224,19 @@ public class MonecruftGame implements Cleanable
 	}
 	private void render()
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, this.sunFbo);
-		GL11.glViewport(0,0,800*20,600*20);
-		//glClearColor(0.6f, 0.8f, 1.0f, 0f);
-		glClear(GL11.GL_DEPTH_BUFFER_BIT);
-		//tilesTexture.bind();
-		this.world.overrideCurrentShader(this.DVSP);
-		this.world.overrideCurrentCamera(this.sunCam);
-		this.world.draw(false);
+		if(this.settings.SHADOWS_ENABLED){
+			glBindFramebuffer(GL_FRAMEBUFFER, this.sunFbo);
+			GL11.glViewport(0,0,SHADOW_XRES,SHADOW_YRES);
+			//glClearColor(0.6f, 0.8f, 1.0f, 0f);
+			glClear(GL11.GL_DEPTH_BUFFER_BIT);
+			//tilesTexture.bind();
+			this.world.overrideCurrentShader(this.DVSP);
+			this.world.overrideCurrentCamera(this.sunCam);
+			this.world.draw(false);
+		}
 		
 		this.tilesTexture.bind();
-		glBindFramebuffer(GL_FRAMEBUFFER, this.baseFbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		GL11.glViewport(0,0,X_RES,Y_RES);
 		//glClearColor(0.6f, 0.8f, 1.0f, 0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
@@ -254,7 +265,7 @@ public class MonecruftGame implements Cleanable
 		
 		this.textManager.draw(X_RES,Y_RES);
 		
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		/*glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 		this.FDSP.enable();
 		glBindBuffer(GL15.GL_ARRAY_BUFFER,this.sky.getVbo());
@@ -264,7 +275,7 @@ public class MonecruftGame implements Cleanable
 		glUniform1i(this.FDSP.normalAndLightTex,3);
 		glUniform1i(this.FDSP.shadowMap,4);
 		glDrawArrays(GL_TRIANGLES, 0, Sky.NUM_COMPONENTS);
-		this.FDSP.disable();
+		this.FDSP.disable();*/
 	}
 	private void initResources() throws IOException
 	{
@@ -282,7 +293,7 @@ public class MonecruftGame implements Cleanable
 		textManager=new GlobalTextManager();
 		this.UVSP=new UnderwaterVoxelShaderProgram(true);
 		this.DVSP=new DepthVoxelShaderProgram(true);
-		this.VSP=new VoxelShaderProgram(true);
+		this.VSP=this.settings.SHADOWS_ENABLED?new VoxelShaderProgram(true):new UnshadowedVoxelShaderProgram(true);
 		this.HSP=new HudShaderProgram(true);
 		this.SSP=new SkyShaderProgram(true);
 		this.BCSP=new BasicColorShaderProgram(true);
@@ -333,7 +344,7 @@ public class MonecruftGame implements Cleanable
 		GL11.glMatrixMode(GL11.GL_MODELVIEW);
 
 		//FBO THINGS: START
-		this.baseFbo=glGenFramebuffers();
+		/*this.baseFbo=glGenFramebuffers();
 		glBindFramebuffer(GL_FRAMEBUFFER, this.baseFbo);
 		
 		int colorTexture=glGenTextures();
@@ -373,26 +384,28 @@ public class MonecruftGame implements Cleanable
 		drawBuffers.put(GL_COLOR_ATTACHMENT2);
 		
 		drawBuffers.flip();
-		GL20.glDrawBuffers(drawBuffers);
+		GL20.glDrawBuffers(drawBuffers);*/
 		
 		//SUN FBO: START
-		this.sunFbo=glGenFramebuffers();
-		glBindFramebuffer(GL_FRAMEBUFFER, this.sunFbo);
+		if(this.settings.SHADOWS_ENABLED){
+			this.sunFbo=glGenFramebuffers();
+			glBindFramebuffer(GL_FRAMEBUFFER, this.sunFbo);
 		
-		int shadowTexture=glGenTextures();
+			int shadowTexture=glGenTextures();
 		
-		glActiveTexture(GL13.GL_TEXTURE4); this.sunShadowTexture=GL13.GL_TEXTURE4;
-		glBindTexture(GL_TEXTURE_2D, shadowTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0,GL14.GL_DEPTH_COMPONENT16, 800*20, 600*20, 0,GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (FloatBuffer)null); //|TODO ASFA
+			glActiveTexture(GL13.GL_TEXTURE4); this.sunShadowTexture=GL13.GL_TEXTURE4;
+			glBindTexture(GL_TEXTURE_2D, shadowTexture);
+			glTexImage2D(GL_TEXTURE_2D, 0,GL14.GL_DEPTH_COMPONENT16, SHADOW_XRES, SHADOW_YRES, 0,GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (FloatBuffer)null); //|TODO ASFA
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		//glTexParameteri(GL_TEXTURE_2D, GL14.GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-		GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowTexture, 0);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			//glTexParameteri(GL_TEXTURE_2D, GL14.GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+			GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowTexture, 0);
 		
-		drawBuffers = BufferUtils.createIntBuffer(0);
+			IntBuffer drawBuffers = BufferUtils.createIntBuffer(0);
 
-		GL20.glDrawBuffers(drawBuffers);
+			GL20.glDrawBuffers(drawBuffers);
+		}
 
 		//Reset active
 		glActiveTexture(GL13.GL_TEXTURE0);
@@ -446,8 +459,16 @@ public class MonecruftGame implements Cleanable
 	}
 	public static void main(String args[]) throws LWJGLException, IOException
 	{
-		boolean fullscreen=args.length==0?false:args[0].equals("-fullscreen");
-		new MonecruftGame(fullscreen);
+		boolean fullscreen=false;
+		boolean noshadows=false;
+		for(String s:args){
+			if(s.equals("-fullscreen")) fullscreen=true;
+			else if(s.equals("-noshadows")) noshadows=true;
+		}
+		MonecruftSettings settings=new MonecruftSettings();
+		settings.FULLSCREEN_ENABLED=fullscreen;
+		settings.SHADOWS_ENABLED=!noshadows;
+		new MonecruftGame(settings);
 	}
 	private void closeApp()
 	{

@@ -27,7 +27,7 @@ public class MapGenerator
 	{
 		this.beginBlockHeight=bbegin;this.endBlockHeight=bend;
 		//this.mapNoise=new PerlinNoise(65431245*244233);
-		long seed=(new Random()).nextLong();
+		long seed=(new Random()).nextLong();//1234567890;
 		long seed1=seed>>43;
 		long seed2=seed>>21;
 		long seed3=seed;

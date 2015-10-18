@@ -360,21 +360,82 @@ public class Chunk implements Cleanable
 				if(BlockLibrary.isLiquid(cube))
 				{
 					byte belowCube=getCubeAt(cp.x,cp.y-1,cp.z);
+					
 					if(!BlockLibrary.isDrawable(belowCube)){
 						setCubeAt(cp.x,cp.y-1,cp.z,cube);
+						setCubeAt(cp.x,cp.y,cp.z,(byte)0);
 					}
-					else if(!BlockLibrary.isLiquid(belowCube)){
+					else if(BlockLibrary.isSameBlock(cube, belowCube) && BlockLibrary.getLiquidLevel(belowCube)<BlockLibrary.getLiquidMaxLevel(belowCube)){
+						int liqlev=BlockLibrary.getLiquidLevel(belowCube)+BlockLibrary.getLiquidLevel(cube) + 1;
+						if(liqlev>BlockLibrary.getLiquidMaxLevel(cube)){
+							setCubeAt(cp.x,cp.y-1,cp.z,(byte)(cube+BlockLibrary.getLiquidLevel(cube)-BlockLibrary.getLiquidMaxLevel(cube)));
+							setCubeAt(cp.x,cp.y,cp.z,(byte)(cube+BlockLibrary.getLiquidLevel(cube)-(liqlev-BlockLibrary.getLiquidMaxLevel(cube))));
+						}
+						else{
+							setCubeAt(cp.x,cp.y-1,cp.z,(byte)(cube+BlockLibrary.getLiquidLevel(cube)-liqlev));
+							setCubeAt(cp.x,cp.y,cp.z,(byte)0);
+						}
+					}
+					else{
+						byte baseCube=(byte)(cube+BlockLibrary.getLiquidLevel(cube)-BlockLibrary.getLiquidMaxLevel(cube));
+						int adj=0;
+						int xp=-1;int xm=-1;int zp=-1; int zm=-1;
+						int liquidlevel=BlockLibrary.getLiquidLevel(cube);
+						
 						if(!BlockLibrary.isDrawable(getCubeAt(cp.x+1,cp.y,cp.z))){
-							setCubeAt(cp.x+1,cp.y,cp.z,cube);
+							adj++; xp=0;
 						}
+						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x+1,cp.y,cp.z))){
+							adj++; xp=1; liquidlevel+=BlockLibrary.getLiquidLevel(getCubeAt(cp.x+1,cp.y,cp.z));
+						}
+						
 						if(!BlockLibrary.isDrawable(getCubeAt(cp.x-1,cp.y,cp.z))){
-							setCubeAt(cp.x-1,cp.y,cp.z,cube);
+							adj++;xm=0;
 						}
+						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x-1,cp.y,cp.z))){
+							adj++;xm=1;liquidlevel+=BlockLibrary.getLiquidLevel(getCubeAt(cp.x-1,cp.y,cp.z));
+						}
+						
 						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z+1))){
-							setCubeAt(cp.x,cp.y,cp.z+1,cube);
+							adj++;zp=0;
 						}
+						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z+1))){
+							adj++;zp=1;liquidlevel+=BlockLibrary.getLiquidLevel(getCubeAt(cp.x,cp.y,cp.z+1));
+						}
+						
 						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z-1))){
-							setCubeAt(cp.x,cp.y,cp.z-1,cube);
+							adj++;zm=0;
+						}
+						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z-1))){
+							adj++;zm=1;liquidlevel+=BlockLibrary.getLiquidLevel(getCubeAt(cp.x,cp.y,cp.z-1));
+						}
+						
+						int divlevel=liquidlevel/(adj+1); System.out.println(divlevel);
+						int extra=liquidlevel%(adj+1); System.out.println(extra+"+");
+						if(adj!=0){
+							int specificLiqLevel=divlevel;
+							if(extra>0) {specificLiqLevel++; extra--;}
+							setCubeAt(cp.x,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
+						}
+						if(!BlockLibrary.isDrawable(getCubeAt(cp.x+1,cp.y,cp.z)) || BlockLibrary.isSameBlock(cube, getCubeAt(cp.x+1,cp.y,cp.z))) {
+							int specificLiqLevel=divlevel;
+							if(extra>0) {specificLiqLevel++; extra--;}
+							if(specificLiqLevel>0)setCubeAt(cp.x+1,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
+						}
+						if(!BlockLibrary.isDrawable(getCubeAt(cp.x-1,cp.y,cp.z))|| BlockLibrary.isSameBlock(cube, getCubeAt(cp.x-1,cp.y,cp.z))) {
+							int specificLiqLevel=divlevel;
+							if(extra>0) {specificLiqLevel++; extra--;}
+							if(specificLiqLevel>0)setCubeAt(cp.x-1,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
+						}
+						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z+1))|| BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z+1))) {
+							int specificLiqLevel=divlevel;
+							if(extra>0) {specificLiqLevel++; extra--;}
+							if(specificLiqLevel>0)setCubeAt(cp.x,cp.y,cp.z+1,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
+						}
+						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z-1))|| BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z-1))) {
+							int specificLiqLevel=divlevel;
+							if(extra>0) {specificLiqLevel++; extra--;}
+							if(specificLiqLevel>0)setCubeAt(cp.x,cp.y,cp.z-1,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
 						}
 					}
 				}
@@ -396,10 +457,16 @@ public class Chunk implements Cleanable
 					}
 				}
 				else if(cube==7){ //|TODO please change me
-					for(int x=-5;x<5;x++){
-						for(int y=-5;y<5;y++){
-							for(int z=-5;z<5;z++){
-								setCubeAt(cp.x+x,cp.y+y,cp.z+z,(byte)0);
+					int expPower=20;
+					int expPower2=expPower*expPower;
+					for(int x=-expPower;x<expPower;x++){
+						
+						int posy=(int)Math.sqrt(expPower2 - x*x);
+						for(int y=-posy;y<posy;y++){
+							int posz=(int)Math.sqrt(expPower2 - x*x - y*y);
+							for(int z=-posz;z<posz;z++){
+								if(!(x==0&&y==0&&z==0)&&getCubeAt(cp.x+x,cp.y+y,cp.z+z)==7) setCubeAt(cp.x+x,cp.y+y,cp.z+z,(byte)7);
+								else setCubeAt(cp.x+x,cp.y+y,cp.z+z,(byte)0);
 							}
 						}
 					}

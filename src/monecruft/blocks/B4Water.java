@@ -2,6 +2,10 @@ package monecruft.blocks;
 
 public class B4Water extends LiquidBlock{
 
+	public B4Water(int level) {
+		super(level,8);
+	}
+
 	@Override
 	public byte getUpTex() {
 		return 4;
@@ -19,6 +23,6 @@ public class B4Water extends LiquidBlock{
 
 	@Override
 	public String getCubeName() {
-		return "Water block";
+		return "Water block (Level "+this.heightLiquidLevel+")";
 	}
 }

@@ -7,7 +7,7 @@ public class BlockLibrary
 		new B1Grass(),
 		new B2Dirt(),
 		new B3Stone(),
-		new B4Water(),
+		new B4Water(8),new B4Water(7),new B4Water(6),new B4Water(5),new B4Water(4),new B4Water(3),new B4Water(2),new B4Water(1),
 		new B5LightBlock(),
 		new B6Glass(),
 		new B7TNT()
@@ -62,6 +62,22 @@ public class BlockLibrary
 	{
 		if(blockID<0||blockID>=blockList.length) return defaultBlock.getCubeName();
 		return blockList[blockID].getCubeName();
+	}
+	public static int getLiquidLevel(byte blockID)
+	{
+		if(blockID<0||blockID>=blockList.length) return defaultBlock.getLiquidLevel();
+		return blockList[blockID].getLiquidLevel();
+	}
+	public static int getLiquidMaxLevel(byte blockID)
+	{
+		if(blockID<0||blockID>=blockList.length) return defaultBlock.getLiquidMaxLevel();
+		return blockList[blockID].getLiquidMaxLevel();
+	}
+	public static boolean isSameBlock(byte blockID1,byte blockID2){
+		if(isLiquid(blockID1)&&isLiquid(blockID2)){
+			return getLiquidLevel(blockID1)+blockID1 == getLiquidLevel(blockID2)+blockID2;
+		}
+		else return blockID1==blockID2;
 	}
 	public static int size(){
 		return blockList.length;

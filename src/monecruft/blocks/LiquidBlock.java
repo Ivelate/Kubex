@@ -1,7 +1,15 @@
 package monecruft.blocks;
 
-public abstract class LiquidBlock implements Block{
+public abstract class LiquidBlock extends Block{
 
+	protected int heightLiquidLevel;
+	protected int maxLiquidLevel;
+	
+	public LiquidBlock(int level,int maxlevel)
+	{
+		this.heightLiquidLevel=level;
+		this.maxLiquidLevel=maxlevel;
+	}
 	@Override
 	public boolean isOpaque() {
 		return false;
@@ -34,5 +42,17 @@ public abstract class LiquidBlock implements Block{
 	public boolean canSeeTrough()
 	{
 		return true;
+	}
+	
+	@Override
+	public int getLiquidLevel()
+	{
+		return this.heightLiquidLevel;
+	}
+	
+	@Override
+	public int getLiquidMaxLevel()
+	{
+		return this.maxLiquidLevel;
 	}
 }
