@@ -38,6 +38,8 @@ public class Chunk implements Cleanable
 	private static final Vector4f CENTER_VECTOR=new Vector4f(CHUNK_DIMENSION/2,CHUNK_DIMENSION/2,CHUNK_DIMENSION/2,1.0f);
 	//Numero de argumentos del shader
 	private static final int SAN=6;
+	private static final int NORMALIZE_WATER_EACH=4;
+	
 	private int vbo=-1;
 	private WorldFacade WF;
 	private int triangleNum=0;
@@ -58,6 +60,7 @@ public class Chunk implements Cleanable
 	private boolean liquidEmpty=true;
 	private boolean deleted=false;
 	private Semaphore updateAccessSemaphore=new Semaphore(1);
+	private int liquidCounter=NORMALIZE_WATER_EACH;
 	
 	private int chunkx;
 	private int chunky;
@@ -140,11 +143,22 @@ public class Chunk implements Cleanable
 		FloatBuffer toUploadLiquid=FloatBufferPool.getBuffer();
 		//Get map generator
 		MapHandler mg=WF.getMapHandler();
+		boolean overrideDrawTop=false;
+		boolean overrideDrawBot=false;
 		for(byte z=0;z<CHUNK_DIMENSION;z++)
 		{
 			for(byte x=0;x<CHUNK_DIMENSION;x++)
 			{
-				for(byte y=CHUNK_DIMENSION-1;y>=0;y--)
+				overrideDrawTop=false;
+				overrideDrawBot=false;
+				if(neighbours[Direction.YM.ordinal()]!=null){
+					byte cod=neighbours[Direction.YM.ordinal()].getCubeAt(x, CHUNK_DIMENSION-1, z);
+					if(BlockLibrary.isLiquid(cod)&&(neighbours[Direction.YM.ordinal()].getCubeHeight(x,CHUNK_DIMENSION-1,z,cod)<0.99f
+							||neighbours[Direction.YM.ordinal()].getCubeHeight(x+1,CHUNK_DIMENSION-1,z,cod)<0.99f
+							||neighbours[Direction.YM.ordinal()].getCubeHeight(x,CHUNK_DIMENSION-1,z+1,cod)<0.99f
+							||neighbours[Direction.YM.ordinal()].getCubeHeight(x+1,CHUNK_DIMENSION-1,z+1,cod)<0.99f)) overrideDrawBot=true;
+				}
+				for(byte y=0;y<CHUNK_DIMENSION;y++)
 				{
 					if(BlockLibrary.isDrawable(this.chunkCubes[x][y][z]))
 					{
@@ -157,42 +171,52 @@ public class Chunk implements Cleanable
 							writeTarget=toUpload;
 						}
 						float[] cube=new float[SAN*6];
+						byte cubeC=this.chunkCubes[x][y][z];
+						float heightxmzm=1;float heightxpzm=1;float heightxmzp=1;float heightxpzp=1;
+						if(liquidTag){
+							heightxmzm=getCubeHeight(x,y,z,cubeC);
+							heightxpzm=getCubeHeight(x+1,y,z,cubeC);
+							heightxmzp=getCubeHeight(x,y,z+1,cubeC);
+							heightxpzp=getCubeHeight(x+1,y,z+1,cubeC);
+							
+							if(!(heightxpzp>0.99f&&heightxmzm>0.99f&&heightxpzm>0.99f&&heightxmzp>0.99f)) overrideDrawTop=true;
+						}
 						int c=0;
 						// X axis faces
-						if((x==0&&mg.shouldDraw(neighbours[Direction.XM.ordinal()].getCubeAt(CHUNK_DIMENSION-1, y, z),this.chunkCubes[x][y][z],liquidTag))
-								||(x!=0&&mg.shouldDraw(this.chunkCubes[x-1][y][z],this.chunkCubes[x][y][z],liquidTag))){
+						if((x==0&&mg.shouldDraw(neighbours[Direction.XM.ordinal()].getCubeAt(CHUNK_DIMENSION-1, y, z),this.chunkCubes[x][y][z],liquidTag,Direction.XM))
+								||(x!=0&&mg.shouldDraw(this.chunkCubes[x-1][y][z],this.chunkCubes[x][y][z],liquidTag,Direction.XM))){
 						cube[0+(SAN*0)]=x;		cube[1+(SAN*0)]=y;		cube[2+(SAN*0)]=z;		
 						cube[3+(SAN*0)]=BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*0)]=this.getNaturalBrightnessAverageAt(x, y, z); cube[5+(SAN*0)]=this.getArtificialBrightnessAverageAt(x, y, z);
 						cube[0+(SAN*1)]=x;				cube[1+(SAN*1)]=y;				cube[2+(SAN*1)]=(byte)(z+1);	
 						cube[3+(SAN*1)]=BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*1)]=this.getNaturalBrightnessAverageAt(x, y, z+1); cube[5+(SAN*1)]=this.getArtificialBrightnessAverageAt(x, y, z+1);					
-						cube[0+(SAN*2)]=x;				cube[1+(SAN*2)]=(byte)(y+1);	cube[2+(SAN*2)]=z;
+						cube[0+(SAN*2)]=x;				cube[1+(SAN*2)]=y+heightxmzm;	cube[2+(SAN*2)]=z;
 						cube[3+(SAN*2)]=BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*2)]=this.getNaturalBrightnessAverageAt(x, y+1, z); cube[5+(SAN*2)]=this.getArtificialBrightnessAverageAt(x, y+1, z);				
-						cube[0+(SAN*3)]=x;				cube[1+(SAN*3)]=(byte)(y+1);	cube[2+(SAN*3)]=z;
+						cube[0+(SAN*3)]=x;				cube[1+(SAN*3)]=y+heightxmzm;	cube[2+(SAN*3)]=z;
 						cube[3+(SAN*3)]=BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*3)]=this.getNaturalBrightnessAverageAt(x, y+1, z); cube[5+(SAN*3)]=this.getArtificialBrightnessAverageAt(x, y+1, z);					
 						cube[0+(SAN*4)]=x;				cube[1+(SAN*4)]=y;				cube[2+(SAN*4)]=(byte)(z+1);
 						cube[3+(SAN*4)]=BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*4)]=this.getNaturalBrightnessAverageAt(x, y, z+1); cube[5+(SAN*4)]=this.getArtificialBrightnessAverageAt(x, y, z+1);					
-						cube[0+(SAN*5)]=x;				cube[1+(SAN*5)]=(byte)(y+1);	cube[2+(SAN*5)]=(byte)(z+1);
+						cube[0+(SAN*5)]=x;				cube[1+(SAN*5)]=y+heightxmzp;	cube[2+(SAN*5)]=(byte)(z+1);
 						cube[3+(SAN*5)]=BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*5)]=this.getNaturalBrightnessAverageAt(x, y+1, z+1); cube[5+(SAN*5)]=this.getArtificialBrightnessAverageAt(x, y+1, z+1);				
 						writeTarget.put(cube);c+=SAN*6;}
-						if((x==CHUNK_DIMENSION-1&&mg.shouldDraw(neighbours[Direction.XP.ordinal()].getCubeAt(0, y, z),this.chunkCubes[x][y][z],liquidTag))
-							||(x!=CHUNK_DIMENSION-1&&mg.shouldDraw(this.chunkCubes[x+1][y][z],this.chunkCubes[x][y][z],liquidTag))){
+						if((x==CHUNK_DIMENSION-1&&mg.shouldDraw(neighbours[Direction.XP.ordinal()].getCubeAt(0, y, z),this.chunkCubes[x][y][z],liquidTag,Direction.XP))
+							||(x!=CHUNK_DIMENSION-1&&mg.shouldDraw(this.chunkCubes[x+1][y][z],this.chunkCubes[x][y][z],liquidTag,Direction.XP))){
 						cube[0+(SAN*0)]=(byte)(x+1);	cube[1+(SAN*0)]=y;				cube[2+(SAN*0)]=z;
 						cube[3+(SAN*0)]=1000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*0)]=this.getNaturalBrightnessAverageAt(x+1, y, z); cube[5+(SAN*0)]=this.getArtificialBrightnessAverageAt(x+1, y, z);
-						cube[0+(SAN*1)]=(byte)(x+1);	cube[1+(SAN*1)]=(byte)(y+1);	cube[2+(SAN*1)]=z;
+						cube[0+(SAN*1)]=(byte)(x+1);	cube[1+(SAN*1)]=y+heightxpzm;	cube[2+(SAN*1)]=z;
 						cube[3+(SAN*1)]=1000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*1)]=this.getNaturalBrightnessAverageAt(x+1, y+1, z); cube[5+(SAN*1)]=this.getArtificialBrightnessAverageAt(x+1, y+1, z);
 						cube[0+(SAN*2)]=(byte)(x+1);	cube[1+(SAN*2)]=y;				cube[2+(SAN*2)]=(byte)(z+1);
 						cube[3+(SAN*2)]=1000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*2)]=this.getNaturalBrightnessAverageAt(x+1, y, z+1); cube[5+(SAN*2)]=this.getArtificialBrightnessAverageAt(x+1, y, z+1);
 						cube[0+(SAN*3)]=(byte)(x+1);	cube[1+(SAN*3)]=y;				cube[2+(SAN*3)]=(byte)(z+1);
 						cube[3+(SAN*3)]=1000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*3)]=this.getNaturalBrightnessAverageAt(x+1, y, z+1); cube[5+(SAN*3)]=this.getArtificialBrightnessAverageAt(x+1, y, z+1);
-						cube[0+(SAN*4)]=(byte)(x+1);	cube[1+(SAN*4)]=(byte)(y+1);	cube[2+(SAN*4)]=z;	
+						cube[0+(SAN*4)]=(byte)(x+1);	cube[1+(SAN*4)]=y+heightxpzm;	cube[2+(SAN*4)]=z;	
 						cube[3+(SAN*4)]=1000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*4)]=this.getNaturalBrightnessAverageAt(x+1, y+1, z); cube[5+(SAN*4)]=this.getArtificialBrightnessAverageAt(x+1, y+1, z);
-						cube[0+(SAN*5)]=(byte)(x+1);	cube[1+(SAN*5)]=(byte)(y+1);	cube[2+(SAN*5)]=(byte)(z+1);
+						cube[0+(SAN*5)]=(byte)(x+1);	cube[1+(SAN*5)]=y+heightxpzp;	cube[2+(SAN*5)]=(byte)(z+1);
 						cube[3+(SAN*5)]=1000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*5)]=this.getNaturalBrightnessAverageAt(x+1, y+1, z+1); cube[5+(SAN*5)]=this.getArtificialBrightnessAverageAt(x+1, y+1, z+1);
 						writeTarget.put(cube);c+=SAN*6;}
 						
 						// Y axis faces
-						if((y==0&&this.getY()!=0&&mg.shouldDraw(neighbours[Direction.YM.ordinal()].getCubeAt(x, CHUNK_DIMENSION-1, z),this.chunkCubes[x][y][z],liquidTag))
-								||(y!=0&&mg.shouldDraw(this.chunkCubes[x][y-1][z],this.chunkCubes[x][y][z],liquidTag))){
+						if((y==0&&this.getY()!=0&&(mg.shouldDraw(neighbours[Direction.YM.ordinal()].getCubeAt(x, CHUNK_DIMENSION-1, z),this.chunkCubes[x][y][z],liquidTag,Direction.YM)||overrideDrawBot))
+								||(y!=0&&(mg.shouldDraw(this.chunkCubes[x][y-1][z],this.chunkCubes[x][y][z],liquidTag,Direction.YM)||overrideDrawBot))){
 						cube[0+(SAN*0)]=x;				cube[1+(SAN*0)]=y;				cube[2+(SAN*0)]=z;
 						cube[3+(SAN*0)]=2000+BlockLibrary.getDownTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*0)]=this.getNaturalBrightnessAverageAt(x, y, z); cube[5+(SAN*0)]=this.getArtificialBrightnessAverageAt(x, y, z);
 						cube[0+(SAN*1)]=(byte)(x+1);	cube[1+(SAN*1)]=y;				cube[2+(SAN*1)]=z;
@@ -206,54 +230,58 @@ public class Chunk implements Cleanable
 						cube[0+(SAN*5)]=(byte)(x+1);	cube[1+(SAN*5)]=y;				cube[2+(SAN*5)]=(byte)(z+1);
 						cube[3+(SAN*5)]=2000+BlockLibrary.getDownTex(this.chunkCubes[x][y][z]); cube[4+(SAN*5)]=this.getNaturalBrightnessAverageAt(x+1, y, z+1); cube[5+(SAN*5)]=this.getArtificialBrightnessAverageAt(x+1, y, z+1);
 						writeTarget.put(cube);c+=SAN*6;}
-						if((y==CHUNK_DIMENSION-1&&(this.getY()==World.HEIGHT-1||mg.shouldDraw(neighbours[Direction.YP.ordinal()].getCubeAt(x, 0, z),this.chunkCubes[x][y][z],liquidTag)))
-								||(y!=CHUNK_DIMENSION-1&&mg.shouldDraw(this.chunkCubes[x][y+1][z],this.chunkCubes[x][y][z],liquidTag))){
-						cube[0+(SAN*0)]=x;				cube[1+(SAN*0)]=(byte)(y+1);	cube[2+(SAN*0)]=z;
+						if((y==CHUNK_DIMENSION-1&&(overrideDrawTop||this.getY()==World.HEIGHT-1||mg.shouldDraw(neighbours[Direction.YP.ordinal()].getCubeAt(x, 0, z),this.chunkCubes[x][y][z],liquidTag,Direction.YP)))
+								||(y!=CHUNK_DIMENSION-1&&(overrideDrawTop||mg.shouldDraw(this.chunkCubes[x][y+1][z],this.chunkCubes[x][y][z],liquidTag,Direction.YP)))){
+						cube[0+(SAN*0)]=x;				cube[1+(SAN*0)]=y+heightxmzm;	cube[2+(SAN*0)]=z;
 						cube[3+(SAN*0)]=3000+BlockLibrary.getUpTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*0)]=this.getNaturalBrightnessAverageAt(x, y+1, z); cube[5+(SAN*0)]=this.getArtificialBrightnessAverageAt(x, y+1, z);
-						cube[0+(SAN*1)]=x;				cube[1+(SAN*1)]=(byte)(y+1);	cube[2+(SAN*1)]=(byte)(z+1);
+						cube[0+(SAN*1)]=x;				cube[1+(SAN*1)]=y+heightxmzp;	cube[2+(SAN*1)]=(byte)(z+1);
 						cube[3+(SAN*1)]=3000+BlockLibrary.getUpTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*1)]=this.getNaturalBrightnessAverageAt(x, y+1, z+1); cube[5+(SAN*1)]=this.getArtificialBrightnessAverageAt(x, y+1, z+1);
-						cube[0+(SAN*2)]=(byte)(x+1);	cube[1+(SAN*2)]=(byte)(y+1);	cube[2+(SAN*2)]=z;
+						cube[0+(SAN*2)]=(byte)(x+1);	cube[1+(SAN*2)]=y+heightxpzm;	cube[2+(SAN*2)]=z;
 						cube[3+(SAN*2)]=3000+BlockLibrary.getUpTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*2)]=this.getNaturalBrightnessAverageAt(x+1, y+1, z); cube[5+(SAN*2)]=this.getArtificialBrightnessAverageAt(x+1, y+1, z);
-						cube[0+(SAN*3)]=(byte)(x+1);	cube[1+(SAN*3)]=(byte)(y+1);	cube[2+(SAN*3)]=z;
+						cube[0+(SAN*3)]=(byte)(x+1);	cube[1+(SAN*3)]=y+heightxpzm;	cube[2+(SAN*3)]=z;
 						cube[3+(SAN*3)]=3000+BlockLibrary.getUpTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*3)]=this.getNaturalBrightnessAverageAt(x+1, y+1, z); cube[5+(SAN*3)]=this.getArtificialBrightnessAverageAt(x+1, y+1, z);
-						cube[0+(SAN*4)]=x;				cube[1+(SAN*4)]=(byte)(y+1);	cube[2+(SAN*4)]=(byte)(z+1);
+						cube[0+(SAN*4)]=x;				cube[1+(SAN*4)]=y+heightxmzp;	cube[2+(SAN*4)]=(byte)(z+1);
 						cube[3+(SAN*4)]=3000+BlockLibrary.getUpTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*4)]=this.getNaturalBrightnessAverageAt(x, y+1, z+1); cube[5+(SAN*4)]=this.getArtificialBrightnessAverageAt(x, y+1, z+1);
-						cube[0+(SAN*5)]=(byte)(x+1);	cube[1+(SAN*5)]=(byte)(y+1);	cube[2+(SAN*5)]=(byte)(z+1);
+						cube[0+(SAN*5)]=(byte)(x+1);	cube[1+(SAN*5)]=y+heightxpzp;	cube[2+(SAN*5)]=(byte)(z+1);
 						cube[3+(SAN*5)]=3000+BlockLibrary.getUpTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*5)]=this.getNaturalBrightnessAverageAt(x+1, y+1, z+1); cube[5+(SAN*5)]=this.getArtificialBrightnessAverageAt(x+1, y+1, z+1);
 						writeTarget.put(cube);c+=SAN*6;}
 						
 						// Z axis faces
-						if((z==0&&mg.shouldDraw(neighbours[Direction.ZM.ordinal()].getCubeAt(x, y, CHUNK_DIMENSION-1),this.chunkCubes[x][y][z],liquidTag))
-								||(z!=0&&mg.shouldDraw(this.chunkCubes[x][y][z-1],this.chunkCubes[x][y][z],liquidTag))){
+						if((z==0&&mg.shouldDraw(neighbours[Direction.ZM.ordinal()].getCubeAt(x, y, CHUNK_DIMENSION-1),this.chunkCubes[x][y][z],liquidTag,Direction.ZM))
+								||(z!=0&&mg.shouldDraw(this.chunkCubes[x][y][z-1],this.chunkCubes[x][y][z],liquidTag,Direction.ZM))){
 						cube[0+(SAN*0)]=x;				cube[1+(SAN*0)]=y;				cube[2+(SAN*0)]=z;
 						cube[3+(SAN*0)]=4000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*0)]=this.getNaturalBrightnessAverageAt(x, y, z); cube[5+(SAN*0)]=this.getArtificialBrightnessAverageAt(x, y, z);
-						cube[0+(SAN*1)]=x;				cube[1+(SAN*1)]=(byte)(y+1);	cube[2+(SAN*1)]=z;
+						cube[0+(SAN*1)]=x;				cube[1+(SAN*1)]=y+heightxmzm;	cube[2+(SAN*1)]=z;
 						cube[3+(SAN*1)]=4000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*1)]=this.getNaturalBrightnessAverageAt(x, y+1, z); cube[5+(SAN*1)]=this.getArtificialBrightnessAverageAt(x, y+1, z);
 						cube[0+(SAN*2)]=(byte)(x+1);	cube[1+(SAN*2)]=y;				cube[2+(SAN*2)]=z;
 						cube[3+(SAN*2)]=4000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*2)]=this.getNaturalBrightnessAverageAt(x+1, y, z); cube[5+(SAN*2)]=this.getArtificialBrightnessAverageAt(x+1, y, z);
 						cube[0+(SAN*3)]=(byte)(x+1);	cube[1+(SAN*3)]=y;				cube[2+(SAN*3)]=z;
 						cube[3+(SAN*3)]=4000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*3)]=this.getNaturalBrightnessAverageAt(x+1, y, z); cube[5+(SAN*3)]=this.getArtificialBrightnessAverageAt(x+1, y, z);
-						cube[0+(SAN*4)]=x;				cube[1+(SAN*4)]=(byte)(y+1);	cube[2+(SAN*4)]=z;
+						cube[0+(SAN*4)]=x;				cube[1+(SAN*4)]=y+heightxmzm;	cube[2+(SAN*4)]=z;
 						cube[3+(SAN*4)]=4000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*4)]=this.getNaturalBrightnessAverageAt(x, y+1, z); cube[5+(SAN*4)]=this.getArtificialBrightnessAverageAt(x, y+1, z);
-						cube[0+(SAN*5)]=(byte)(x+1);	cube[1+(SAN*5)]=(byte)(y+1);	cube[2+(SAN*5)]=z;
+						cube[0+(SAN*5)]=(byte)(x+1);	cube[1+(SAN*5)]=y+heightxpzm;	cube[2+(SAN*5)]=z;
 						cube[3+(SAN*5)]=4000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*5)]=this.getNaturalBrightnessAverageAt(x+1, y+1, z); cube[5+(SAN*5)]=this.getArtificialBrightnessAverageAt(x+1, y+1, z);
 						writeTarget.put(cube);c+=SAN*6;}
-						if((z==CHUNK_DIMENSION-1&&mg.shouldDraw(neighbours[Direction.ZP.ordinal()].getCubeAt(x, y, 0),this.chunkCubes[x][y][z],liquidTag))
-								||(z!=CHUNK_DIMENSION-1&&mg.shouldDraw(this.chunkCubes[x][y][z+1],this.chunkCubes[x][y][z],liquidTag))){
+						if((z==CHUNK_DIMENSION-1&&mg.shouldDraw(neighbours[Direction.ZP.ordinal()].getCubeAt(x, y, 0),this.chunkCubes[x][y][z],liquidTag,Direction.ZP))
+								||(z!=CHUNK_DIMENSION-1&&mg.shouldDraw(this.chunkCubes[x][y][z+1],this.chunkCubes[x][y][z],liquidTag,Direction.ZP))){
 						cube[0+(SAN*0)]=x;				cube[1+(SAN*0)]=y;				cube[2+(SAN*0)]=(byte)(z+1);
 						cube[3+(SAN*0)]=5000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*0)]=this.getNaturalBrightnessAverageAt(x, y, z+1); cube[5+(SAN*0)]=this.getArtificialBrightnessAverageAt(x, y, z+1);
 						cube[0+(SAN*1)]=(byte)(x+1);	cube[1+(SAN*1)]=y;				cube[2+(SAN*1)]=(byte)(z+1);
 						cube[3+(SAN*1)]=5000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*1)]=this.getNaturalBrightnessAverageAt(x+1, y, z+1); cube[5+(SAN*1)]=this.getArtificialBrightnessAverageAt(x+1, y, z+1);
-						cube[0+(SAN*2)]=x;				cube[1+(SAN*2)]=(byte)(y+1);	cube[2+(SAN*2)]=(byte)(z+1);
+						cube[0+(SAN*2)]=x;				cube[1+(SAN*2)]=y+heightxmzp;	cube[2+(SAN*2)]=(byte)(z+1);
 						cube[3+(SAN*2)]=5000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*2)]=this.getNaturalBrightnessAverageAt(x, y+1, z+1); cube[5+(SAN*2)]=this.getArtificialBrightnessAverageAt(x, y+1, z+1);
-						cube[0+(SAN*3)]=x;				cube[1+(SAN*3)]=(byte)(y+1);	cube[2+(SAN*3)]=(byte)(z+1);
+						cube[0+(SAN*3)]=x;				cube[1+(SAN*3)]=y+heightxmzp;	cube[2+(SAN*3)]=(byte)(z+1);
 						cube[3+(SAN*3)]=5000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*3)]=this.getNaturalBrightnessAverageAt(x, y+1, z+1); cube[5+(SAN*3)]=this.getArtificialBrightnessAverageAt(x, y+1, z+1);
 						cube[0+(SAN*4)]=(byte)(x+1);	cube[1+(SAN*4)]=y;				cube[2+(SAN*4)]=(byte)(z+1);
 						cube[3+(SAN*4)]=5000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*4)]=this.getNaturalBrightnessAverageAt(x+1, y, z+1); cube[5+(SAN*4)]=this.getArtificialBrightnessAverageAt(x+1, y, z+1);
-						cube[0+(SAN*5)]=(byte)(x+1);	cube[1+(SAN*5)]=(byte)(y+1);	cube[2+(SAN*5)]=(byte)(z+1);
+						cube[0+(SAN*5)]=(byte)(x+1);	cube[1+(SAN*5)]=y+heightxpzp;	cube[2+(SAN*5)]=(byte)(z+1);
 						cube[3+(SAN*5)]=5000+BlockLibrary.getLatTex(this.chunkCubes[x][y][z]); 	cube[4+(SAN*5)]=this.getNaturalBrightnessAverageAt(x+1, y+1, z+1); cube[5+(SAN*5)]=this.getArtificialBrightnessAverageAt(x+1, y+1, z+1);
 						writeTarget.put(cube);c+=SAN*6;} 
 						
+						if(overrideDrawTop) overrideDrawBot=true;
+						else overrideDrawBot=false;
+						
+						overrideDrawTop=false;
 						if(liquidTag)
 							liquidCont+=c;
 						else
@@ -410,32 +438,91 @@ public class Chunk implements Cleanable
 							adj++;zm=1;liquidlevel+=BlockLibrary.getLiquidLevel(getCubeAt(cp.x,cp.y,cp.z-1));
 						}
 						
-						int divlevel=liquidlevel/(adj+1); System.out.println(divlevel);
-						int extra=liquidlevel%(adj+1); System.out.println(extra+"+");
-						if(adj!=0){
-							int specificLiqLevel=divlevel;
-							if(extra>0) {specificLiqLevel++; extra--;}
-							setCubeAt(cp.x,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
+						int divlevel=liquidlevel/(adj+1); 
+						int extra=liquidlevel%(adj+1); 
+						boolean del=false;
+						
+						if(xp==0 ){
+							if(extra==0&&divlevel>0) {divlevel--;extra=adj;}
+							if(extra>0){
+								extra--;
+								setCubeAt(cp.x+1,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube))));
+								xp=1;
+							}
+							else del=true;
 						}
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x+1,cp.y,cp.z)) || BlockLibrary.isSameBlock(cube, getCubeAt(cp.x+1,cp.y,cp.z))) {
-							int specificLiqLevel=divlevel;
-							if(extra>0) {specificLiqLevel++; extra--;}
-							if(specificLiqLevel>0)setCubeAt(cp.x+1,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
+						if(xm==0 ){ 
+							if(extra==0&&divlevel>0) {divlevel--;extra=adj;}
+							if(extra>0){
+								extra--;
+								setCubeAt(cp.x-1,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube))));
+								xm=1;
+							}
+							else del=true;
 						}
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x-1,cp.y,cp.z))|| BlockLibrary.isSameBlock(cube, getCubeAt(cp.x-1,cp.y,cp.z))) {
-							int specificLiqLevel=divlevel;
-							if(extra>0) {specificLiqLevel++; extra--;}
-							if(specificLiqLevel>0)setCubeAt(cp.x-1,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
+						if(zp==0 ){ 
+							if(extra==0&&divlevel>0) {divlevel--;extra=adj;}
+							if(extra>0){
+								extra--;
+								setCubeAt(cp.x,cp.y,cp.z+1,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube))));
+								zp=1;
+							}
+							else del=true;
 						}
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z+1))|| BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z+1))) {
-							int specificLiqLevel=divlevel;
-							if(extra>0) {specificLiqLevel++; extra--;}
-							if(specificLiqLevel>0)setCubeAt(cp.x,cp.y,cp.z+1,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
+						if(zm==0 ){ 
+							if(extra==0&&divlevel>0) {divlevel--;extra=adj;}
+							if(extra>0){
+								extra--;
+								setCubeAt(cp.x,cp.y,cp.z-1,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube))));
+								zm=1;
+							}
+							else del=true;
 						}
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z-1))|| BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z-1))) {
+						
+						if(extra==1||extra==adj){
+							this.liquidCounter--;
+							if(liquidCounter<=0){
+								liquidCounter=NORMALIZE_WATER_EACH;
+								if(extra==1) extra=0; //|TODO MEECCC
+								else if(extra==adj){extra=0; divlevel++;}
+							}
+						}
+						/*if(del) setCubeAt(cp.x,cp.y,cp.z,(byte)0);
+						else*/ if(adj!=0){
 							int specificLiqLevel=divlevel;
 							if(extra>0) {specificLiqLevel++; extra--;}
-							if(specificLiqLevel>0)setCubeAt(cp.x,cp.y,cp.z-1,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel)));
+							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel));
+							if(getCubeAt(cp.x,cp.y,cp.z)!=cubeCode) setCubeAt(cp.x,cp.y,cp.z,cubeCode);
+							
+							if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y+1,cp.z))&&BlockLibrary.getLiquidLevel(cubeCode)<BlockLibrary.getLiquidMaxLevel(cubeCode)) this.markCubeToUpdate(cp.x, cp.y+1, cp.z);
+						}
+						if(xp>=0){
+							int specificLiqLevel=divlevel+xp;
+							if(extra>0) {specificLiqLevel++; extra--;}
+							if(specificLiqLevel>0){
+							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)+1-specificLiqLevel));
+							if(getCubeAt(cp.x+1,cp.y,cp.z)!=cubeCode) setCubeAt(cp.x+1,cp.y,cp.z,cubeCode);}
+						}
+						if(xm>=0){
+							int specificLiqLevel=divlevel+xm;
+							if(extra>0) {specificLiqLevel++; extra--;}
+							if(specificLiqLevel>0){
+							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)+1-specificLiqLevel));
+							if(getCubeAt(cp.x-1,cp.y,cp.z)!=cubeCode) setCubeAt(cp.x-1,cp.y,cp.z,cubeCode);}
+						}
+						if(zp>=0){
+							int specificLiqLevel=divlevel+zp;
+							if(extra>0) {specificLiqLevel++; extra--;}
+							if(specificLiqLevel>0){
+							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)+1-specificLiqLevel));
+							if(getCubeAt(cp.x,cp.y,cp.z+1)!=cubeCode) setCubeAt(cp.x,cp.y,cp.z+1,cubeCode);}
+						}
+						if(zm>=0){
+							int specificLiqLevel=divlevel+zm;
+							if(extra>0) {specificLiqLevel++; extra--;}
+							if(specificLiqLevel>0){
+							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)+1-specificLiqLevel));
+							if(getCubeAt(cp.x,cp.y,cp.z-1)!=cubeCode) setCubeAt(cp.x,cp.y,cp.z-1,cubeCode);}
 						}
 					}
 				}
@@ -456,7 +543,7 @@ public class Chunk implements Cleanable
 						markCubeToUpdate(cp.x,cp.y,cp.z-1);
 					}
 				}
-				else if(cube==7){ //|TODO please change me
+				else if(cube==14){ //|TODO please change me
 					int expPower=20;
 					int expPower2=expPower*expPower;
 					for(int x=-expPower;x<expPower;x++){
@@ -467,6 +554,22 @@ public class Chunk implements Cleanable
 							for(int z=-posz;z<posz;z++){
 								if(!(x==0&&y==0&&z==0)&&getCubeAt(cp.x+x,cp.y+y,cp.z+z)==7) setCubeAt(cp.x+x,cp.y+y,cp.z+z,(byte)7);
 								else setCubeAt(cp.x+x,cp.y+y,cp.z+z,(byte)0);
+							}
+						}
+					}
+				}
+				else if(cube==15){ //|TODO please change me
+					setCubeAt(cp.x,cp.y,cp.z,(byte)0);
+					
+					int cloudvol=3;
+					int cloudheight=40;
+					for(int x=-cloudvol;x<cloudvol;x++)
+					{
+						for(int y=-cloudvol;y<cloudvol;y++)
+						{
+							for(int z=-cloudvol;z<cloudvol;z++)
+							{
+								setCubeAt(cp.x+x,cp.y+cloudheight+y,cp.z+z,(byte)4);
 							}
 						}
 					}
@@ -511,7 +614,7 @@ public class Chunk implements Cleanable
 			while(i.hasNext())
 			{
 				CubePosition cp=i.next();
-				if(cp.x==x&&cp.y==y&&cp.z==z) i.remove();
+				if(cp.x==x&&cp.y==y&&cp.z==z) return;//i.remove();
 			}
 			if(this.updateCubes.size()==0) this.WF.insertChunkInUpdateList(this);
 			this.updateCubes.add(new CubePosition(x,y,z));
@@ -527,6 +630,35 @@ public class Chunk implements Cleanable
 			Chunk c=this.WF.getChunkByIndex(cx, cy, cz);
 			if(c!=null) c.markCubeToUpdate(x, y, z);
 		}
+	}
+	public float getCubeHeight(int x,int y,int z,byte cube)
+	{
+		if(!BlockLibrary.isLiquid(cube)) return 1f;
+		
+		float neigh=0;
+		float accumHeight=0;
+		byte cubeNeigh=this.getCubeAt(x, y, z);
+		if(BlockLibrary.isSameBlock(cube, cubeNeigh)){
+			neigh++;
+			accumHeight+=BlockLibrary.getLiquidLevel(cubeNeigh);
+		}
+		cubeNeigh=this.getCubeAt(x-1, y, z);
+		if(BlockLibrary.isSameBlock(cube, cubeNeigh)){
+			neigh++;
+			accumHeight+=BlockLibrary.getLiquidLevel(cubeNeigh);
+		}
+		cubeNeigh=this.getCubeAt(x, y, z-1);
+		if(BlockLibrary.isSameBlock(cube, cubeNeigh)){
+			neigh++;
+			accumHeight+=BlockLibrary.getLiquidLevel(cubeNeigh);
+		}
+		cubeNeigh=this.getCubeAt(x-1, y, z-1);
+		if(BlockLibrary.isSameBlock(cube, cubeNeigh)){
+			neigh++;
+			accumHeight+=BlockLibrary.getLiquidLevel(cubeNeigh);
+		}
+		
+		return (accumHeight+(neigh/3))/(neigh*(BlockLibrary.getLiquidMaxLevel(cube)+0.33f));
 	}
 	public void setCubeAt(int x,int y,int z,byte val)
 	{

@@ -7,10 +7,11 @@ public class BlockLibrary
 		new B1Grass(),
 		new B2Dirt(),
 		new B3Stone(),
-		new B4Water(8),new B4Water(7),new B4Water(6),new B4Water(5),new B4Water(4),new B4Water(3),new B4Water(2),new B4Water(1),
+		new B4Water(7),new B4Water(6),new B4Water(5),new B4Water(4),new B4Water(3),new B4Water(2),new B4Water(1),new B4Water(0),
 		new B5LightBlock(),
 		new B6Glass(),
-		new B7TNT()
+		new B7TNT(),
+		new B8RainMaker()
 	};
 	private static Block defaultBlock=new B0Air();
 	

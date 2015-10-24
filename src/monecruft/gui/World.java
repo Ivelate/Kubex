@@ -226,7 +226,7 @@ public class World implements DrawableUpdatable, Cleanable
 		this.EM.update(tEl);
 		this.currentTime+=(tEl);
 		if(this.currentTime>24) this.currentTime=0;
-		this.sky.setWorldCenter(this.EM.getPlayer().getX(), World.HEIGHT*Chunk.CHUNK_DIMENSION, this.EM.getPlayer().getZ());
+		this.sky.setWorldCenter(this.EM.getPlayer().getX(), /*World.HEIGHT*Chunk.CHUNK_DIMENSION*/this.EM.getPlayer().getY(), this.EM.getPlayer().getZ());
 		
 		this.chunkUpdateTickCont+=tEl;
 		

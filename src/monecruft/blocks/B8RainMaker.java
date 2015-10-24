@@ -1,28 +1,24 @@
 package monecruft.blocks;
 
-public class B4Water extends LiquidBlock{
-
-	public B4Water(int level) {
-		super(level,7);
-	}
+public class B8RainMaker extends OpaqueSolidBlock{
 
 	@Override
 	public byte getUpTex() {
-		return 4;
+		return 8;
 	}
 
 	@Override
 	public byte getLatTex() {
-		return 4;
+		return 8;
 	}
 
 	@Override
 	public byte getDownTex() {
-		return 4;
+		return 8;
 	}
 
 	@Override
 	public String getCubeName() {
-		return "Water block (Level "+this.heightLiquidLevel+")";
+		return "Debug - Rain Maker";
 	}
 }

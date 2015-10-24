@@ -1,6 +1,7 @@
 package monecruft.gui;
 
 import monecruft.blocks.BlockLibrary;
+import monecruft.gui.Chunk.Direction;
 
 public class MapHandler 
 {
@@ -109,9 +110,23 @@ public class MapHandler
 		}
 		return bounds;
 	}
-	public boolean shouldDraw(byte blockCode,byte neighbourBlockCode,boolean liquidTag){
+	public boolean shouldDraw(byte blockCode,byte neighbourBlockCode,boolean liquidTag,Direction d){
 		if(liquidTag)
-			return !(BlockLibrary.isLiquid(blockCode)||BlockLibrary.isSolid(blockCode));	
+			if(BlockLibrary.isLiquid(blockCode)||BlockLibrary.isSolid(blockCode)){
+				/*if(BlockLibrary.isSameBlock(blockCode, neighbourBlockCode)){
+					int maxh=BlockLibrary.getLiquidMaxLevel(blockCode);
+					if(d==Direction.YP){
+						if(BlockLibrary.getLiquidLevel(neighbourBlockCode)<maxh) return true;
+						else return false;
+					}
+					else if(d==Direction.YM){
+						if(BlockLibrary.getLiquidLevel(blockCode)<maxh) return true;
+						else return false;
+					}
+				}*/
+				return false;
+			}
+			else return true;
 		else
 			return (BlockLibrary.canSeeTrough(blockCode)) && !(blockCode==neighbourBlockCode&&BlockLibrary.isPartnerGrouped(blockCode));
 	}
