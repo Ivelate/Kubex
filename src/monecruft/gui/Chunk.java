@@ -1472,12 +1472,15 @@ public class Chunk implements Cleanable
 	@Override
 	public void fullClean()
 	{
-		this.deleted=true;
-		if(this.toUpload!=null){ FloatBufferPool.recycleBuffer(this.toUpload); this.toUpload=null;}
-		if(this.toUploadLiquid!=null) {FloatBufferPool.recycleBuffer(this.toUploadLiquid); this.toUploadLiquid=null;}
-		ByteArrayPool.recycleArray(this.chunkCubes);
-		ByteArrayPool.recycleArray(this.chunkCubesLight);
-		if(this.vbo!=-1) glDeleteBuffers(this.vbo);
+		if(!this.deleted){
+			this.deleted=true;
+			if(this.toUpload!=null){ FloatBufferPool.recycleBuffer(this.toUpload); this.toUpload=null;}
+			if(this.toUploadLiquid!=null) {FloatBufferPool.recycleBuffer(this.toUploadLiquid); this.toUploadLiquid=null;}
+			ByteArrayPool.recycleArray(this.chunkCubes);
+			ByteArrayPool.recycleArray(this.chunkCubesLight);
+			this.updateCubes.clear();
+			if(this.vbo!=-1) glDeleteBuffers(this.vbo);
+		}
 	}
 	public int getX()
 	{
