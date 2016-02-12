@@ -27,6 +27,7 @@ import ivengine.view.MatrixHelper;
 import monecruft.shaders.BasicColorShaderProgram;
 import monecruft.shaders.SkyShaderProgram;
 import monecruft.storage.FloatBufferPool;
+import monecruft.utils.SquareCorners;
 
 public class Sky 
 {
@@ -49,9 +50,6 @@ public class Sky
 	private SkyShaderProgram SSP;
 	private BasicColorShaderProgram BCSP;
 	private int vbo;
-	private float xcenter;
-	private float zcenter;
-	private float ycenter;
 	
 	private Camera cam;
 	private Camera sunCamera;
@@ -131,15 +129,9 @@ public class Sky
 		{
 			this.currentTime=currentTime;
 		}
-		public void setWorldCenter(float xpos,float ypos,float zpos){
-			this.xcenter=xpos;
-			this.ycenter=ypos;
-			this.zcenter=zpos;
-			this.sunCamera.moveTo(xcenter, ycenter, zcenter);
-		}
 		public void update(float tEl)
 		{
-			this.currentTime+=(tEl/10);
+			this.currentTime+=(tEl/10000);
 			if(this.currentTime>24) this.currentTime=0;
 			this.sunCamera.setPitch((float)this.solarAltitude);
 			this.sunCamera.setYaw(-(float)(this.solarAzimuth));

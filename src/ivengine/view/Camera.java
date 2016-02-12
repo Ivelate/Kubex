@@ -1,5 +1,7 @@
 package ivengine.view;
 
+import java.util.LinkedList;
+
 import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 
@@ -25,6 +27,8 @@ public class Camera
 	protected float roll=0;
 	
 	protected boolean viewChanged=true;
+	
+	private LinkedList<CameraStateListener> stateChangeListeners=new LinkedList<CameraStateListener>();
 	
 	
 	public Camera(float znear,float zfar,float fov,float arat)
@@ -74,6 +78,8 @@ public class Camera
 	public void updateProjection(Matrix4f mat)
 	{
 		this.projMat=mat;
+		//Notify listeners
+		for(CameraStateListener csl:this.stateChangeListeners) csl.onProjectionMatrixChange(this);
 		//Update projView
 		this.projViewMat=new Matrix4f();
 		Matrix4f.mul(this.projMat, this.viewMat, this.projViewMat);
@@ -143,6 +149,9 @@ public class Camera
 		}
 	}
 	
+	public void addCameraStateListener(CameraStateListener csl){
+		this.stateChangeListeners.add(csl);
+	}
 	/*					GETTERS					*/
 	
 	public float getPitch() {

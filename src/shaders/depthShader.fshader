@@ -5,6 +5,7 @@ uniform float alpha;
 uniform float daylightAmount;
 
 in vec3 Location;
+in vec3 ModelLocation;
 in vec2 Properties;
 in vec2 Brightness;
 

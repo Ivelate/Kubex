@@ -50,6 +50,7 @@ import java.nio.IntBuffer;
 import monecruft.gui.Chunk;
 import monecruft.gui.GlobalTextManager;
 import monecruft.gui.Hud;
+import monecruft.gui.ShadowsManager;
 import monecruft.gui.Sky;
 import monecruft.gui.World;
 import monecruft.shaders.BasicColorShaderProgram;
@@ -72,6 +73,7 @@ import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GL15;
@@ -97,8 +99,13 @@ public class MonecruftGame implements Cleanable
 	
 	private int X_RES=800;
 	private int Y_RES=600;
-	private int SHADOW_XRES=800*20;
-	private int SHADOW_YRES=600*20;
+	private int SHADOW_XRES=2048;
+	private int SHADOW_YRES=2048;
+	
+	private final float CAMERA_NEAR=0.02f;
+	private final float CAMERA_FAR=(float)Math.sqrt(World.HEIGHT*World.HEIGHT + World.PLAYER_VIEW_FIELD*World.PLAYER_VIEW_FIELD)*Chunk.CHUNK_DIMENSION;
+	
+	private final float[] SHADOW_SPLITS;
 	
 	private VoxelShaderProgram VSP;
 	private UnderwaterVoxelShaderProgram UVSP;
@@ -114,6 +121,7 @@ public class MonecruftGame implements Cleanable
 	private Hud hud;
 	private Sky sky;
 	private GlobalTextManager textManager;
+	private ShadowsManager shadowsManager;
 	
 	private Texture tilesTexture;
 	private Texture nightDomeTexture;
@@ -127,7 +135,7 @@ public class MonecruftGame implements Cleanable
 	private Thread shutdownHook;
 	
 	private int baseFbo;
-	private int sunFbo;
+	private int[] shadowFbos;
 	
 	private boolean changeContext=false; //To change with option menu.
 	
@@ -144,7 +152,14 @@ public class MonecruftGame implements Cleanable
 		else IvEngine.configDisplay(X_RES, Y_RES, "Monecruft", true, false, false);
 		
 		Thread.currentThread().setPriority(Thread.currentThread().getPriority()+1); //Faster than the others -> game experience > loading
+		
 		//Start all resources
+		float[] ssplits=ShadowsManager.calculateSplits(1f, CAMERA_FAR, 4, 0.3f);
+		ssplits[0]=CAMERA_NEAR;
+		ssplits[1]=ssplits[1]/4;
+		ssplits[2]=ssplits[2]/2.5f;
+		SHADOW_SPLITS=ssplits;
+		for(Float f:ssplits)System.out.println(f);
 		initResources();
 		
 		//Main loop
@@ -224,25 +239,33 @@ public class MonecruftGame implements Cleanable
 	}
 	private void render()
 	{
-		if(this.settings.SHADOWS_ENABLED){
-			glBindFramebuffer(GL_FRAMEBUFFER, this.sunFbo);
-			GL11.glViewport(0,0,SHADOW_XRES,SHADOW_YRES);
-			//glClearColor(0.6f, 0.8f, 1.0f, 0f);
-			glClear(GL11.GL_DEPTH_BUFFER_BIT);
-			//tilesTexture.bind();
+		if(this.settings.SHADOWS_ENABLED)
+		{
+			this.shadowsManager.calculateCascadeShadows(this.sunCam.getViewMatrix(), this.world.getWorldCornersLow(), this.world.getWorldCornersHigh());
 			this.world.overrideCurrentShader(this.DVSP);
-			this.world.overrideCurrentCamera(this.sunCam);
-			this.world.draw(false);
+
+			for(int i=0;i<this.shadowsManager.getNumberSplits();i++)
+			{
+				glBindFramebuffer(GL_FRAMEBUFFER, this.shadowFbos[i]); 
+				glClear(GL11.GL_DEPTH_BUFFER_BIT); 
+				GL11.glViewport(0,0,SHADOW_XRES,SHADOW_YRES);
+				//glClearColor(0.6f, 0.8f, 1.0f, 0f);
+				//tilesTexture.bind();
+				//this.sunCam.updateProjection(this.shadowsManager.getOrthoProjectionForSplit(1));*/
+				this.world.overrideCurrentPVMatrix(this.shadowsManager.getOrthoProjectionForSplit(i));
+				this.world.draw(false);
+			}
 		}
-		
 		this.tilesTexture.bind();
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		GL11.glViewport(0,0,X_RES,Y_RES);
-		//glClearColor(0.6f, 0.8f, 1.0f, 0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+		GL11.glViewport(0,0,X_RES,Y_RES);
+		
+		//glClearColor(0.6f, 0.8f, 1.0f, 0f);
+		
 		//tilesTexture.bind();
 		this.world.overrideCurrentShader(null);
-		this.world.overrideCurrentCamera(null);
+		this.world.overrideCurrentPVMatrix(null);
 		this.world.draw(true);
 		
 		nightDomeTexture.bind();
@@ -264,7 +287,6 @@ public class MonecruftGame implements Cleanable
 		TextureImpl.bindNone();
 		
 		this.textManager.draw(X_RES,Y_RES);
-		
 		/*glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 		this.FDSP.enable();
@@ -299,15 +321,15 @@ public class MonecruftGame implements Cleanable
 		this.BCSP=new BasicColorShaderProgram(true);
 		this.FDSP=new FinalDrawShaderProgram(true);
 		this.TM=new TimeManager();
-		this.cam=new Camera(0.02f,1000,80f,X_RES/Y_RES);
-		int maxworldsize=(int)Math.ceil(Chunk.CHUNK_DIMENSION*(World.PLAYER_VIEW_FIELD+0.5f)*Math.sqrt(2));
+		this.cam=new Camera(CAMERA_NEAR,CAMERA_FAR,80f,X_RES/Y_RES);
+		this.shadowsManager=new ShadowsManager(SHADOW_SPLITS,this.cam);
 
-		this.sunCam=/*new Camera(0.5f,1000,80f,X_RES/Y_RES);//*/new Camera(MatrixHelper.createOrthoMatix(maxworldsize, -maxworldsize,  maxworldsize, -maxworldsize,maxworldsize,-maxworldsize));//World.HEIGHT*Chunk.CHUNK_DIMENSION, 0));
+		this.sunCam=/*new Camera(0.5f,1000,80f,X_RES/Y_RES);//*/new Camera(new Matrix4f());//World.HEIGHT*Chunk.CHUNK_DIMENSION, 0));
 		this.sunCam.moveTo(0, 5, 0);
 		this.sunCam.setPitch(0);
 		
 		this.sky=new Sky(SSP,BCSP,cam,this.sunCam);
-		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,sky);
+		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky);
 		this.hud=new Hud(this.HSP,X_RES,Y_RES);
 		//Load textures here
 		
@@ -387,24 +409,31 @@ public class MonecruftGame implements Cleanable
 		GL20.glDrawBuffers(drawBuffers);*/
 		
 		//SUN FBO: START
-		if(this.settings.SHADOWS_ENABLED){
-			this.sunFbo=glGenFramebuffers();
-			glBindFramebuffer(GL_FRAMEBUFFER, this.sunFbo);
-		
+		if(this.settings.SHADOWS_ENABLED)
+		{
+			 
 			int shadowTexture=glGenTextures();
-		
-			glActiveTexture(GL13.GL_TEXTURE4); this.sunShadowTexture=GL13.GL_TEXTURE4;
-			glBindTexture(GL_TEXTURE_2D, shadowTexture);
-			glTexImage2D(GL_TEXTURE_2D, 0,GL14.GL_DEPTH_COMPONENT16, SHADOW_XRES, SHADOW_YRES, 0,GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (FloatBuffer)null); //|TODO ASFA
 
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-			//glTexParameteri(GL_TEXTURE_2D, GL14.GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-			GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowTexture, 0);
+			glActiveTexture(GL13.GL_TEXTURE4); this.sunShadowTexture=GL13.GL_TEXTURE4; 
+			glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, shadowTexture);
+			GL12.glTexImage3D(GL30.GL_TEXTURE_2D_ARRAY, 0,GL14.GL_DEPTH_COMPONENT16, SHADOW_XRES, SHADOW_YRES,this.shadowsManager.getNumberSplits(), 0,GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (FloatBuffer)null); //|TODO ASFA
+			
+			glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+			glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+			glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL14.GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+			
+			this.shadowFbos=new int[this.shadowsManager.getNumberSplits()];
+			for(int i=0;i<this.shadowsManager.getNumberSplits();i++)
+			{
+				this.shadowFbos[i]=glGenFramebuffers();
+				glBindFramebuffer(GL_FRAMEBUFFER, this.shadowFbos[i]);
+				GL30.glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadowTexture, 0, i);
 		
-			IntBuffer drawBuffers = BufferUtils.createIntBuffer(0);
+				IntBuffer drawBuffers = BufferUtils.createIntBuffer(0);
 
-			GL20.glDrawBuffers(drawBuffers);
+				GL20.glDrawBuffers(drawBuffers);
+				
+			}
 		}
 
 		//Reset active
