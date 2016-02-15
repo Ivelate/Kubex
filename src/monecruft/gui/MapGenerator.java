@@ -48,7 +48,8 @@ public class MapGenerator
 				for(int cz=0;cz<Chunk.CHUNK_DIMENSION;cz++)
 				{
 					//ret[cx][cy][cz]=cy+(y*Chunk.CHUNK_DIMENSION)==50?(byte)1:0;
-					ret[cx][cy][cz]=getCubeFromHeightMap(cx,cy+(y*Chunk.CHUNK_DIMENSION),cz);
+					/*if(cy==0&&y==0)*/ret[cx][cy][cz]=getCubeFromHeightMap(cx,cy+(y*Chunk.CHUNK_DIMENSION),cz);
+					//else ret[cx][cy][cz]=(byte)0;
 					/*ret[cx][cy][cz]=get3dValue(cx+(x*Chunk.CHUNK_DIMENSION),
 							cy+(y*Chunk.CHUNK_DIMENSION), 
 							cz+(z*Chunk.CHUNK_DIMENSION))<0 ? (byte)6: (cy+(y*Chunk.CHUNK_DIMENSION)<70? (byte)(4): (byte)(0));*/

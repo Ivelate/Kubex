@@ -75,7 +75,8 @@ vec3 normal;
 	float dotsun=dot(sunNormal,normal);
 
 	if(dotsun>0 && dot(sunNormal,vec3(0,1,0))>0){
-		float bias = 0.0002;
+		//float bias = 0.000008 * splitDistances[sindex];
+		float bias = 0.0001;
 		vec4 sunLocation=shadowMatrixes[sindex]*vec4(ModelLocation,1);
 		//sunLocation=sunLocation/sunLocation.w;
 		
@@ -100,9 +101,9 @@ vec3 normal;
 	float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness;
 	outColor=outColor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
 	
-	/*if(sindex==0) outColor+=vec4(0.3f,0,0,1);
-	if(sindex==1) outColor+=vec4(0,0.3f,0,1);
-	if(sindex==2) outColor+=vec4(0,0,0.3f,1);*/
+	/*if(sindex==0) outColor+=vec4(0.1f,0,0,1);
+	if(sindex==1) outColor+=vec4(0,0.1f,0,1);
+	if(sindex==2) outColor+=vec4(0,0,0.1f,1);*/
 	
  	float fog = clamp(exp(-fogdensity * z * z), 0.2, 1);
   	outcolor = mix(fogcolor*((daylightAmount-0.15)*1.17647), outColor, fog);
