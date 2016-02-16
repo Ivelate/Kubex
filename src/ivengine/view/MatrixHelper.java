@@ -61,11 +61,24 @@ public class MatrixHelper
 
 		res.m30 = -(xp+xm)/(xp-xm);
 		res.m31 = -(yp+ym)/(yp-ym);
-		res.m32 =   -(zp+zm)/(zp-zm);
+		res.m32 = (zp+zm)/(zp-zm); //|TODO wtf
 		res.m33 = 1.0f;
+		
+		System.out.println(res);
 		
 		return res;
 	}
+	/*static
+	{
+
+		/*Matrix4f or=createOrthoMatix(114.68283f, -122.138916f,
+129.2872f, -107.17637f,
+-223.08084f, -294.14893f);
+		System.out.println(Matrix4f.transform(or, new Vector4f(0,-26.04f,-259.6099f,1),null));System.exit(0);*/
+		/*Matrix4f or=createOrthoMatix(10,-10,10,-10,10,-10);
+		System.out.println(Matrix4f.transform(or, new Vector4f(0,0,-7,1),null));System.exit(0);
+		
+	}*/
 	public static Matrix4f createScaleTranslationMatrix(float scale,float xt,float yt,float zt)
 	{
 		Matrix4f res=new Matrix4f();
@@ -102,6 +115,12 @@ public class MatrixHelper
 	{
 		matrix44Buffer.rewind();mat.store(matrix44Buffer); matrix44Buffer.flip();
 	    glUniformMatrix4(dest, false, matrix44Buffer);
+	}
+	public static void uploadTranslatedMatrix(Matrix4f mat,Vector3f trans,int dest)
+	{
+		mat.m30-=trans.x; mat.m31-=trans.y; mat.m32-=trans.z;
+		uploadMatrix(mat,dest);
+		mat.m30+=trans.x; mat.m31+=trans.y; mat.m32+=trans.z;
 	}
 	public static void uploadVector(Vector3f vec,int dest)
 	{

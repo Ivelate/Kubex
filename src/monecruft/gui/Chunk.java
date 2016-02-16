@@ -19,9 +19,12 @@ import java.util.List;
 import java.util.concurrent.Semaphore;
 
 import monecruft.blocks.BlockLibrary;
+import monecruft.shaders.DepthVoxelShaderProgram;
 import monecruft.shaders.VoxelShaderProgram;
 import monecruft.storage.ByteArrayPool;
 import monecruft.storage.FloatBufferPool;
+import monecruft.utils.BoundaryChecker;
+import monecruft.utils.BoundingBoxBoundaryChecker;
 
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.util.vector.Matrix4f;
@@ -337,27 +340,36 @@ public class Chunk implements Cleanable
 			}
 		}
 	}
-	public void draw(Camera c,VoxelShaderProgram VSP,boolean applyCulling)
+	public void draw(Camera c,VoxelShaderProgram VSP,BoundaryChecker bc)
 	{
 		if(changed||this.toUpload!=null) update(VSP);
 		if(this.solidEmpty&&this.liquidEmpty) return;
 		this.drawed=true;
-		if(applyCulling){
+		if(bc==null){
 		Matrix4f mvp=new Matrix4f();
-		Matrix4f.mul(c.getProjectionViewMatrix(), this.chunkModelMatrix, mvp);
+		//Matrix4f.translate(this.WF.getWorldCenterVector(), this.chunkModelMatrix, mvp); System.out.println(this.WF.getWorldCenterVector());System.out.println(this.chunkModelMatrix); System.out.println(mvp); System.out.println("_-_-_-_");
+		mvp.m30=-this.WF.getCameraCenter().x;mvp.m31=-this.WF.getCameraCenter().y;mvp.m32=-this.WF.getCameraCenter().z;
+		//Matrix4f.sub(this.chunkModelMatrix, mvp, mvp);
+		Matrix4f.mul(c.getProjectionViewMatrix(), mvp, mvp);
 		Vector4f coords=MatrixHelper.multiply(mvp, CENTER_VECTOR);
 		float xc=coords.x/(coords.w);
 		float yc=coords.y/(coords.w);
 		double normDiam=CHUNK_RADIUS/Math.abs(coords.w);
 		if(Math.abs(xc)>1+normDiam || Math.abs(yc)>1+normDiam || coords.z<-CHUNK_RADIUS){
-			this.drawed=false;
+			this.drawed=true;
 		}
+		}
+		else{
+			if(!bc.sharesBoundariesWith(this.getX()*Chunk.CHUNK_DIMENSION + CENTER_VECTOR.x, 
+										this.getY()*Chunk.CHUNK_DIMENSION + CENTER_VECTOR.y, 
+										this.getZ()*Chunk.CHUNK_DIMENSION+ CENTER_VECTOR.z, 
+										(float)CHUNK_RADIUS)) 									this.drawed=false;
 		}
 		if(drawed){
 			if(this.solidEmpty) return;
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
 			VSP.setupAttributes();
-			MatrixHelper.uploadMatrix(this.chunkModelMatrix,VSP.getModelMatrixLoc());
+			MatrixHelper.uploadTranslatedMatrix(this.chunkModelMatrix,this.WF.getCameraCenter(),VSP.getModelMatrixLoc());
 			glDrawArrays(GL_TRIANGLES, 0, this.triangleNum);
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
 		}
@@ -369,7 +381,7 @@ public class Chunk implements Cleanable
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
 			VSP.setupAttributes();
 			//this.chunkModelMatrix=Matrix4f.translate(new Vector3f(0f,-0.3f,0f), this.chunkModelMatrix, this.chunkModelMatrix);
-			MatrixHelper.uploadMatrix(this.chunkModelMatrix,VSP.getModelMatrixLoc());
+			MatrixHelper.uploadTranslatedMatrix(this.chunkModelMatrix,this.WF.getCameraCenter(),VSP.getModelMatrixLoc());
 			//this.chunkModelMatrix=Matrix4f.translate(new Vector3f(0f,0.3f,0f), this.chunkModelMatrix, this.chunkModelMatrix);
 			glDrawArrays(GL_TRIANGLES, this.triangleNum,this.triangleLiquidNum);
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
@@ -572,6 +584,14 @@ public class Chunk implements Cleanable
 								setCubeAt(cp.x+x,cp.y+cloudheight+y,cp.z+z,(byte)4);
 							}
 						}
+					}
+				}
+				else if(cube==16){
+					setCubeAt(cp.x,cp.y,cp.z,(byte)1);
+					for(int i=1;i<Chunk.CHUNK_DIMENSION*(World.HEIGHT-this.chunky)-cp.y;i++)
+					{
+						if(getCubeAt(cp.x,cp.y+i,cp.z)==0)setCubeAt(cp.x,cp.y+i,cp.z,(byte)1);
+						else break;
 					}
 				}
 			}

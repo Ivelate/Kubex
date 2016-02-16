@@ -32,7 +32,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 	private static final int DEFAULT_SELECTED_BLOCK=2;
 	
 	private Camera cam;
-	private float xpos,ypos,zpos;
+	private double xpos,ypos,zpos;
 	private float pitch,yaw;
 	private float yvel=0;
 	private float xvel=0;
@@ -95,7 +95,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 		//yvel*=wf.getWorldAirFriction();
 		//if(wf.getContent(this.xpos, this.ypos, this.zpos)!=0) {this.ypos=(int)(ypos)+1;this.yvel=0;}
 		//else if(wf.getContent(this.xpos, this.ypos+DEFAULT_HEIGHT, this.zpos)!=0){this.ypos=(int)(ypos+DEFAULT_HEIGHT)-DEFAULT_HEIGHT;this.yvel=0;}
-		updateCamera();
+		updateCamera(wf);
 		//if(InputHandler.isSHIFTPressed()) this.cam.moveUp(-1f);
 		wf.reloadPlayerFOV((int)Math.floor(this.getX()/Chunk.CHUNK_DIMENSION), 0, (int)Math.floor(this.getZ()/Chunk.CHUNK_DIMENSION));
 		
@@ -110,7 +110,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 	}
 	public boolean isUnderwater(WorldFacade wf,float yoffset)
 	{
-		return BlockLibrary.isLiquid(wf.getContent(this.xpos, this.ypos+yoffset, this.zpos));
+		return BlockLibrary.isLiquid(wf.getContent((float)this.xpos, (float)this.ypos+yoffset, (float)this.zpos));
 	}
 	public float getAverageLightExposed(WorldFacade wf)
 	{
@@ -122,7 +122,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 			return (zw+0.5f)*getAverageLightInX(wf,xpos,ypos+EYE_POS,zpos) + (0.5f-zw)*getAverageLightInX(wf,xpos,ypos+EYE_POS,zpos-1);
 		}
 	}
-	private float getAverageLightInX(WorldFacade wf,float xpos,float ypos,float zpos)
+	private float getAverageLightInX(WorldFacade wf,double xpos,double ypos,double zpos)
 	{
 		float xw=(float)(this.xpos-(Math.floor(this.xpos)));
 		if(xw>0.5){
@@ -132,14 +132,15 @@ public class Player implements KeyToggleListener, KeyValueListener
 			return (xw+0.5f)*getAverageLightInY(wf,xpos,ypos+EYE_POS,zpos) + (0.5f-xw)*getAverageLightInY(wf,xpos-1,ypos+EYE_POS,zpos);
 		}
 	}
-	private float getAverageLightInY(WorldFacade wf,float xpos,float ypos,float zpos)
+	private float getAverageLightInY(WorldFacade wf,double xpos,double ypos,double zpos)
 	{
+		float fxpos=(float)xpos;float fypos=(float)ypos;float fzpos=(float)zpos;
 		float yw=(float)(ypos-(Math.floor(ypos)));
 		if(yw>0.5){
-			return (1.5f-yw)*wf.getContentMaxLight(xpos, ypos, zpos) + (yw-0.5f)*wf.getContentMaxLight(xpos, ypos+1, zpos);
+			return (1.5f-yw)*wf.getContentMaxLight(fxpos, fypos, fzpos) + (yw-0.5f)*wf.getContentMaxLight(fxpos, fypos+1, fzpos);
 		}
 		else{
-			return (yw+0.5f)*wf.getContentMaxLight(xpos, ypos, zpos) + (0.5f-yw)*wf.getContentMaxLight(xpos, ypos-1, zpos);
+			return (yw+0.5f)*wf.getContentMaxLight(fxpos, fypos, fzpos) + (0.5f-yw)*wf.getContentMaxLight(fxpos, fypos-1, fzpos);
 		}
 	}
 	private void handleEvents(WorldFacade wf)
@@ -250,15 +251,16 @@ public class Player implements KeyToggleListener, KeyValueListener
 	{
 		this.yaw+=amount;
 	}
-	private void updateCamera()
+	private void updateCamera(WorldFacade wf)
 	{
-		this.cam.moveTo(this.xpos, this.ypos+EYE_POS, this.zpos);
+		wf.updateCameraCenter((float)this.xpos,(float)this.ypos+EYE_POS,(float)this.zpos);
+		//this.cam.moveTo((float)this.xpos, (float)this.ypos+EYE_POS, (float)this.zpos);
 		this.cam.setPitch(pitch);
 		this.cam.setYaw(yaw);
 	}
-	private void moveX(float to,WorldFacade wf){
+	private void moveX(double to,WorldFacade wf){
 		this.grounded=false;
-		float step=this.xpos;
+		double step=this.xpos;
 		boolean end=false;
 		if(to<step){
 			while(!end){
@@ -280,8 +282,8 @@ public class Player implements KeyToggleListener, KeyValueListener
 			}
 		}
 	}
-	private void moveY(float to,WorldFacade wf){
-		float step=this.ypos;
+	private void moveY(double to,WorldFacade wf){
+		double step=this.ypos;
 		boolean end=false;
 		if(to<step){
 			while(!end){
@@ -303,9 +305,9 @@ public class Player implements KeyToggleListener, KeyValueListener
 			}
 		}
 	}
-	private void moveZ(float to,WorldFacade wf){
+	private void moveZ(double to,WorldFacade wf){
 		this.grounded=false;
-		float step=this.zpos;
+		double step=this.zpos;
 		boolean end=false;
 		if(to<step){
 			while(!end){
@@ -327,7 +329,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 			}
 		}
 	}
-	private boolean stepX(float to,WorldFacade wf)
+	private boolean stepX(double to,WorldFacade wf)
 	{
 		if(to<this.xpos)
 		{
@@ -348,7 +350,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 			else {this.xpos=(int)(Math.floor(to+DEFAULT_SIZE))-DEFAULT_SIZE; this.xvel=0;return false;}
 		}
 	}
-	private boolean stepY(float to,WorldFacade wf)
+	private boolean stepY(double to,WorldFacade wf)
 	{
 		this.grounded=false;
 		if(to<this.ypos)
@@ -366,7 +368,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 			else {this.ypos=(int)(Math.floor(to+DEFAULT_HEIGHT))-DEFAULT_HEIGHT;this.yvel=0;return false;}
 		}
 	}
-	private boolean stepZ(float to,WorldFacade wf)
+	private boolean stepZ(double to,WorldFacade wf)
 	{
 		if(to<this.zpos)
 		{
@@ -389,15 +391,15 @@ public class Player implements KeyToggleListener, KeyValueListener
 	}
 	public float getX()
 	{
-		return this.xpos;
+		return (float)this.xpos;
 	}
 	public float getY()
 	{
-		return this.ypos;
+		return (float)this.ypos;
 	}
 	public float getZ()
 	{
-		return this.zpos;
+		return (float)this.zpos;
 	}
 	@Override
 	public void notifyKeyToggle(int code) {
@@ -437,7 +439,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 		}
 	}
 	
-	public static RaycastResult raycast(float pitch,float yaw,float ix,float iy,float iz,WorldFacade wf,float maxdist)
+	public static RaycastResult raycast(float pitch,float yaw,double ix,double iy,double iz,WorldFacade wf,float maxdist)
 	{
 		double dy=-Math.sin(pitch);
 		double subx=Math.cos(pitch);

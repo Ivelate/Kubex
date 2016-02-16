@@ -2,12 +2,15 @@ package monecruft.gui;
 
 import org.lwjgl.util.vector.Matrix3f;
 import org.lwjgl.util.vector.Matrix4f;
+import org.lwjgl.util.vector.Vector3f;
 import org.lwjgl.util.vector.Vector4f;
 
 import ivengine.view.Camera;
 import ivengine.view.CameraStateListener;
 import ivengine.view.MatrixHelper;
+import monecruft.utils.BoundaryChecker;
 import monecruft.utils.BoundingBox;
+import monecruft.utils.BoundingBoxBoundaryChecker;
 import monecruft.utils.SquareCorners;
 
 public class ShadowsManager implements CameraStateListener
@@ -18,6 +21,8 @@ public class ShadowsManager implements CameraStateListener
 	private final SquareCorners[] splitsCorners;
 	
 	private Matrix4f[] splitsOrthoProjections;
+	private BoundingBox[] splitsBoundingBoxes;
+	private Matrix4f savedSunViewMatrix=null;
 	
 	private Camera camera;
 	
@@ -32,6 +37,7 @@ public class ShadowsManager implements CameraStateListener
 		this.camera=standardCam;
 		this.splitsCorners=new SquareCorners[dsplits.length];
 		this.splitsOrthoProjections=new Matrix4f[dsplits.length];
+		this.splitsBoundingBoxes=new BoundingBox[this.nsplits];
 		for(int i=0;i<this.splitsOrthoProjections.length;i++) this.splitsOrthoProjections[i]=new Matrix4f();
 		
 		//Store camera projmat inv
@@ -86,33 +92,47 @@ public class ShadowsManager implements CameraStateListener
 	
 	public void calculateCascadeShadows(Matrix4f sunViewMatrix,SquareCorners worldCornersLow,SquareCorners worldCornersHigh)
 	{
+		//sunViewMatrix.m30=0;sunViewMatrix.m31=0;sunViewMatrix.m32=0;
+		this.savedSunViewMatrix=sunViewMatrix;
+		
 		//Get inverse of view mat multiplied by sun view matrix, so M(cv->sv)
 		Matrix4f mcvsv=MatrixHelper.getAffineInverse(this.camera.getViewMatrix(),null);
 		Matrix4f.mul(sunViewMatrix, mcvsv, mcvsv);
 		
+		System.out.println("!!!");
+		System.out.println(worldCornersLow.xmym);
 		SquareCorners worldCornersLowShadow=SquareCorners.mul(worldCornersLow, sunViewMatrix);
 		SquareCorners worldCornersHighShadow=SquareCorners.mul(worldCornersHigh, sunViewMatrix);
+		System.out.println(worldCornersLowShadow.xmym);
+		
+		Vector4f pc=Matrix4f.transform(sunViewMatrix, new Vector4f(0,1,0,1), null); System.out.println(pc);
 		
 		SquareCorners nearCorners=SquareCorners.mul(splitsCorners[0], mcvsv);
 		for(int i=0;i<nsplits;i++)
 		{
-			SquareCorners farCorners=SquareCorners.mul(splitsCorners[i+1], mcvsv); System.out.println(farCorners.xmym);
-			System.out.println(farCorners.xpym);
+			SquareCorners farCorners=SquareCorners.mul(splitsCorners[i+1], mcvsv);
+			/*System.out.println(farCorners.xpym);
 			System.out.println(farCorners.xmyp);
-			System.out.println(farCorners.xpyp);
+			System.out.println(farCorners.xpyp);*/
 			
 			BoundingBox bb=new BoundingBox();
-			bb.adaptForSquareCorners(farCorners); System.out.println(bb.getPx()+" "+bb.getMx());
-			bb.adaptForSquareCorners(nearCorners); System.out.println(bb.getPx()+" "+bb.getMx());
-			bb.resetZAxis();
-			System.out.println(worldCornersLow.xmym);
-			bb.adaptZForSquareCorners(worldCornersLowShadow); System.out.println(bb.getPz()+" "+bb.getMz());
+			bb.adaptForSquareCorners(farCorners); //System.out.println(bb.getPx()+" "+bb.getMx());
+			bb.adaptForSquareCorners(nearCorners); //System.out.println(bb.getPx()+" "+bb.getMx());
+			//bb.resetZAxis();
+			//System.out.println(worldCornersLow.xmym);
+			bb.adaptZForSquareCorners(worldCornersLowShadow); //System.out.println(bb.getPz()+" "+bb.getMz());
 			bb.adaptZForSquareCorners(worldCornersHighShadow);
-			System.out.println(bb.getPz()+" "+bb.getMz());
-			System.out.println("______________________");
+			if(i==2){System.out.println(bb.getPx()+" "+bb.getMx());System.out.println(bb.getPy()+" "+bb.getMy());System.out.println(bb.getPz()+" "+bb.getMz());
+			System.out.println("______________________");}
 			this.splitsOrthoProjections[i]=MatrixHelper.createOrthoMatix(bb.getPx(), bb.getMx(), bb.getPy(), bb.getMy(),bb.getPz(), bb.getMz());
+			if(i==2)System.out.println(Matrix4f.transform(this.splitsOrthoProjections[i], pc, null));
+			if(i==2)System.out.println(this.splitsOrthoProjections[i]);
+			if(i==2)System.out.println(sunViewMatrix);
 			Matrix4f.mul(this.splitsOrthoProjections[i],sunViewMatrix, this.splitsOrthoProjections[i]);
+			if(i==2)System.out.println("@@@@@@@@@@@@@@@@@@@@@");
+			if(i==2)System.out.println(this.splitsOrthoProjections[i]);
 			
+			this.splitsBoundingBoxes[i]=bb;
 			nearCorners=farCorners;
 		}
 	}
@@ -130,6 +150,10 @@ public class ShadowsManager implements CameraStateListener
 		Matrix4f ret=new Matrix4f();
 		Matrix4f.mul(screenLocationMat, this.splitsOrthoProjections[split], ret);
 		return ret;
+	}
+	public BoundaryChecker getBoundaryCheckerForSplit(int split)
+	{
+		return new BoundingBoxBoundaryChecker(this.splitsBoundingBoxes[split], savedSunViewMatrix);
 	}
 	public float[] getSplitDistances()
 	{

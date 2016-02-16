@@ -158,6 +158,7 @@ public class MonecruftGame implements Cleanable
 		ssplits[0]=CAMERA_NEAR;
 		ssplits[1]=ssplits[1]/4;
 		ssplits[2]=ssplits[2]/2.5f;
+		
 		SHADOW_SPLITS=ssplits;
 		for(Float f:ssplits)System.out.println(f);
 		initResources();
@@ -253,7 +254,7 @@ public class MonecruftGame implements Cleanable
 				//tilesTexture.bind();
 				//this.sunCam.updateProjection(this.shadowsManager.getOrthoProjectionForSplit(1));*/
 				this.world.overrideCurrentPVMatrix(this.shadowsManager.getOrthoProjectionForSplit(i));
-				this.world.draw(false);
+				this.world.draw(this.shadowsManager.getBoundaryCheckerForSplit(i));
 			}
 		}
 		this.tilesTexture.bind();
@@ -266,7 +267,9 @@ public class MonecruftGame implements Cleanable
 		//tilesTexture.bind();
 		this.world.overrideCurrentShader(null);
 		this.world.overrideCurrentPVMatrix(null);
-		this.world.draw(true);
+		//this.world.overrideCurrentPVMatrix(this.shadowsManager.getOrthoProjectionForSplit(3));
+		//this.world.overrideCurrentPVMatrix(this.shadowsManager.getOrthoProjectionForSplit(0));
+		this.world.draw(null);
 		
 		nightDomeTexture.bind();
 		
@@ -415,9 +418,9 @@ public class MonecruftGame implements Cleanable
 			int shadowTexture=glGenTextures();
 
 			glActiveTexture(GL13.GL_TEXTURE4); this.sunShadowTexture=GL13.GL_TEXTURE4; 
-			glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, shadowTexture);
+			glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, shadowTexture);System.out.println("ERR"+GL11.glGetError());
 			GL12.glTexImage3D(GL30.GL_TEXTURE_2D_ARRAY, 0,GL14.GL_DEPTH_COMPONENT16, SHADOW_XRES, SHADOW_YRES,this.shadowsManager.getNumberSplits(), 0,GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, (FloatBuffer)null); //|TODO ASFA
-			
+			System.out.println("ERR"+GL11.glGetError());
 			glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
 			glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
 			glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL14.GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);

@@ -35,16 +35,16 @@ public class BoundingBox
 	
 	public void adaptZForSquareCorners(SquareCorners sc)
 	{
-		if(mz>sc.xmym.z) mz=sc.xmym.z;
+		//if(mz>sc.xmym.z) mz=sc.xmym.z;
 		if(pz<sc.xmym.z) pz=sc.xmym.z;
 		
-		if(mz>sc.xpym.z) mz=sc.xpym.z;
+		//if(mz>sc.xpym.z) mz=sc.xpym.z;
 		if(pz<sc.xpym.z) pz=sc.xpym.z;
 		
-		if(mz>sc.xmyp.z) mz=sc.xmyp.z;
+		//if(mz>sc.xmyp.z) mz=sc.xmyp.z;
 		if(pz<sc.xmyp.z) pz=sc.xmyp.z;
 		
-		if(mz>sc.xpyp.z) mz=sc.xpyp.z;
+		//if(mz>sc.xpyp.z) mz=sc.xpyp.z;
 		if(pz<sc.xpyp.z) pz=sc.xpyp.z;
 	}
 	

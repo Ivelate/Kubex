@@ -29,6 +29,7 @@ import monecruft.shaders.UnderwaterVoxelShaderProgram;
 import monecruft.shaders.VoxelShaderProgram;
 import monecruft.storage.ChunkStorage;
 import monecruft.storage.FloatBufferPool;
+import monecruft.utils.BoundaryChecker;
 import monecruft.utils.SquareCorners;
 import monecruft.utils.VoxelUtils;
 import monecruftProperties.DrawableUpdatable;
@@ -61,8 +62,9 @@ public class World implements DrawableUpdatable, Cleanable
 	private final SquareCorners worldCornersHigh;
 	private SquareCorners currentWorldCornersLow;
 	private SquareCorners currentWorldCornersHigh;
+	private Vector3f cameraCenterVector=new Vector3f();
 	
-	private float currentTime=18;
+	private float currentTime=9;
 	private float chunkUpdateTickCont=0;
 	
 	private VoxelShaderProgram VSP;
@@ -81,17 +83,17 @@ public class World implements DrawableUpdatable, Cleanable
 		this.VSP=VSP;
 		this.UVSP=UVSP;
 		//Create player
-		Player p=new Player(10,270.7f,10,cam);
+		Player p=new Player(100000000,270.7f,0,cam);
 		
 		float maxworldsize=(float)(Chunk.CHUNK_DIMENSION*(World.PLAYER_VIEW_FIELD+1.5f));
 		this.worldCornersLow=new SquareCorners(	new Vector4f(-maxworldsize,0,-maxworldsize,1),
 												new Vector4f(maxworldsize,0,-maxworldsize,1),
 												new Vector4f(-maxworldsize,0,maxworldsize,1),
 												new Vector4f(maxworldsize,0,maxworldsize,1));
-		this.worldCornersHigh=new SquareCorners(new Vector4f(-maxworldsize,World.HEIGHT,-maxworldsize,1),
-												new Vector4f(maxworldsize,World.HEIGHT,-maxworldsize,1),
-												new Vector4f(-maxworldsize,World.HEIGHT,maxworldsize,1),
-												new Vector4f(maxworldsize,World.HEIGHT,maxworldsize,1));
+		this.worldCornersHigh=new SquareCorners(new Vector4f(-maxworldsize,World.HEIGHT*Chunk.CHUNK_DIMENSION,-maxworldsize,1),
+												new Vector4f(maxworldsize,World.HEIGHT*Chunk.CHUNK_DIMENSION,-maxworldsize,1),
+												new Vector4f(-maxworldsize,World.HEIGHT*Chunk.CHUNK_DIMENSION,maxworldsize,1),
+												new Vector4f(maxworldsize,World.HEIGHT*Chunk.CHUNK_DIMENSION,maxworldsize,1));
 		
 		this.setWorldCenter(p.getX(),p.getY(), p.getZ());
 		this.worldFacade=new WorldFacade(this);
@@ -112,7 +114,7 @@ public class World implements DrawableUpdatable, Cleanable
 			{
 				for(int y=0;y<HEIGHT;y++)
 				{
-					this.chunkGenerator.generateChunk(x,y,z);
+					this.chunkGenerator.generateChunk(x+(int)Math.floor(p.getX()/Chunk.CHUNK_DIMENSION),y,z+(int)Math.floor(p.getZ()/Chunk.CHUNK_DIMENSION));
 				}
 			}
 		}
@@ -171,9 +173,9 @@ public class World implements DrawableUpdatable, Cleanable
 	@Override
 	public void draw()
 	{
-		this.draw(true);
+		this.draw(null);
 	}
-	public void draw(boolean applyCulling)
+	public void draw(BoundaryChecker bc)
 	{
 		int alphaUniformLocation=setupShaderParameters();
 		
@@ -184,13 +186,13 @@ public class World implements DrawableUpdatable, Cleanable
 		GL11.glDisable( GL11.GL_BLEND );
 		glEnable(GL11.GL_DEPTH_TEST);
 		
-		if(applyCulling)GL11.glEnable(GL11.GL_CULL_FACE);
+		if(bc==null||bc.applyCulling())GL11.glEnable(GL11.GL_CULL_FACE);
 		else GL11.glDisable(GL11.GL_CULL_FACE);
 		
 		this.myChunks.initIter();
 		Chunk c;
 		while((c=this.myChunks.next())!=null) {
-				c.draw(cam,this.getActiveShader(),applyCulling);
+				c.draw(cam,this.getActiveShader(),bc);
 				if(c.lightCalculatedFlag){
 					c.lightCalculatedFlag=false;
 					Chunk neighbour=this.myChunks.getChunk(c.getX()+1, c.getY(), c.getZ());
@@ -329,6 +331,14 @@ public class World implements DrawableUpdatable, Cleanable
 		//this.currentWorldCornersLow=this.worldCornersLow;
 		//this.currentWorldCornersHigh=this.worldCornersHigh;
 		this.sunCamera.moveTo(xpos, ypos, zpos);
+	}
+	public Vector3f getCameraCenter()
+	{
+		return this.cameraCenterVector;
+	}
+	public void updateCameraCenter(float x,float y,float z) 
+	{
+		this.cameraCenterVector.x=x;this.cameraCenterVector.y=y;this.cameraCenterVector.z=z;
 	}
 	public byte getContent(float x,float y,float z)
 	{

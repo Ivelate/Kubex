@@ -11,7 +11,8 @@ public class BlockLibrary
 		new B5LightBlock(),
 		new B6Glass(),
 		new B7TNT(),
-		new B8RainMaker()
+		new B8RainMaker(),
+		new B9SuperTower()
 	};
 	private static Block defaultBlock=new B0Air();
 	
