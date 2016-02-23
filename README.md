@@ -1,6 +1,6 @@
 # Monecruft
 
-Voxel Graphic Engine with eh, cubes. Final Computer Science degree project by Víctor Arellano Vicente (Ivelate). Java / LWJGL / OpenGL
+Voxel Graphic Engine with eh, cubes. Final Computer Science degree project by *Víctor Arellano Vicente* (Ivelate). Java / LWJGL / OpenGL
 
 For now, it implements:
 
