@@ -16,28 +16,28 @@ import ivengine.view.Camera;
 public class Player implements KeyToggleListener, KeyValueListener
 {
 	//private static final float DEFAULT_SPEED=8;
-	private static final float DEFAULT_SPEED=8;
-	private static final float FLY_SPEED=100;
-	private static final float DEFAULT_JUMPSPEED=7;
-	private static final float FLY_JUMPSPEED=20;
-	private static final float DEFAULT_HEIGHT=1.8f;
-	private static final float DEFAULT_HEIGHT_APROX=1.79f;
-	private static final float EYE_POS=1.65f;
-	private static final float DEFAULT_SIZE=0.4f;
-	private static final float DEFAULT_SIZE_APROX=0.39f;
-	private static final int DEFAULT_MOUSE_SENSIVITY=100;
-	private static final float PIMEDIOS=(float)(Math.PI/2);
-	private static final float SQRT2=(float)Math.sqrt(2);
-	private static final float MAX_RAYCAST_DISTANCE=5;
+	private static final double DEFAULT_SPEED=8;
+	private static final double FLY_SPEED=100;
+	private static final double DEFAULT_JUMPSPEED=7;
+	private static final double FLY_JUMPSPEED=20;
+	private static final double DEFAULT_HEIGHT=1.8f;
+	private static final double DEFAULT_HEIGHT_APROX=1.79f;
+	private static final double EYE_POS=1.65f;
+	private static final double DEFAULT_SIZE=0.4f;
+	private static final double DEFAULT_SIZE_APROX=0.39f;
+	private static final double DEFAULT_MOUSE_SENSIVITY=100;
+	private static final double PIMEDIOS=(float)(Math.PI/2);
+	private static final double SQRT2=(float)Math.sqrt(2);
+	private static final double MAX_RAYCAST_DISTANCE=5;
 	private static final int DEFAULT_SELECTED_BLOCK=2;
 	
 	private Camera cam;
 	private double xpos,ypos,zpos;
 	private float pitch,yaw;
-	private float yvel=0;
-	private float xvel=0;
-	private float zvel=0;
-	private float currentSpeed=DEFAULT_SPEED;
+	private double yvel=0;
+	private double xvel=0;
+	private double zvel=0;
+	private double currentSpeed=DEFAULT_SPEED;
 	private boolean flying=false;
 	private boolean action_deleteNextBlock=false;
 	private boolean action_createNextBlock=false;
@@ -60,16 +60,16 @@ public class Player implements KeyToggleListener, KeyValueListener
 	{
 		handleEvents(wf);
 		//System.out.println(this.xpos+" "+this.ypos+" "+this.zpos);
-		float yAxisPressed=InputHandler.isWPressed()||InputHandler.isSPressed()?SQRT2:1;
-		float xAxisPressed=InputHandler.isAPressed()||InputHandler.isDPressed()?SQRT2:1;
+		double yAxisPressed=InputHandler.isWPressed()||InputHandler.isSPressed()?SQRT2:1;
+		double xAxisPressed=InputHandler.isAPressed()||InputHandler.isDPressed()?SQRT2:1;
 		boolean underwater=isUnderwater(wf,EYE_POS/2);
 		currentSpeed=flying?FLY_SPEED:underwater?DEFAULT_SPEED/2:DEFAULT_SPEED;
 		if(InputHandler.isWPressed()) moveForward(currentSpeed*tEl/xAxisPressed,wf);
 		if(InputHandler.isAPressed()) moveLateral(-currentSpeed*tEl/yAxisPressed,wf);
 		if(InputHandler.isSPressed()) moveForward(-currentSpeed*tEl/xAxisPressed,wf);
 		if(InputHandler.isDPressed()) moveLateral(currentSpeed*tEl/yAxisPressed,wf);
-		this.addPitch(-(float)(Mouse.getDY())/DEFAULT_MOUSE_SENSIVITY);
-		this.addYaw((float)(Mouse.getDX())/DEFAULT_MOUSE_SENSIVITY);
+		this.addPitch(-(float)(Mouse.getDY()/DEFAULT_MOUSE_SENSIVITY));
+		this.addYaw((float)(Mouse.getDX()/DEFAULT_MOUSE_SENSIVITY));
 		//Gravity
 		if(!grounded) {
 			if(underwater){
@@ -108,9 +108,9 @@ public class Player implements KeyToggleListener, KeyValueListener
 	{
 		return isUnderwater(wf,EYE_POS);
 	}
-	public boolean isUnderwater(WorldFacade wf,float yoffset)
+	public boolean isUnderwater(WorldFacade wf,double yoffset)
 	{
-		return BlockLibrary.isLiquid(wf.getContent((float)this.xpos, (float)this.ypos+yoffset, (float)this.zpos));
+		return BlockLibrary.isLiquid(wf.getContent(this.xpos, this.ypos+yoffset, this.zpos));
 	}
 	public float getAverageLightExposed(WorldFacade wf)
 	{
@@ -132,6 +132,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 			return (xw+0.5f)*getAverageLightInY(wf,xpos,ypos+EYE_POS,zpos) + (0.5f-xw)*getAverageLightInY(wf,xpos-1,ypos+EYE_POS,zpos);
 		}
 	}
+	//|TODO problems
 	private float getAverageLightInY(WorldFacade wf,double xpos,double ypos,double zpos)
 	{
 		float fxpos=(float)xpos;float fypos=(float)ypos;float fzpos=(float)zpos;
@@ -155,6 +156,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 			{
 				Chunk c=wf.getChunkByIndex(res.getChunkX(), res.getChunkY(), res.getChunkZ());
 				System.out.println("CHUNK "+c.getX()+" "+c.getY()+" "+c.getZ());
+				System.out.println("CUBE "+res.getX()+" "+res.getY()+" "+res.getZ());
 				if(c!=null) c.setCubeAt(res.getX(), res.getY(), res.getZ(),(byte)(0));	
 			}
 		}
@@ -227,25 +229,29 @@ public class Player implements KeyToggleListener, KeyValueListener
 					}
 					break;
 				}
-				if(c!=null) c.setCubeAt(fx, fy, fz,(byte)(this.selectedBlock));	
+				if(c!=null) {
+					System.out.println("CHUNK "+c.getX()+" "+c.getY()+" "+c.getZ());
+					System.out.println("CUBE "+res.getX()+" "+res.getY()+" "+res.getZ());
+					c.setCubeAt(fx, fy, fz,(byte)(this.selectedBlock));	
+				}
 			}
 		}
 	}
-	protected void moveForward(float amount,WorldFacade wf)
+	protected void moveForward(double amount,WorldFacade wf)
 	{
-		moveX(this.xpos+(float)(Math.sin(this.yaw))*amount,wf);
-		moveZ(this.zpos-(float)(Math.cos(this.yaw))*amount,wf);
+		moveX(this.xpos+Math.sin(this.yaw)*amount,wf);
+		moveZ(this.zpos-Math.cos(this.yaw)*amount,wf);
 	}
-	protected void moveLateral(float amount,WorldFacade wf)
+	protected void moveLateral(double amount,WorldFacade wf)
 	{
-		moveZ(this.zpos+(float)(Math.sin(this.yaw)*amount),wf);
-		moveX(this.xpos+(float)(Math.cos(this.yaw)*amount),wf);
+		moveZ(this.zpos+Math.sin(this.yaw)*amount,wf);
+		moveX(this.xpos+Math.cos(this.yaw)*amount,wf);
 	}
 	void addPitch(float amount)
 	{
 		this.pitch+=amount;
-		if(this.pitch>PIMEDIOS) this.pitch=(PIMEDIOS);
-		else if(this.pitch<-PIMEDIOS) this.pitch=(-PIMEDIOS);
+		if(this.pitch>PIMEDIOS) this.pitch=(float)(PIMEDIOS);
+		else if(this.pitch<-PIMEDIOS) this.pitch=(float)(-PIMEDIOS);
 	}
 	private void addYaw(float amount)
 	{
@@ -253,7 +259,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 	}
 	private void updateCamera(WorldFacade wf)
 	{
-		wf.updateCameraCenter((float)this.xpos,(float)this.ypos+EYE_POS,(float)this.zpos);
+		wf.updateCameraCenter(this.xpos,this.ypos+EYE_POS,this.zpos);
 		//this.cam.moveTo((float)this.xpos, (float)this.ypos+EYE_POS, (float)this.zpos);
 		this.cam.setPitch(pitch);
 		this.cam.setYaw(yaw);
@@ -264,7 +270,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 		boolean end=false;
 		if(to<step){
 			while(!end){
-				if(to<step-0.9) step=step-0.9f;
+				if(to<step-0.9) step=step-0.9;
 				else{
 					step=to;
 					end=true;
@@ -273,7 +279,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 			}
 		}else{
 			while(!end){
-				if(to>step+0.9) step=step+0.9f;
+				if(to>step+0.9) step=step+0.9;
 				else{
 					step=to;
 					end=true;
@@ -287,7 +293,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 		boolean end=false;
 		if(to<step){
 			while(!end){
-				if(to<step-0.9) step=step-0.9f;
+				if(to<step-0.9) step=step-0.9;
 				else{
 					step=to;
 					end=true;
@@ -296,7 +302,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 			}
 		}else{
 			while(!end){
-				if(to>step+0.9) step=step+0.9f;
+				if(to>step+0.9) step=step+0.9;
 				else{
 					step=to;
 					end=true;
@@ -311,7 +317,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 		boolean end=false;
 		if(to<step){
 			while(!end){
-				if(to<step-0.9) step=step-0.9f;
+				if(to<step-0.9) step=step-0.9;
 				else{
 					step=to;
 					end=true;
@@ -320,7 +326,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 			}
 		}else{
 			while(!end){
-				if(to>step+0.9) step=step+0.9f;
+				if(to>step+0.9) step=step+0.9;
 				else{
 					step=to;
 					end=true;
@@ -389,17 +395,17 @@ public class Player implements KeyToggleListener, KeyValueListener
 			else {this.zpos=(int)(Math.floor(to+DEFAULT_SIZE))-DEFAULT_SIZE;this.zvel=0;return false;}
 		}
 	}
-	public float getX()
+	public double getX()
 	{
-		return (float)this.xpos;
+		return this.xpos;
 	}
-	public float getY()
+	public double getY()
 	{
-		return (float)this.ypos;
+		return this.ypos;
 	}
-	public float getZ()
+	public double getZ()
 	{
-		return (float)this.zpos;
+		return this.zpos;
 	}
 	@Override
 	public void notifyKeyToggle(int code) {
@@ -439,7 +445,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 		}
 	}
 	
-	public static RaycastResult raycast(float pitch,float yaw,double ix,double iy,double iz,WorldFacade wf,float maxdist)
+	public static RaycastResult raycast(double pitch,double yaw,double ix,double iy,double iz,WorldFacade wf,double maxdist)
 	{
 		double dy=-Math.sin(pitch);
 		double subx=Math.cos(pitch);
@@ -505,9 +511,9 @@ public class Player implements KeyToggleListener, KeyValueListener
 			Chunk c=wf.getChunkByIndex((int)Math.floor(cx/Chunk.CHUNK_DIMENSION), (int)Math.floor(cy/Chunk.CHUNK_DIMENSION), (int)Math.floor(cz/Chunk.CHUNK_DIMENSION));
 			if(c!=null)
 			{
-				int cubex=VoxelUtils.trueMod((float)cx, Chunk.CHUNK_DIMENSION);
-				int cubey=VoxelUtils.trueMod((float)cy, Chunk.CHUNK_DIMENSION);
-				int cubez=VoxelUtils.trueMod((float)cz, Chunk.CHUNK_DIMENSION);
+				int cubex=VoxelUtils.trueMod(cx, Chunk.CHUNK_DIMENSION);
+				int cubey=VoxelUtils.trueMod(cy, Chunk.CHUNK_DIMENSION);
+				int cubez=VoxelUtils.trueMod(cz, Chunk.CHUNK_DIMENSION);
 				byte cube=c.getCubeAt(cubex,cubey,cubez);
 				System.out.println("Chunk "+c.getX()+","+c.getY()+","+c.getZ());
 				System.out.println("Found "+cubex+","+cubey+","+cubez);

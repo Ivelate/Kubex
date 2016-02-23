@@ -76,7 +76,7 @@ vec3 normal;
 
 	if(dotsun>0 && dot(sunNormal,vec3(0,1,0))>0){
 		//float bias = 0.000008 * splitDistances[sindex];
-		float bias = 0.0001;
+		float bias = 0.0002;
 		vec4 sunLocation=shadowMatrixes[sindex]*vec4(ModelLocation,1);
 		//sunLocation=sunLocation/sunLocation.w;
 		

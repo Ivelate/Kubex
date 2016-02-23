@@ -26,9 +26,14 @@ public class ChunkStorage implements Cleanable{
 		//else add=!add;
 		if(x<0)x=this.size + x%this.size;
 		if(z<0)z=this.size + z%this.size;
+		if(chunkList[x%this.size][y][z%this.size]!=null)
+		{
+			System.err.println("Overwriting chunk "+chunkList[x%this.size][y][z%this.size].getX()+" "+chunkList[x%this.size][y][z%this.size].getY()+" "+chunkList[x%this.size][y][z%this.size].getZ()+" for chunk "+c.getX()+" "+c.getY()+" "+c.getZ());
+			chunkList[x%this.size][y][z%this.size].fullClean();
+		}
 		chunkList[x%this.size][y][z%this.size]=c;
 	}
-	public Chunk getChunk(float xf,float yf,float zf)
+	public Chunk getChunk(double xf,double yf,double zf)
 	{
 		int x=(int)Math.floor(xf);int y=(int)Math.floor(yf);int z=(int)Math.floor(zf);
 		if(y<0||y>=World.HEIGHT) return null;

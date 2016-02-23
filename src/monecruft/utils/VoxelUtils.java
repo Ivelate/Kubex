@@ -3,7 +3,7 @@ package monecruft.utils;
 public class VoxelUtils 
 {
 	
-	public static int trueMod(float val,int toMod)
+	public static int trueMod(double val,int toMod)
 	{
 		if(val>0)
 		{

@@ -44,8 +44,10 @@ import static org.lwjgl.opengl.GL30.glGenRenderbuffers;
 import static org.lwjgl.opengl.GL30.glRenderbufferStorage;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.Scanner;
 
 import monecruft.gui.Chunk;
 import monecruft.gui.GlobalTextManager;
@@ -103,7 +105,7 @@ public class MonecruftGame implements Cleanable
 	private int SHADOW_YRES=2048;
 	
 	private final float CAMERA_NEAR=0.02f;
-	private final float CAMERA_FAR=(float)Math.sqrt(World.HEIGHT*World.HEIGHT + World.PLAYER_VIEW_FIELD*World.PLAYER_VIEW_FIELD)*Chunk.CHUNK_DIMENSION;
+	private final float CAMERA_FAR=3*(float)Math.sqrt(World.HEIGHT*World.HEIGHT + World.PLAYER_VIEW_FIELD*World.PLAYER_VIEW_FIELD)*Chunk.CHUNK_DIMENSION;
 	
 	private final float[] SHADOW_SPLITS;
 	
@@ -150,6 +152,8 @@ public class MonecruftGame implements Cleanable
 			IvEngine.configDisplay(dm, "Monecruft", true, false, true);
 		}
 		else IvEngine.configDisplay(X_RES, Y_RES, "Monecruft", true, false, false);
+		
+		//System.out.println(GL11.glGetString(GL11.GL_VERSION)); Get version, if wanted
 		
 		Thread.currentThread().setPriority(Thread.currentThread().getPriority()+1); //Faster than the others -> game experience > loading
 		
@@ -268,7 +272,7 @@ public class MonecruftGame implements Cleanable
 		this.world.overrideCurrentShader(null);
 		this.world.overrideCurrentPVMatrix(null);
 		//this.world.overrideCurrentPVMatrix(this.shadowsManager.getOrthoProjectionForSplit(3));
-		//this.world.overrideCurrentPVMatrix(this.shadowsManager.getOrthoProjectionForSplit(0));
+		//this.world.overrideCurrentPVMatrix(this.shadowsManager.getOrthoProjectionForSplit(2));
 		this.world.draw(null);
 		
 		nightDomeTexture.bind();

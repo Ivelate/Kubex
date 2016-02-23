@@ -10,7 +10,7 @@ public class SimplexNoise {
     int largestFeature;
     double persistence;
     int seed;
-    float zoom;
+    double zoom;
 
     public SimplexNoise(int numberOfOctaves,double persistence, int seed,int zoom){
         this.persistence=persistence;

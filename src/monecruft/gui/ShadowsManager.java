@@ -99,15 +99,14 @@ public class ShadowsManager implements CameraStateListener
 		Matrix4f mcvsv=MatrixHelper.getAffineInverse(this.camera.getViewMatrix(),null);
 		Matrix4f.mul(sunViewMatrix, mcvsv, mcvsv);
 		
-		System.out.println("!!!");
-		System.out.println(worldCornersLow.xmym);
+		//System.out.println("!!!");
+		//System.out.println(worldCornersLow.xmym);
 		SquareCorners worldCornersLowShadow=SquareCorners.mul(worldCornersLow, sunViewMatrix);
 		SquareCorners worldCornersHighShadow=SquareCorners.mul(worldCornersHigh, sunViewMatrix);
-		System.out.println(worldCornersLowShadow.xmym);
-		
-		Vector4f pc=Matrix4f.transform(sunViewMatrix, new Vector4f(0,1,0,1), null); System.out.println(pc);
+		//System.out.println(worldCornersLowShadow.xmym);
 		
 		SquareCorners nearCorners=SquareCorners.mul(splitsCorners[0], mcvsv);
+
 		for(int i=0;i<nsplits;i++)
 		{
 			SquareCorners farCorners=SquareCorners.mul(splitsCorners[i+1], mcvsv);
@@ -122,15 +121,15 @@ public class ShadowsManager implements CameraStateListener
 			//System.out.println(worldCornersLow.xmym);
 			bb.adaptZForSquareCorners(worldCornersLowShadow); //System.out.println(bb.getPz()+" "+bb.getMz());
 			bb.adaptZForSquareCorners(worldCornersHighShadow);
-			if(i==2){System.out.println(bb.getPx()+" "+bb.getMx());System.out.println(bb.getPy()+" "+bb.getMy());System.out.println(bb.getPz()+" "+bb.getMz());
-			System.out.println("______________________");}
+			//if(i==2){System.out.println(bb.getPx()+" "+bb.getMx());System.out.println(bb.getPy()+" "+bb.getMy());System.out.println(bb.getPz()+" "+bb.getMz());
+			//System.out.println("______________________");}
 			this.splitsOrthoProjections[i]=MatrixHelper.createOrthoMatix(bb.getPx(), bb.getMx(), bb.getPy(), bb.getMy(),bb.getPz(), bb.getMz());
-			if(i==2)System.out.println(Matrix4f.transform(this.splitsOrthoProjections[i], pc, null));
-			if(i==2)System.out.println(this.splitsOrthoProjections[i]);
-			if(i==2)System.out.println(sunViewMatrix);
+			//if(i==2)System.out.println(Matrix4f.transform(this.splitsOrthoProjections[i], pc, null));
+			//if(i==2)System.out.println(this.splitsOrthoProjections[i]);
+			//if(i==2)System.out.println(sunViewMatrix);
 			Matrix4f.mul(this.splitsOrthoProjections[i],sunViewMatrix, this.splitsOrthoProjections[i]);
-			if(i==2)System.out.println("@@@@@@@@@@@@@@@@@@@@@");
-			if(i==2)System.out.println(this.splitsOrthoProjections[i]);
+			//if(i==2)System.out.println("@@@@@@@@@@@@@@@@@@@@@");
+			//if(i==2)System.out.println(this.splitsOrthoProjections[i]);
 			
 			this.splitsBoundingBoxes[i]=bb;
 			nearCorners=farCorners;

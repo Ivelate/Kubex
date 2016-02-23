@@ -31,6 +31,7 @@ import monecruft.storage.ChunkStorage;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.BoundaryChecker;
 import monecruft.utils.SquareCorners;
+import monecruft.utils.Vector3d;
 import monecruft.utils.VoxelUtils;
 import monecruftProperties.DrawableUpdatable;
 
@@ -62,7 +63,7 @@ public class World implements DrawableUpdatable, Cleanable
 	private final SquareCorners worldCornersHigh;
 	private SquareCorners currentWorldCornersLow;
 	private SquareCorners currentWorldCornersHigh;
-	private Vector3f cameraCenterVector=new Vector3f();
+	private Vector3d cameraCenterVector=new Vector3d();
 	
 	private float currentTime=9;
 	private float chunkUpdateTickCont=0;
@@ -83,7 +84,7 @@ public class World implements DrawableUpdatable, Cleanable
 		this.VSP=VSP;
 		this.UVSP=UVSP;
 		//Create player
-		Player p=new Player(100000000,270.7f,0,cam);
+		Player p=new Player(0,270.7f,0,cam);
 		
 		float maxworldsize=(float)(Chunk.CHUNK_DIMENSION*(World.PLAYER_VIEW_FIELD+1.5f));
 		this.worldCornersLow=new SquareCorners(	new Vector4f(-maxworldsize,0,-maxworldsize,1),
@@ -108,7 +109,7 @@ public class World implements DrawableUpdatable, Cleanable
 		
 		//this.chunkGenerator.generateChunk(5000000/Chunk.CHUNK_DIMENSION,0,0);
 		//this.chunkGenerator.generateChunk(0, 3, 0);
-		for(int x=0, osc=0,val=-1;x<=PLAYER_VIEW_FIELD;x+=osc,osc=(osc+val)*-1,val=-val)
+		for(int x=0, osc=1,val=1;x<=PLAYER_VIEW_FIELD;x+=osc,osc=(osc+val)*-1,val=-val)
 		{
 			for(int z=-DIFTABLE[Math.abs(x)];z<=DIFTABLE[Math.abs(x)];z++)
 			{
@@ -118,6 +119,8 @@ public class World implements DrawableUpdatable, Cleanable
 				}
 			}
 		}
+		this.lastChunkCenterX=(int)Math.floor(p.getX()/Chunk.CHUNK_DIMENSION);
+		this.lastChunkCenterZ=(int)Math.floor(p.getZ()/Chunk.CHUNK_DIMENSION);
 		//this.chunkGenerator.generateChunk(0, 0, 0);
 		//this.chunkGenerator.generateChunk(1, 0, 0);
 		//this.vao=glGenVertexArrays();
@@ -324,23 +327,23 @@ public class World implements DrawableUpdatable, Cleanable
 	{
 		this.customPVMatrix=pvmat;
 	}
-	public void setWorldCenter(float xpos,float ypos,float zpos)
+	public void setWorldCenter(double xpos,double ypos,double zpos)
 	{
-		this.currentWorldCornersLow=SquareCorners.add(this.worldCornersLow,xpos,0,zpos);
-		this.currentWorldCornersHigh=SquareCorners.add(this.worldCornersHigh,xpos,0,zpos);
+		this.currentWorldCornersLow=SquareCorners.add(this.worldCornersLow,0,0,0);
+		this.currentWorldCornersHigh=SquareCorners.add(this.worldCornersHigh,0,0,0);
 		//this.currentWorldCornersLow=this.worldCornersLow;
 		//this.currentWorldCornersHigh=this.worldCornersHigh;
-		this.sunCamera.moveTo(xpos, ypos, zpos);
+		this.sunCamera.moveTo(0,0,0);
 	}
-	public Vector3f getCameraCenter()
+	public Vector3d getCameraCenter()
 	{
 		return this.cameraCenterVector;
 	}
-	public void updateCameraCenter(float x,float y,float z) 
+	public void updateCameraCenter(double x,double y,double z) 
 	{
 		this.cameraCenterVector.x=x;this.cameraCenterVector.y=y;this.cameraCenterVector.z=z;
 	}
-	public byte getContent(float x,float y,float z)
+	public byte getContent(double x,double y,double z)
 	{
 		Chunk c;
 		if((c=this.myChunks.getChunk(x/Chunk.CHUNK_DIMENSION, y/Chunk.CHUNK_DIMENSION, z/Chunk.CHUNK_DIMENSION))!=null){
@@ -527,11 +530,18 @@ public class World implements DrawableUpdatable, Cleanable
 	}
 	@Override
 	public void fullClean() {
+		//Prevents game to hang during shutdown if some error happens.
+		Thread overShutdown=new Thread(){
+			@Override 
+			public void run(){try{Thread.sleep(3000);System.err.println("Over shutdown used (!!!)");System.exit(1);} catch(Exception e){}}
+		};
+		overShutdown.start();
 		this.chunkGenerator.fullClean(true);
 		this.chunkUpdater.fullClean(true);
 		this.MG=null;
 		this.EM.fullClean();
 		this.myChunks.fullClean();
 		glDeleteVertexArrays(this.vao);
+		overShutdown.interrupt();
 	}
 }

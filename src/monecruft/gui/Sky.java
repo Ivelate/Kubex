@@ -20,6 +20,7 @@ import java.nio.FloatBuffer;
 
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
+import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 
 import ivengine.view.Camera;
@@ -94,7 +95,7 @@ public class Sky
 			glDepthFunc(GL11.GL_EQUAL);
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
 			SSP.setupAttributes();
-			MatrixHelper.uploadMatrix(MatrixHelper.getRotationAndInvert(this.cam.getProjectionViewMatrix()), this.SSP.getInvertedViewRotationMatrixLoc());
+			MatrixHelper.uploadMatrix(Matrix4f.invert(this.cam.getProjectionViewMatrix(),null), this.SSP.getInvertedViewRotationMatrixLoc());
 			sunYyx.uploadToShader(this.SSP);
 			this.coeffs.uploadToShader(this.SSP);
 			glUniform1f(this.SSP.getSolarZenithUniform(),(float)zenithS);
@@ -131,14 +132,12 @@ public class Sky
 		}
 		public void update(float tEl)
 		{
-			this.currentTime+=(tEl/60);
+			this.currentTime+=(tEl/3);
 			if(this.currentTime>22) this.currentTime=4;
 			if(this.currentTime>24) this.currentTime=0;
 			
 			this.sunCamera.setPitch((float)this.solarAltitude);
 			this.sunCamera.setYaw(-(float)(this.solarAzimuth));
-			
-			System.out.println(this.solarAltitude+" "+this.solarAzimuth);
 		}
 		public double getSolarAltitude()
 		{

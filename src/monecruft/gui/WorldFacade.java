@@ -3,6 +3,8 @@ package monecruft.gui;
 import org.lwjgl.util.vector.Vector3f;
 import org.lwjgl.util.vector.Vector4f;
 
+import monecruft.utils.Vector3d;
+
 public class WorldFacade 
 {
 	private World world;
@@ -22,13 +24,13 @@ public class WorldFacade
 	{
 		return world.getDaylightAmount();
 	}
-	public byte getContent(float x,float y,float z)
+	/*public byte getContent(float x,float y,float z)
 	{
 		return world.getContent(x, y, z);
-	}
+	}*/
 	public byte getContent(double x,double y,double z)
 	{
-		return world.getContent((float)x, (float)y, (float)z);
+		return world.getContent(x, y, z);
 	}
 	public void requestChunkUpdate(Chunk c)
 	{
@@ -126,11 +128,11 @@ public class WorldFacade
 		if(c==null) return getChunkInAddList(x,y,z);
 		return c;
 	}*/
-	public Vector3f getCameraCenter()
+	public Vector3d getCameraCenter()
 	{
 		return this.world.getCameraCenter();
 	}
-	public void updateCameraCenter(float x,float y,float z)
+	public void updateCameraCenter(double x,double y,double z)
 	{
 		this.world.updateCameraCenter(x,y,z);
 	}
