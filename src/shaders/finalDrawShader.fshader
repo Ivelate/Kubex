@@ -1,87 +1,46 @@
 #version 330 core
 
 uniform sampler2D colorTex;
-uniform sampler2D positionTex;
-uniform sampler2D normalAndLightTex;
-uniform sampler2D shadowMap;
+uniform sampler2D baseFboDepthTex;
+uniform sampler2DArray liquidLayersTex;
+uniform int liquidLayersTexLength;
 
-/*uniform vec3 cameraPos;
-uniform mat4 projViewMatrixRelLight;
-
-uniform vec3 lights[50];
-uniform int numLights;*/
+uniform vec4 invProjZ;
 
 in vec2 pos;
-
-vec2 poissonDisk[4] = vec2[](
-  vec2( -0.94201624, -0.39906216 ),
-  vec2( 0.94558609, -0.76890725 ),
-  vec2( -0.094184101, -0.92938870 ),
-  vec2( 0.34495938, 0.29387760 )
-);
 
 layout(location = 0) out vec4 outcolor;
 void main()
 {
-	/*vec3 normal;
-	vec3 normalAndLight=texture2D(normalAndLightTex,vec2((pos.x+1)/2,(pos.y+1)/2)).xyz;
-	vec3 shadow=texture2D(shadowMap,vec2((pos.x+1)/2,(pos.y+1)/2)).xyz;
-	vec3 color=texture2D(colorTex,vec2((pos.x+1)/2,(pos.y+1)/2)).xyz;
-	if(normalAndLight.x < 0.5f) normal=vec3(1,0,0);
-	else if(normalAndLight.x < 1.5f) normal=vec3(-1,0,0);
-	else if(normalAndLight.x < 2.5f) normal=vec3(0,1,0);
-	else if(normalAndLight.x < 3.5f) normal=vec3(0,-1,0);
-	else if(normalAndLight.x < 4.5f) normal=vec3(0,0,1);
-	else normal=vec3(0,0,-1);*/
+//outcolor=texture2D(baseFboDepthTex,vec2(pos.x,pos.y)).x<1?vec4(1,0,0,1):vec4(0,0,0,0);
+	//if(pos.x<0.5) outcolor=(vec4(texture(liquidLayersTex,vec3(pos.x,pos.y,floor(1.5))).xyz,1)-0.99)*100;
+	//else outcolor=(vec4(texture(baseFboDepthTex,vec2(pos.x,pos.y)).xyz,1)-0.99)*100;
 	
-	/*if(pos.x<0){
-	if(pos.y>0) outcolor=texture2D(colorTex,vec2(pos.x+1,pos.y));
-	else outcolor=texture2D(positionTex,vec2(pos.x+1,pos.y+1));
-	}
-	else {
-	if(pos.y>0) outcolor=texture2D(shadowMap,vec2(pos.x,pos.y));
-	else outcolor=texture2D(normalAndLightTex,vec2(pos.x,pos.y+1));
-	}*/
-	outcolor=texture2D(colorTex,vec2((pos.x+1)/2,(pos.y+1)/2));
+	float waterd=0;
+	float begind=-1;
 
-	//outcolor=vec4(texture2D(shadowMap,vec2((pos.x+1)/2,(pos.y+1)/2)).xyz,1);
-	//outcolor=vec4(shadow.xyz,1);
-	/*if(texture2D(normal,vec2(pos.x,pos.y)).xyz == vec3(0,0,0)) discard;
-	
-	vec3 Position=texture2D(position,vec2(pos.x,pos.y)).xyz;
-	vec3 Color=texture2D(color,vec2(pos.x,pos.y)).xyz;
-	vec3 Normal=texture2D(normal,vec2(pos.x,pos.y)).xyz;
-	vec3 LocationRelLight=(projViewMatrixRelLight *  vec4(Position.xyz,1.0)).xyz;
-	
-	float bias = 0.05;
-	float vis=0;
-	for (int i=0;i<4;i++){
-		vec2 shadowLoc=vec2((LocationRelLight.x+1)/2,(LocationRelLight.y+1)/2);
-		float shadow=texture(shadowMap,vec3(shadowLoc+poissonDisk[i]/1000.0,(LocationRelLight.z+1)/2 -bias));
-  		vis+=shadow/4;
+	for(int i=0;i<liquidLayersTexLength;i++)
+	{
+		float dw=texture(liquidLayersTex,vec3(pos.x,pos.y,floor(i+0.5))).x;
+		if(dw==1) break;
+		if(begind<0) begind=1/(invProjZ.x*pos.x + invProjZ.y*pos.y + invProjZ.z*dw + invProjZ.w);
+		else
+		{
+			float finald=1/(invProjZ.x*pos.x + invProjZ.y*pos.y + invProjZ.z*dw + invProjZ.w);
+			waterd+=(finald-begind);
+			begind=-1;
+		}
 	}
+	if(begind>=0){
+		float dw=texture(baseFboDepthTex,vec2(pos.x,pos.y)).x;
+		float finald=1/(invProjZ.x*pos.x + invProjZ.y*pos.y + invProjZ.z*dw + invProjZ.w);
+		waterd+=(finald-begind);
+		begind=-1;
+	}
+	//bool water=texture(liquidLayersTex,vec3(pos.x,pos.y,floor(0.5))).x < 1;
+	vec4 extinction=vec4(waterd,waterd,waterd,0) / vec4(4.5,75,300,1);
+	outcolor=texture2D(colorTex,vec2(pos.x,pos.y))-extinction;
+	outcolor.x=max(0,outcolor.x);outcolor.y=max(0,outcolor.y);outcolor.z=max(0,outcolor.z);
 	
-	outcolor = vec4(Color.xyz * (vis+0.2)/1.2,1.0);
-	
-	vec4 imageP = texture2D( color, pos );
-    vec4 positionP = texture2D( position, pos );
-    vec4 normalP = texture2D( normal, pos);
-    
-    vec3 outcol=vec3(0,0,0);
-    
-    for(int i=0;i<numLights;i++)
-    {
-    vec3 light = lights[i];
-    vec3 lightDir = light - positionP.xyz ;
-    
-    vec3 normalVec = normalize(normalP.xyz);
-    lightDir = normalize(lightDir);
-    
-    vec3 eyeDir = normalize(cameraPos-positionP.xyz);
-    vec3 vHalfVector = normalize(lightDir.xyz+eyeDir);
-    
-     outcol = outcol + (max(dot(normalVec,lightDir),0) * imageP + 
-                   pow(max(dot(normalVec,vHalfVector),0.0), 100) * 1.5).xyz;
-     }
-      outcolor=vec4(max(outcol.xyz,outcolor.xyz),1.0);*/
+	//if(water) outcolor=outcolor-vec4(0.5,0.5,-0.5,0);
 }

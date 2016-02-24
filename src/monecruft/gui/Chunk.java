@@ -8,6 +8,7 @@ import static org.lwjgl.opengl.GL15.glBufferData;
 import static org.lwjgl.opengl.GL15.glBufferSubData;
 import static org.lwjgl.opengl.GL15.glDeleteBuffers;
 import ivengine.properties.Cleanable;
+import ivengine.shaders.SimpleShaderProgram;
 import ivengine.view.Camera;
 import ivengine.view.MatrixHelper;
 
@@ -100,7 +101,7 @@ public class Chunk implements Cleanable
 		//Neighbours
 		//this.neighborsAdded=WF.getNeighboursAdded(this);
 	}
-	public void initChunk(VoxelShaderProgram VSP)
+	public void initChunk()
 	{
 		this.vbo=glGenBuffers();
 		/*glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
@@ -108,7 +109,7 @@ public class Chunk implements Cleanable
 		VSP.enable();
 		VSP.setupAttributes();*/
 
-		update(VSP);
+		update();
 	
 		//glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
 	}
@@ -313,7 +314,7 @@ public class Chunk implements Cleanable
 		this.triangleLiquidNum=liquidCont/SAN;
 		this.triangleNum=bufferCont/SAN;
 	}
-	public void update(VoxelShaderProgram VSP)
+	public void update()
 	{
 		if(this.changed) {
 			if(this.updateFlag) this.changed=false;
@@ -326,7 +327,6 @@ public class Chunk implements Cleanable
 		{
 			if(this.getUpdateAccessSemaphore().tryAcquire()){
 				glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
-				VSP.setupAttributes();
 				glBufferData(GL15.GL_ARRAY_BUFFER,(this.triangleNum+this.triangleLiquidNum)*SAN*4,GL15.GL_STATIC_DRAW);
 				glBufferSubData(GL15.GL_ARRAY_BUFFER,0,this.toUpload);
 				glBufferSubData(GL15.GL_ARRAY_BUFFER,this.triangleNum*SAN*4,this.toUploadLiquid);
@@ -345,7 +345,7 @@ public class Chunk implements Cleanable
 	}
 	public void draw(Camera c,VoxelShaderProgram VSP,BoundaryChecker bc)
 	{
-		if(changed||this.toUpload!=null) update(VSP);
+		if(changed||this.toUpload!=null) update();
 		if(this.solidEmpty&&this.liquidEmpty) return;
 		this.drawed=true;
 		if(bc==null){
@@ -406,6 +406,7 @@ public class Chunk implements Cleanable
 				byte cube=this.getCubeAt(cp.x, cp.y, cp.z);
 				if(BlockLibrary.isLiquid(cube))
 				{
+					if(1==2/2)continue; //|TODO DEBUG
 					byte belowCube=getCubeAt(cp.x,cp.y-1,cp.z);
 					
 					if(!BlockLibrary.isDrawable(belowCube)){

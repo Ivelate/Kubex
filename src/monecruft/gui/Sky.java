@@ -56,29 +56,13 @@ public class Sky
 	private Camera sunCamera;
 
 	
-	public Sky(SkyShaderProgram SSP,BasicColorShaderProgram BCSP,Camera cam,Camera sunCamera)
+	public Sky(SkyShaderProgram SSP,BasicColorShaderProgram BCSP,Camera cam,Camera sunCamera,int squarevbo)
 	{
 		this.cam=cam;
 		this.sunCamera=sunCamera;
 			this.SSP=SSP;
 			this.BCSP=BCSP;
-			this.vbo=glGenBuffers();
-			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
-		
-			SSP.enable();
-			SSP.setupAttributes();
-			FloatBuffer toUpload=FloatBufferPool.getBuffer();
-			float[] list={	-1,-1,  1,-1,  1,1,
-							-1,-1,  1,1,  -1,1};
-							//0,0,0,  0,1,1,  1,1,0,
-							//1,0,1,  0,1,1,  1,1,0};
-
-			toUpload.put(list);
-			toUpload.flip();
-			glBufferData(GL15.GL_ARRAY_BUFFER,(list.length*4),GL15.GL_STATIC_DRAW);
-			glBufferSubData(GL15.GL_ARRAY_BUFFER,0,toUpload);
-			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
-			FloatBufferPool.recycleBuffer(toUpload);
+			this.vbo=squarevbo;
 		}
 		public void draw()
 		{
@@ -132,7 +116,7 @@ public class Sky
 		}
 		public void update(float tEl)
 		{
-			this.currentTime+=(tEl/3);
+			this.currentTime+=(tEl/300);
 			if(this.currentTime>22) this.currentTime=4;
 			if(this.currentTime>24) this.currentTime=0;
 			
@@ -142,10 +126,6 @@ public class Sky
 		public double getSolarAltitude()
 		{
 			return this.solarAltitude;
-		}
-		public int getVbo()
-		{
-			return this.vbo;
 		}
 		public Vector3f getSunNormal()
 		{

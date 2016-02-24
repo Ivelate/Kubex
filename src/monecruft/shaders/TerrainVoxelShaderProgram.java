@@ -7,20 +7,22 @@ import static org.lwjgl.opengl.GL20.glGetAttribLocation;
 import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
 import ivengine.shaders.SimpleShaderProgram;
 
-public class UnderwaterVoxelShaderProgram extends VoxelShaderProgram
-{
-	/*public UnderwaterVoxelShaderProgram()
+public class TerrainVoxelShaderProgram extends VoxelShaderProgram{
+
+	
+	public TerrainVoxelShaderProgram()
 	{
 		this("/shaders/voxelShader.vshader","/shaders/voxelShader.fshader",false);
 	}
-	public UnderwaterVoxelShaderProgram(boolean verbose)
+	public TerrainVoxelShaderProgram(boolean verbose)
 	{
 		this("/shaders/voxelShader.vshader","/shaders/voxelShader.fshader",verbose);
 	}
-	public UnderwaterVoxelShaderProgram(String vbufroute,String fbufroute,boolean verbose)
+	public TerrainVoxelShaderProgram(String vbufroute,String fbufroute,boolean verbose)
 	{
 		super(vbufroute,fbufroute,verbose);
 	}
+	
 	@Override
 	public void setupAttributes() {
 		int locAttrib = glGetAttribLocation(this.getID(), "location");
@@ -47,41 +49,6 @@ public class UnderwaterVoxelShaderProgram extends VoxelShaderProgram
 	@Override
 	public boolean supportShadows() {
 		return true;
-	}
-	@Override
-	public boolean supportLighting() {
-		return true;
-	}*/
-
-	public UnderwaterVoxelShaderProgram()
-	{
-		this(false);
-	}
-	public UnderwaterVoxelShaderProgram(boolean verbose)
-	{
-		super("/shaders/voxelShader.vshader","/shaders/underwaterVoxelShader.fshader",verbose);
-	}
-	@Override
-	public void setupAttributes() 
-	{
-		int locAttrib = glGetAttribLocation(this.getID(), "location");
-		int propAttrib = glGetAttribLocation(this.getID(), "properties");
-		int brightnessAttrib = glGetAttribLocation(this.getID(), "brightness");
-		
-		glVertexAttribPointer(locAttrib,3,GL_FLOAT,false,getSize()*4,0);
-		glEnableVertexAttribArray(locAttrib);
-		glVertexAttribPointer(propAttrib,1,GL_FLOAT,false,getSize()*4,3*4);
-		glEnableVertexAttribArray(propAttrib);
-		glVertexAttribPointer(brightnessAttrib,2,GL_FLOAT,false,getSize()*4,4*4);
-		glEnableVertexAttribArray(brightnessAttrib);
-	}
-	@Override
-	public boolean isParticipatingMedia() {
-		return true;
-	}
-	@Override
-	public boolean supportShadows() {
-		return false;
 	}
 	@Override
 	public boolean supportLighting() {

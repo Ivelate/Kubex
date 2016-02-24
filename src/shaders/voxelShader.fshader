@@ -1,7 +1,6 @@
 #version 330 core
 uniform sampler2D tiles;
 uniform sampler2DArrayShadow shadowMap;
-uniform float alpha;
 uniform float daylightAmount;
 uniform vec3 sunNormal;
 
@@ -59,7 +58,6 @@ vec3 normal;
 				));
 	}
 	if(outColor.w<0.1) discard;
-	outColor=outColor*vec4(1,1,1,alpha);
 	
 	float z = gl_FragCoord.z / gl_FragCoord.w;
 	
