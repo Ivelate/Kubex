@@ -6,7 +6,7 @@ uniform sampler2DArray liquidLayersTex;
 uniform int liquidLayersTexLength;
 
 uniform vec4 invProjZ;
-
+uniform vec4 sunCamera;
 in vec2 pos;
 
 layout(location = 0) out vec4 outcolor;
@@ -38,9 +38,9 @@ void main()
 		begind=-1;
 	}
 	//bool water=texture(liquidLayersTex,vec3(pos.x,pos.y,floor(0.5))).x < 1;
-	vec4 extinction=vec4(waterd,waterd,waterd,0) / vec4(4.5,75,300,1);
-	outcolor=texture2D(colorTex,vec2(pos.x,pos.y))-extinction;
-	outcolor.x=max(0,outcolor.x);outcolor.y=max(0,outcolor.y);outcolor.z=max(0,outcolor.z);
+	vec4 extinction=exp(- vec4(waterd,waterd,waterd,0)/vec4(4.5,75,300,1));
+	outcolor=texture2D(colorTex,vec2(pos.x,pos.y))*extinction;
+	//outcolor.x=max(0,outcolor.x);outcolor.y=max(0,outcolor.y);outcolor.z=max(0,outcolor.z);
 	
 	//if(water) outcolor=outcolor-vec4(0.5,0.5,-0.5,0);
 }
