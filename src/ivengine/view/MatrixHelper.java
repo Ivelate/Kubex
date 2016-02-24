@@ -67,8 +67,6 @@ public class MatrixHelper
 		res.m32 = (zp+zm)/(zp-zm); //|TODO wtf
 		res.m33 = 1.0f;
 		
-		System.out.println(res);
-		
 		return res;
 	}
 	/*static

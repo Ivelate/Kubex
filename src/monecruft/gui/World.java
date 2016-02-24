@@ -85,7 +85,7 @@ public class World implements DrawableUpdatable, Cleanable
 		this.VSP=VSP;
 		this.UVSP=UVSP;
 		//Create player
-		Player p=new Player(0,270.7f,0,cam);
+		Player p=new Player(Integer.MAX_VALUE,270.7f,0,cam);
 		
 		float maxworldsize=(float)(Chunk.CHUNK_DIMENSION*(World.PLAYER_VIEW_FIELD+1.5f));
 		this.worldCornersLow=new SquareCorners(	new Vector4f(-maxworldsize,0,-maxworldsize,1),

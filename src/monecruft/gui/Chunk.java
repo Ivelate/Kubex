@@ -373,12 +373,6 @@ public class Chunk implements Cleanable
 										(float)(this.getZ()*Chunk.CHUNK_DIMENSION+ CENTER_VECTOR.z-this.WF.getCameraCenter().z), 
 										(float)CHUNK_RADIUS)) 									this.drawed=false;
 		}
-		else{
-			if(!bc.sharesBoundariesWith(this.getX()*Chunk.CHUNK_DIMENSION + CENTER_VECTOR.x, 
-										this.getY()*Chunk.CHUNK_DIMENSION + CENTER_VECTOR.y, 
-										this.getZ()*Chunk.CHUNK_DIMENSION+ CENTER_VECTOR.z, 
-										(float)CHUNK_RADIUS)) 									this.drawed=false;
-		}
 		if(drawed){
 			if(this.solidEmpty) return;
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
