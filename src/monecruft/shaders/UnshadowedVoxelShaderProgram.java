@@ -7,7 +7,7 @@ import static org.lwjgl.opengl.GL20.glGetAttribLocation;
 import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
 import ivengine.shaders.SimpleShaderProgram;
 
-public class UnshadowedVoxelShaderProgram extends VoxelShaderProgram{
+public class UnshadowedVoxelShaderProgram extends TerrainVoxelShaderProgram{
 	
 	public UnshadowedVoxelShaderProgram()
 	{
@@ -16,5 +16,10 @@ public class UnshadowedVoxelShaderProgram extends VoxelShaderProgram{
 	public UnshadowedVoxelShaderProgram(boolean verbose)
 	{
 		super("/shaders/voxelShaderUnshadow.vshader","/shaders/voxelShaderUnshadow.fshader",verbose);
+	}
+
+	@Override
+	public boolean supportShadows() {
+		return false;
 	}
 }

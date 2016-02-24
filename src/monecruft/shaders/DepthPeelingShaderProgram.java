@@ -5,17 +5,17 @@ import static org.lwjgl.opengl.GL20.glEnableVertexAttribArray;
 import static org.lwjgl.opengl.GL20.glGetAttribLocation;
 import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
 
-public class DepthVoxelShaderProgram extends VoxelShaderProgram{
+public class DepthPeelingShaderProgram extends VoxelShaderProgram{
 	
-	public DepthVoxelShaderProgram()
+	public DepthPeelingShaderProgram()
 	{
 		this(false);
 	}
-	public DepthVoxelShaderProgram(boolean verbose)
+	public DepthPeelingShaderProgram(boolean verbose)
 	{
-		this("/shaders/basicShader.vshader","/shaders/depthShader.fshader",verbose);
+		this("/shaders/depthPeelingShader.vshader","/shaders/depthPeelingShader.fshader",verbose);
 	}
-	public DepthVoxelShaderProgram(String vbufroute,String fbufroute,boolean verbose)
+	public DepthPeelingShaderProgram(String vbufroute,String fbufroute,boolean verbose)
 	{
 		super(vbufroute,fbufroute,verbose);
 	}

@@ -23,6 +23,7 @@ public class FloatBufferPool
 		bufferNum=0;
 	}
 	public static FloatBuffer getBuffer(){
+		//System.out.println(content.size()+" "+bufferNum);
 		synchronized(content) {
 		if(content.size()==0&&bufferNum<maxCap){
 			bufferNum++;

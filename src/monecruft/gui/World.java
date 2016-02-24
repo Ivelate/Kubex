@@ -19,6 +19,7 @@ import org.lwjgl.util.vector.Vector3f;
 import org.lwjgl.util.vector.Vector4f;
 
 import ivengine.properties.Cleanable;
+import ivengine.shaders.SimpleShaderProgram;
 import ivengine.view.Camera;
 import ivengine.view.MatrixHelper;
 import monecruft.MonecruftGame;
@@ -31,6 +32,7 @@ import monecruft.storage.ChunkStorage;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.BoundaryChecker;
 import monecruft.utils.SquareCorners;
+import monecruft.utils.Vector3d;
 import monecruft.utils.VoxelUtils;
 import monecruftProperties.DrawableUpdatable;
 
@@ -62,7 +64,7 @@ public class World implements DrawableUpdatable, Cleanable
 	private final SquareCorners worldCornersHigh;
 	private SquareCorners currentWorldCornersLow;
 	private SquareCorners currentWorldCornersHigh;
-	private Vector3f cameraCenterVector=new Vector3f();
+	private Vector3d cameraCenterVector=new Vector3d();
 	
 	private float currentTime=9;
 	private float chunkUpdateTickCont=0;
@@ -83,7 +85,7 @@ public class World implements DrawableUpdatable, Cleanable
 		this.VSP=VSP;
 		this.UVSP=UVSP;
 		//Create player
-		Player p=new Player(100000000,270.7f,0,cam);
+		Player p=new Player(0,270.7f,0,cam);
 		
 		float maxworldsize=(float)(Chunk.CHUNK_DIMENSION*(World.PLAYER_VIEW_FIELD+1.5f));
 		this.worldCornersLow=new SquareCorners(	new Vector4f(-maxworldsize,0,-maxworldsize,1),
@@ -108,7 +110,7 @@ public class World implements DrawableUpdatable, Cleanable
 		
 		//this.chunkGenerator.generateChunk(5000000/Chunk.CHUNK_DIMENSION,0,0);
 		//this.chunkGenerator.generateChunk(0, 3, 0);
-		for(int x=0, osc=0,val=-1;x<=PLAYER_VIEW_FIELD;x+=osc,osc=(osc+val)*-1,val=-val)
+		for(int x=0, osc=1,val=1;x<=PLAYER_VIEW_FIELD;x+=osc,osc=(osc+val)*-1,val=-val)
 		{
 			for(int z=-DIFTABLE[Math.abs(x)];z<=DIFTABLE[Math.abs(x)];z++)
 			{
@@ -118,6 +120,8 @@ public class World implements DrawableUpdatable, Cleanable
 				}
 			}
 		}
+		this.lastChunkCenterX=(int)Math.floor(p.getX()/Chunk.CHUNK_DIMENSION);
+		this.lastChunkCenterZ=(int)Math.floor(p.getZ()/Chunk.CHUNK_DIMENSION);
 		//this.chunkGenerator.generateChunk(0, 0, 0);
 		//this.chunkGenerator.generateChunk(1, 0, 0);
 		//this.vao=glGenVertexArrays();
@@ -125,7 +129,7 @@ public class World implements DrawableUpdatable, Cleanable
 		//glBindVertexArray(0);
 		this.sky.setCurrentTime(this.currentTime);
 	}
-	private int setupShaderParameters()
+	private void setupShaderParameters()
 	{
 		this.getActiveShader().enable();
 		//if(InputHandler.isSHIFTPressed())newv.rotate((float)Math.PI, new Vector3f(0,1,0));
@@ -133,42 +137,45 @@ public class World implements DrawableUpdatable, Cleanable
 		
 		//glBindVertexArray(this.vao);
 		
-		int alphaUniformLocation=glGetUniformLocation(this.getActiveShader().getID(),"alpha");
-		int shadowTexLocation=glGetUniformLocation(this.getActiveShader().getID(),"shadowMap");
-		int sunNormalLocation=glGetUniformLocation(this.getActiveShader().getID(),"sunNormal");
-		int splitDistancesLocation=glGetUniformLocation(this.getActiveShader().getID(),"splitDistances");
-		int shadowMatrixesLocation=glGetUniformLocation(this.getActiveShader().getID(),"shadowMatrixes");
-		Vector3f sunNormal=this.sky.getSunNormal();
-		GL20.glUniform3f(sunNormalLocation, sunNormal.x, sunNormal.y, sunNormal.z);
-		GL20.glUniform1i(shadowTexLocation, MonecruftGame.SHADOW_TEXTURE_LOCATION);
+		//int alphaUniformLocation=glGetUniformLocation(this.getActiveShader().getID(),"alpha");
 		
-		if(!(this.getActiveShader() instanceof DepthVoxelShaderProgram)){
-		float[] dsplits=this.shadowsManager.getSplitDistances();
-		switch(this.shadowsManager.getNumberSplits())
-		{
-		case 1: GL20.glUniform4f(splitDistancesLocation, dsplits[1],0,0,0);
-			break;
-		case 2: GL20.glUniform4f(splitDistancesLocation, dsplits[1],dsplits[2],0,0);
-			break;
-		case 3: GL20.glUniform4f(splitDistancesLocation, dsplits[1],dsplits[2],dsplits[3],0);
-			break;
-		case 4: GL20.glUniform4f(splitDistancesLocation, dsplits[1],dsplits[2],dsplits[3],dsplits[4]);
-			break;
-		}
+		if(this.getActiveShader().supportShadows()){
+			int shadowTexLocation=glGetUniformLocation(this.getActiveShader().getID(),"shadowMap");
+			int sunNormalLocation=glGetUniformLocation(this.getActiveShader().getID(),"sunNormal");
+			int splitDistancesLocation=glGetUniformLocation(this.getActiveShader().getID(),"splitDistances");
+			int shadowMatrixesLocation=glGetUniformLocation(this.getActiveShader().getID(),"shadowMatrixes");
+			Vector3f sunNormal=this.sky.getSunNormal();
+			GL20.glUniform3f(sunNormalLocation, sunNormal.x, sunNormal.y, sunNormal.z);
+			GL20.glUniform1i(shadowTexLocation, MonecruftGame.SHADOW_TEXTURE_LOCATION);
 
-		for(int i=0;i<this.shadowsManager.getNumberSplits();i++){
-			MatrixHelper.uploadMatrix(this.shadowsManager.getOrthoProjectionForSplitScreenAdjusted(i), shadowMatrixesLocation+(i));
-		}
+			float[] dsplits=this.shadowsManager.getSplitDistances();
+			switch(this.shadowsManager.getNumberSplits())
+			{
+			case 1: GL20.glUniform4f(splitDistancesLocation, dsplits[1],0,0,0);
+				break;
+			case 2: GL20.glUniform4f(splitDistancesLocation, dsplits[1],dsplits[2],0,0);
+				break;
+			case 3: GL20.glUniform4f(splitDistancesLocation, dsplits[1],dsplits[2],dsplits[3],0);
+				break;
+			case 4: GL20.glUniform4f(splitDistancesLocation, dsplits[1],dsplits[2],dsplits[3],dsplits[4]);
+				break;
+			}
 
-		int daylightUniformLocation=this.getActiveShader().getDaylightAmountLocation();
-		if(this.getActiveShader() instanceof UnderwaterVoxelShaderProgram)
+			for(int i=0;i<this.shadowsManager.getNumberSplits();i++){
+				MatrixHelper.uploadMatrix(this.shadowsManager.getOrthoProjectionForSplitScreenAdjusted(i), shadowMatrixesLocation+(i));
+			}
+		}
+		
+		if(this.getActiveShader().isParticipatingMedia())
 		{
-			UnderwaterVoxelShaderProgram s=(UnderwaterVoxelShaderProgram)this.getActiveShader();
-			GL20.glUniform1f(s.getCurrentLightUniformLocation(), this.EM.getPlayer().getAverageLightExposed(this.worldFacade));
+			int currentLightLoc=glGetUniformLocation(this.getActiveShader().getID(),"currentLight");
+			GL20.glUniform1f(currentLightLoc, this.EM.getPlayer().getAverageLightExposed(this.worldFacade));
 		}
-		GL20.glUniform1f(daylightUniformLocation, this.getDaylightAmount());
+		
+		if(this.getActiveShader().supportLighting()){
+			int daylightUniformLocation=glGetUniformLocation(this.getActiveShader().getID(),"daylightAmount");
+			GL20.glUniform1f(daylightUniformLocation, this.getDaylightAmount());
 		}
-		return alphaUniformLocation;
 	}
 	@Override
 	public void draw()
@@ -177,12 +184,11 @@ public class World implements DrawableUpdatable, Cleanable
 	}
 	public void draw(BoundaryChecker bc)
 	{
-		int alphaUniformLocation=setupShaderParameters();
+		setupShaderParameters();
 		
 		float normLight=((this.getDaylightAmount()-0.15f)*1.17647f);
 		glClearColor(0.2f*normLight, 0.4f*normLight, 0.75f*normLight, 0f);
 		
-		GL20.glUniform1f(alphaUniformLocation, 1.0f);
 		GL11.glDisable( GL11.GL_BLEND );
 		glEnable(GL11.GL_DEPTH_TEST);
 		
@@ -213,10 +219,10 @@ public class World implements DrawableUpdatable, Cleanable
 	}
 	public void drawLiquids()
 	{
-		int alphaUniformLocation=setupShaderParameters();
+		setupShaderParameters();
 		
 		//U AINT GONNA DRAW SHIT
-		GL11.glColorMask(false, false, false, false);
+		/*GL11.glColorMask(false, false, false, false);
 		glEnable(GL11.GL_DEPTH_TEST);
 		GL11.glDisable( GL11.GL_BLEND );
 		glDepthFunc(GL11.GL_LEQUAL);
@@ -225,22 +231,25 @@ public class World implements DrawableUpdatable, Cleanable
 		Chunk c;
 		while((c=this.myChunks.next())!=null) {
 				c.drawLiquids(cam,this.getActiveShader());
-		}
+		}*/
 				
 		//NOW YISS
-		GL11.glColorMask(true, true, true, true);
-		GL20.glUniform1f(alphaUniformLocation, WATER_ALPHA);
-		glEnable( GL11.GL_BLEND ); 
+		//GL11.glColorMask(true, true, true, true);
+		//GL20.glUniform1f(alphaUniformLocation, WATER_ALPHA);
+		//glEnable( GL11.GL_BLEND ); 
 		//GL11.glDepthFunc(GL11.GL_EQUAL);
+		GL11.glDisable(GL11.GL_CULL_FACE);
+		
 		this.myChunks.initIter();
+		Chunk c;
 		while((c=this.myChunks.next())!=null) {
 			c.drawLiquids(cam,this.getActiveShader());
 		}
 		GL11.glEnable(GL11.GL_CULL_FACE);
-		GL11.glDisable(GL11.GL_BLEND);
+		//GL11.glDisable(GL11.GL_BLEND);
 		
 		
-		if(this.getActiveShader() instanceof UnderwaterVoxelShaderProgram){
+		if(this.getActiveShader().isParticipatingMedia()){
 			float light=this.EM.getPlayer().getAverageLightExposed(this.worldFacade);
 			this.sky.drawBackgroundColor(0.375f*light, 0.75f*light, 1.0f*light);
 		}
@@ -261,7 +270,7 @@ public class World implements DrawableUpdatable, Cleanable
 				}
 				this.myChunks.addChunk(ca.getX(), ca.getY(), ca.getZ(), ca);
 			}
-			ca.initChunk(this.getActiveShader());
+			ca.initChunk();
 			//ca.createLightMap();
 		}
 		if(notifyLater) synchronized(this.chunkGenerator){ this.chunkGenerator.notifyAll();}
@@ -324,23 +333,23 @@ public class World implements DrawableUpdatable, Cleanable
 	{
 		this.customPVMatrix=pvmat;
 	}
-	public void setWorldCenter(float xpos,float ypos,float zpos)
+	public void setWorldCenter(double xpos,double ypos,double zpos)
 	{
-		this.currentWorldCornersLow=SquareCorners.add(this.worldCornersLow,xpos,0,zpos);
-		this.currentWorldCornersHigh=SquareCorners.add(this.worldCornersHigh,xpos,0,zpos);
+		this.currentWorldCornersLow=SquareCorners.add(this.worldCornersLow,0,0,0);
+		this.currentWorldCornersHigh=SquareCorners.add(this.worldCornersHigh,0,0,0);
 		//this.currentWorldCornersLow=this.worldCornersLow;
 		//this.currentWorldCornersHigh=this.worldCornersHigh;
-		this.sunCamera.moveTo(xpos, ypos, zpos);
+		this.sunCamera.moveTo(0,0,0);
 	}
-	public Vector3f getCameraCenter()
+	public Vector3d getCameraCenter()
 	{
 		return this.cameraCenterVector;
 	}
-	public void updateCameraCenter(float x,float y,float z) 
+	public void updateCameraCenter(double x,double y,double z) 
 	{
 		this.cameraCenterVector.x=x;this.cameraCenterVector.y=y;this.cameraCenterVector.z=z;
 	}
-	public byte getContent(float x,float y,float z)
+	public byte getContent(double x,double y,double z)
 	{
 		Chunk c;
 		if((c=this.myChunks.getChunk(x/Chunk.CHUNK_DIMENSION, y/Chunk.CHUNK_DIMENSION, z/Chunk.CHUNK_DIMENSION))!=null){
@@ -527,11 +536,18 @@ public class World implements DrawableUpdatable, Cleanable
 	}
 	@Override
 	public void fullClean() {
+		//Prevents game to hang during shutdown if some error happens.
+		Thread overShutdown=new Thread(){
+			@Override 
+			public void run(){try{Thread.sleep(3000);System.err.println("Over shutdown used (!!!)");System.exit(1);} catch(Exception e){}}
+		};
+		overShutdown.start();
 		this.chunkGenerator.fullClean(true);
 		this.chunkUpdater.fullClean(true);
 		this.MG=null;
 		this.EM.fullClean();
 		this.myChunks.fullClean();
 		glDeleteVertexArrays(this.vao);
+		overShutdown.interrupt();
 	}
 }

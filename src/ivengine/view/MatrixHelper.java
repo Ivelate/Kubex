@@ -11,6 +11,9 @@ import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 import org.lwjgl.util.vector.Vector4f;
 
+import monecruft.gui.Chunk;
+import monecruft.utils.Vector3d;
+
 public class MatrixHelper 
 {
 	public static final Vector3f zAxis=new Vector3f(0,0,1);
@@ -122,6 +125,22 @@ public class MatrixHelper
 		uploadMatrix(mat,dest);
 		mat.m30+=trans.x; mat.m31+=trans.y; mat.m32+=trans.z;
 	}
+
+	public static void uploadTranslatedMatrix(Matrix4f mat,Vector3d trans,int dest)
+	{
+		float m30=mat.m30; float m31=mat.m31; float m32=mat.m32; 
+		mat.m30-=trans.x; mat.m31-=trans.y; mat.m32-=trans.z;
+		uploadMatrix(mat,dest);
+		mat.m30=m30; mat.m31=m31; mat.m32=m32;
+	}
+	public static void uploadTranslationMatrix(Matrix4f mat,double ix,double iy,double iz,Vector3d trans,int dest)
+	{
+		mat.m30=(float)(ix-trans.x);
+		mat.m31=(float)(iy-trans.y);
+		mat.m32=(float)(iz-trans.z);
+		uploadMatrix(mat,dest);
+	}
+
 	public static void uploadVector(Vector3f vec,int dest)
 	{
 	    GL20.glUniform3f(dest, vec.x, vec.y, vec.z);

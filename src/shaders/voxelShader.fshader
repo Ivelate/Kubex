@@ -1,7 +1,6 @@
 #version 330 core
 uniform sampler2D tiles;
 uniform sampler2DArrayShadow shadowMap;
-uniform float alpha;
 uniform float daylightAmount;
 uniform vec3 sunNormal;
 
@@ -59,7 +58,6 @@ vec3 normal;
 				));
 	}
 	if(outColor.w<0.1) discard;
-	outColor=outColor*vec4(1,1,1,alpha);
 	
 	float z = gl_FragCoord.z / gl_FragCoord.w;
 	
@@ -76,7 +74,9 @@ vec3 normal;
 
 	if(dotsun>0 && dot(sunNormal,vec3(0,1,0))>0){
 		//float bias = 0.000008 * splitDistances[sindex];
-		float bias = 0.0001;
+
+		float bias = 0.0002;
+		
 		vec4 sunLocation=shadowMatrixes[sindex]*vec4(ModelLocation,1);
 		//sunLocation=sunLocation/sunLocation.w;
 		

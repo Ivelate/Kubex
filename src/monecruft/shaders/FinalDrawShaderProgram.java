@@ -15,9 +15,13 @@ public class FinalDrawShaderProgram extends SimpleShaderProgram{
 	private int locAttrib;
 	
 	public final int colorTex;
-	public final int normalAndLightTex;
+	public final int liquidLayersTex;
+	public final int baseFboDepthTex;
+	public final int liquidLayersTexLength;
+	public final int invProjZ;
+	/*public final int normalAndLightTex;
 	public final int positionTex;
-	public final int shadowMap;
+	public final int shadowMap;*/
 	
 	public FinalDrawShaderProgram()
 	{
@@ -30,9 +34,13 @@ public class FinalDrawShaderProgram extends SimpleShaderProgram{
 		this.locAttrib = glGetAttribLocation(this.getID(), "location");
 		
 		this.colorTex=glGetUniformLocation(this.getID(),"colorTex");
-		this.normalAndLightTex=glGetUniformLocation(this.getID(),"normalAndLightTex");
+		this.liquidLayersTex=glGetUniformLocation(this.getID(),"liquidLayersTex");
+		this.baseFboDepthTex=glGetUniformLocation(this.getID(),"baseFboDepthTex");
+		this.liquidLayersTexLength=glGetUniformLocation(this.getID(),"liquidLayersTexLength");
+		this.invProjZ=glGetUniformLocation(this.getID(),"invProjZ");
+		/*this.normalAndLightTex=glGetUniformLocation(this.getID(),"normalAndLightTex");
 		this.positionTex=glGetUniformLocation(this.getID(),"positionTex");
-		this.shadowMap=glGetUniformLocation(this.getID(),"shadowMap");
+		this.shadowMap=glGetUniformLocation(this.getID(),"shadowMap");*/
 		
 	}
 	

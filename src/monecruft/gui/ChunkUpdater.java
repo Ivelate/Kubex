@@ -14,7 +14,7 @@ public class ChunkUpdater extends Thread
 	static int cont=0;
 	private LinkedList<Chunk> requestList=new LinkedList<Chunk>();
 	private Player player;
-	private float savedX,savedZ;
+	private double savedX,savedZ;
 	
 	private boolean endRequested=false;
 	
@@ -40,12 +40,11 @@ public class ChunkUpdater extends Thread
 				do{
 				request=requestList.getFirst();
 				this.requestList.removeFirst();
-				if(request.isDeleted()) request.setUpdateFlag(false);
+				request.setUpdateFlag(false);
 				}while(request.isDeleted()&&requestList.size()>0);
 			}
 			
 			if(!request.isDeleted()){
-				request.setUpdateFlag(false);
 				request.genUpdateBuffer();
 			}
 		}
@@ -101,7 +100,7 @@ public class ChunkUpdater extends Thread
 
 			if(getSemiDist(this.player,cf)>dc) this.requestList.addFirst(c);
 			else if(getSemiDist(this.player,cl)>dc) {
-				float dist=(this.savedX-player.getX())*(this.savedX-player.getX()) + (this.savedZ-player.getZ())*(this.savedZ-player.getZ());
+				double dist=(this.savedX-player.getX())*(this.savedX-player.getX()) + (this.savedZ-player.getZ())*(this.savedZ-player.getZ());
 				if(dist>1024){
 					this.requestList.add(c);
 					Collections.sort(this.requestList, new Comparator<Chunk>(){
@@ -149,8 +148,8 @@ public class ChunkUpdater extends Thread
 	}
 	private double getSemiDist(Player p,Chunk c)
 	{
-		float xcomp=p.getX()-c.getX()*Chunk.CHUNK_DIMENSION;
-		float zcomp=p.getZ()-c.getZ()*Chunk.CHUNK_DIMENSION;
+		double xcomp=p.getX()-c.getX()*Chunk.CHUNK_DIMENSION;
+		double zcomp=p.getZ()-c.getZ()*Chunk.CHUNK_DIMENSION;
 		return xcomp*xcomp + zcomp*zcomp;
 		//return Math.abs(p.getX()-c.getX()*Chunk.CHUNK_DIMENSION) + Math.abs(p.getZ()-c.getZ()*Chunk.CHUNK_DIMENSION);
 	}

@@ -199,6 +199,7 @@ public class MapGenerator
 		{
 			height=(int)(120+((height-120)/((float)(22)/8)));
 		}
+		
 		return height;
 	}
 	public float get3dValue(int x,int y,int z)

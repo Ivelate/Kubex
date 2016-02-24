@@ -20,6 +20,7 @@ import java.nio.FloatBuffer;
 
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL15;
+import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 
 import ivengine.view.Camera;
@@ -55,29 +56,13 @@ public class Sky
 	private Camera sunCamera;
 
 	
-	public Sky(SkyShaderProgram SSP,BasicColorShaderProgram BCSP,Camera cam,Camera sunCamera)
+	public Sky(SkyShaderProgram SSP,BasicColorShaderProgram BCSP,Camera cam,Camera sunCamera,int squarevbo)
 	{
 		this.cam=cam;
 		this.sunCamera=sunCamera;
 			this.SSP=SSP;
 			this.BCSP=BCSP;
-			this.vbo=glGenBuffers();
-			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
-		
-			SSP.enable();
-			SSP.setupAttributes();
-			FloatBuffer toUpload=FloatBufferPool.getBuffer();
-			float[] list={	-1,-1,  1,-1,  1,1,
-							-1,-1,  1,1,  -1,1};
-							//0,0,0,  0,1,1,  1,1,0,
-							//1,0,1,  0,1,1,  1,1,0};
-
-			toUpload.put(list);
-			toUpload.flip();
-			glBufferData(GL15.GL_ARRAY_BUFFER,(list.length*4),GL15.GL_STATIC_DRAW);
-			glBufferSubData(GL15.GL_ARRAY_BUFFER,0,toUpload);
-			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
-			FloatBufferPool.recycleBuffer(toUpload);
+			this.vbo=squarevbo;
 		}
 		public void draw()
 		{
@@ -94,7 +79,7 @@ public class Sky
 			glDepthFunc(GL11.GL_EQUAL);
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
 			SSP.setupAttributes();
-			MatrixHelper.uploadMatrix(MatrixHelper.getRotationAndInvert(this.cam.getProjectionViewMatrix()), this.SSP.getInvertedViewRotationMatrixLoc());
+			MatrixHelper.uploadMatrix(Matrix4f.invert(this.cam.getProjectionViewMatrix(),null), this.SSP.getInvertedViewRotationMatrixLoc());
 			sunYyx.uploadToShader(this.SSP);
 			this.coeffs.uploadToShader(this.SSP);
 			glUniform1f(this.SSP.getSolarZenithUniform(),(float)zenithS);
@@ -131,22 +116,16 @@ public class Sky
 		}
 		public void update(float tEl)
 		{
-			this.currentTime+=(tEl/60);
+			this.currentTime+=(tEl/300);
 			if(this.currentTime>22) this.currentTime=4;
 			if(this.currentTime>24) this.currentTime=0;
 			
 			this.sunCamera.setPitch((float)this.solarAltitude);
 			this.sunCamera.setYaw(-(float)(this.solarAzimuth));
-			
-			System.out.println(this.solarAltitude+" "+this.solarAzimuth);
 		}
 		public double getSolarAltitude()
 		{
 			return this.solarAltitude;
-		}
-		public int getVbo()
-		{
-			return this.vbo;
 		}
 		public Vector3f getSunNormal()
 		{

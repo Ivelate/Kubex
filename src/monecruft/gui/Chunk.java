@@ -8,6 +8,7 @@ import static org.lwjgl.opengl.GL15.glBufferData;
 import static org.lwjgl.opengl.GL15.glBufferSubData;
 import static org.lwjgl.opengl.GL15.glDeleteBuffers;
 import ivengine.properties.Cleanable;
+import ivengine.shaders.SimpleShaderProgram;
 import ivengine.view.Camera;
 import ivengine.view.MatrixHelper;
 
@@ -25,6 +26,8 @@ import monecruft.storage.ByteArrayPool;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.BoundaryChecker;
 import monecruft.utils.BoundingBoxBoundaryChecker;
+
+import monecruft.utils.Vector3d;
 
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.util.vector.Matrix4f;
@@ -77,7 +80,7 @@ public class Chunk implements Cleanable
 		this.chunky=chunkypos;
 		this.chunkz=chunkzpos;
 		this.chunkModelMatrix=new Matrix4f();
-		Matrix4f.translate(new Vector3f(chunkx*Chunk.CHUNK_DIMENSION,chunky*Chunk.CHUNK_DIMENSION,chunkz*Chunk.CHUNK_DIMENSION), this.chunkModelMatrix, this.chunkModelMatrix);
+		//Matrix4f.translate(new Vector3f(chunkx*Chunk.CHUNK_DIMENSION,chunky*Chunk.CHUNK_DIMENSION,chunkz*Chunk.CHUNK_DIMENSION), this.chunkModelMatrix, this.chunkModelMatrix);
 		this.chunkCubes=WF.getMapHandler().getChunk(chunkxpos, chunkypos,chunkzpos,chunkCubes);
 		/*for(int i=0;i<4;i++)
 		{
@@ -99,7 +102,7 @@ public class Chunk implements Cleanable
 		//Neighbours
 		//this.neighborsAdded=WF.getNeighboursAdded(this);
 	}
-	public void initChunk(VoxelShaderProgram VSP)
+	public void initChunk()
 	{
 		this.vbo=glGenBuffers();
 		/*glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
@@ -107,7 +110,7 @@ public class Chunk implements Cleanable
 		VSP.enable();
 		VSP.setupAttributes();*/
 
-		update(VSP);
+		update();
 	
 		//glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
 	}
@@ -127,6 +130,7 @@ public class Chunk implements Cleanable
 		if(neighbours[Direction.ZP.ordinal()]==null || !neighbours[Direction.ZP.ordinal()].lightCalculated) {canDraw=false; this.neighborsAdded[Direction.ZP.ordinal()]=false;}else this.neighborsAdded[Direction.ZP.ordinal()]=true;
 		if((neighbours[Direction.YM.ordinal()]==null || !neighbours[Direction.YM.ordinal()].lightCalculated)&&this.getY()>0) {canDraw=false; this.neighborsAdded[Direction.YM.ordinal()]=false;}else this.neighborsAdded[Direction.YM.ordinal()]=true;
 		if((neighbours[Direction.YP.ordinal()]==null || !neighbours[Direction.YP.ordinal()].lightCalculated)&&this.getY()<World.HEIGHT-1) {canDraw=false; this.neighborsAdded[Direction.YP.ordinal()]=false;}else this.neighborsAdded[Direction.YP.ordinal()]=true;
+		
 		int bufferCont=0;
 		int liquidCont=0;
 		
@@ -295,6 +299,7 @@ public class Chunk implements Cleanable
 		}
 		toUpload.flip();
 		toUploadLiquid.flip();
+
 		if(this.deleted){
 			FloatBufferPool.recycleBuffer(toUpload);
 			FloatBufferPool.recycleBuffer(toUploadLiquid);
@@ -310,7 +315,7 @@ public class Chunk implements Cleanable
 		this.triangleLiquidNum=liquidCont/SAN;
 		this.triangleNum=bufferCont/SAN;
 	}
-	public void update(VoxelShaderProgram VSP)
+	public void update()
 	{
 		if(this.changed) {
 			if(this.updateFlag) this.changed=false;
@@ -323,7 +328,6 @@ public class Chunk implements Cleanable
 		{
 			if(this.getUpdateAccessSemaphore().tryAcquire()){
 				glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
-				VSP.setupAttributes();
 				glBufferData(GL15.GL_ARRAY_BUFFER,(this.triangleNum+this.triangleLiquidNum)*SAN*4,GL15.GL_STATIC_DRAW);
 				glBufferSubData(GL15.GL_ARRAY_BUFFER,0,this.toUpload);
 				glBufferSubData(GL15.GL_ARRAY_BUFFER,this.triangleNum*SAN*4,this.toUploadLiquid);
@@ -342,22 +346,32 @@ public class Chunk implements Cleanable
 	}
 	public void draw(Camera c,VoxelShaderProgram VSP,BoundaryChecker bc)
 	{
-		if(changed||this.toUpload!=null) update(VSP);
+		if(changed||this.toUpload!=null) update();
 		if(this.solidEmpty&&this.liquidEmpty) return;
 		this.drawed=true;
 		if(bc==null){
-		Matrix4f mvp=new Matrix4f();
-		//Matrix4f.translate(this.WF.getWorldCenterVector(), this.chunkModelMatrix, mvp); System.out.println(this.WF.getWorldCenterVector());System.out.println(this.chunkModelMatrix); System.out.println(mvp); System.out.println("_-_-_-_");
-		mvp.m30=-this.WF.getCameraCenter().x;mvp.m31=-this.WF.getCameraCenter().y;mvp.m32=-this.WF.getCameraCenter().z;
-		//Matrix4f.sub(this.chunkModelMatrix, mvp, mvp);
-		Matrix4f.mul(c.getProjectionViewMatrix(), mvp, mvp);
-		Vector4f coords=MatrixHelper.multiply(mvp, CENTER_VECTOR);
-		float xc=coords.x/(coords.w);
-		float yc=coords.y/(coords.w);
-		double normDiam=CHUNK_RADIUS/Math.abs(coords.w);
-		if(Math.abs(xc)>1+normDiam || Math.abs(yc)>1+normDiam || coords.z<-CHUNK_RADIUS){
-			this.drawed=true;
+			Matrix4f mvp=new Matrix4f();
+			//Matrix4f.translate(this.WF.getWorldCenterVector(), this.chunkModelMatrix, mvp); System.out.println(this.WF.getWorldCenterVector());System.out.println(this.chunkModelMatrix); System.out.println(mvp); System.out.println("_-_-_-_");
+			//mvp.m30=-this.WF.getCameraCenter().x;mvp.m31=-this.WF.getCameraCenter().y;mvp.m32=-this.WF.getCameraCenter().z;
+			//Matrix4f.sub(this.chunkModelMatrix, mvp, mvp);
+			//float m30=this.chunkModelMatrix.m30; float m31=this.chunkModelMatrix.m31; float m32=this.chunkModelMatrix.m32; 
+			this.chunkModelMatrix.m30=(float)(chunkx*Chunk.CHUNK_DIMENSION-this.WF.getCameraCenter().x); this.chunkModelMatrix.m31=(float)(chunky*Chunk.CHUNK_DIMENSION-this.WF.getCameraCenter().y); this.chunkModelMatrix.m32=(float)(chunkz*Chunk.CHUNK_DIMENSION-this.WF.getCameraCenter().z);
+			Matrix4f.mul(c.getProjectionViewMatrix(), this.chunkModelMatrix, mvp);
+			//this.chunkModelMatrix.m30=m30; this.chunkModelMatrix.m31=m31; this.chunkModelMatrix.m32=m32;
+		
+			Vector4f coords=MatrixHelper.multiply(mvp, CENTER_VECTOR);
+			float xc=coords.x/(coords.w);
+			float yc=coords.y/(coords.w);
+			double normDiam=CHUNK_RADIUS/Math.abs(coords.w);
+			if(Math.abs(xc)>1+normDiam || Math.abs(yc)>1+normDiam || coords.z<-CHUNK_RADIUS){
+				this.drawed=false;
+			}
 		}
+		else{
+			if(!bc.sharesBoundariesWith((float)(this.getX()*Chunk.CHUNK_DIMENSION + CENTER_VECTOR.x-this.WF.getCameraCenter().x), 
+										(float)(this.getY()*Chunk.CHUNK_DIMENSION + CENTER_VECTOR.y-this.WF.getCameraCenter().y), 
+										(float)(this.getZ()*Chunk.CHUNK_DIMENSION+ CENTER_VECTOR.z-this.WF.getCameraCenter().z), 
+										(float)CHUNK_RADIUS)) 									this.drawed=false;
 		}
 		else{
 			if(!bc.sharesBoundariesWith(this.getX()*Chunk.CHUNK_DIMENSION + CENTER_VECTOR.x, 
@@ -369,7 +383,7 @@ public class Chunk implements Cleanable
 			if(this.solidEmpty) return;
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
 			VSP.setupAttributes();
-			MatrixHelper.uploadTranslatedMatrix(this.chunkModelMatrix,this.WF.getCameraCenter(),VSP.getModelMatrixLoc());
+			MatrixHelper.uploadTranslationMatrix(this.chunkModelMatrix,chunkx*Chunk.CHUNK_DIMENSION,chunky*Chunk.CHUNK_DIMENSION,chunkz*Chunk.CHUNK_DIMENSION,this.WF.getCameraCenter(),VSP.getModelMatrixLoc());
 			glDrawArrays(GL_TRIANGLES, 0, this.triangleNum);
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
 		}
@@ -381,7 +395,7 @@ public class Chunk implements Cleanable
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
 			VSP.setupAttributes();
 			//this.chunkModelMatrix=Matrix4f.translate(new Vector3f(0f,-0.3f,0f), this.chunkModelMatrix, this.chunkModelMatrix);
-			MatrixHelper.uploadTranslatedMatrix(this.chunkModelMatrix,this.WF.getCameraCenter(),VSP.getModelMatrixLoc());
+			MatrixHelper.uploadTranslationMatrix(this.chunkModelMatrix,chunkx*Chunk.CHUNK_DIMENSION,chunky*Chunk.CHUNK_DIMENSION,chunkz*Chunk.CHUNK_DIMENSION,this.WF.getCameraCenter(),VSP.getModelMatrixLoc());
 			//this.chunkModelMatrix=Matrix4f.translate(new Vector3f(0f,0.3f,0f), this.chunkModelMatrix, this.chunkModelMatrix);
 			glDrawArrays(GL_TRIANGLES, this.triangleNum,this.triangleLiquidNum);
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
@@ -399,6 +413,7 @@ public class Chunk implements Cleanable
 				byte cube=this.getCubeAt(cp.x, cp.y, cp.z);
 				if(BlockLibrary.isLiquid(cube))
 				{
+					if(1==2/2)continue; //|TODO DEBUG
 					byte belowCube=getCubeAt(cp.x,cp.y-1,cp.z);
 					
 					if(!BlockLibrary.isDrawable(belowCube)){
