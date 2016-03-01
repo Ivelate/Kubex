@@ -28,7 +28,7 @@ public class MapHandler
 	public ChunkGenerationResult getChunk(int x,int y,int z,byte[][][] c){
 		return this.mg.generateChunk(x, y, z,c);
 	}
-	public byte[][][] getBounds(int x,int y,int z)
+	/*public byte[][][] getBounds(int x,int y,int z)
 	{
 		byte[][][] bounds=new byte[6][Chunk.CHUNK_DIMENSION][Chunk.CHUNK_DIMENSION];
 		Chunk c=this.wf.getChunkByIndex(x-1,y,z);
@@ -111,7 +111,7 @@ public class MapHandler
 			}
 		}
 		return bounds;
-	}
+	}*/
 	public boolean shouldDraw(byte blockCode,byte neighbourBlockCode,boolean liquidTag,Direction d){
 		if(liquidTag)
 			if(BlockLibrary.isLiquid(blockCode)||BlockLibrary.isSolid(blockCode)){

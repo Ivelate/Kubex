@@ -369,7 +369,7 @@ public class MonecruftGame implements Cleanable
 		this.BCSP=new BasicColorShaderProgram(true);
 		this.FDSP=new FinalDrawShaderProgram(true);
 		this.TM=new TimeManager();
-		this.cam=new Camera(CAMERA_NEAR,CAMERA_FAR,80f,X_RES/Y_RES);
+		this.cam=new Camera(CAMERA_NEAR,CAMERA_FAR,80f,(float)(X_RES*3/4)/Y_RES); //FOV more width than height by design
 		this.camInvProjEnv=new CameraInverseProjEnvelope(this.cam);
 		this.shadowsManager=new ShadowsManager(SHADOW_SPLITS,this.cam);
 		this.liquidRenderer=new DepthPeelingLiquidRenderer(LIQUID_LAYERS);

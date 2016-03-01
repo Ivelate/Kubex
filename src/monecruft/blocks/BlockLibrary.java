@@ -15,7 +15,8 @@ public class BlockLibrary
 		new B9SuperTower(),
 		new B10DebugUtil(),
 		new B11Lava(),
-		new B12Vegetation()
+		new B12Vegetation(),
+		new B13Snow()
 	};
 	private static Block defaultBlock=new B0Air();
 	

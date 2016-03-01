@@ -80,11 +80,19 @@ public class MapGenerator
 		}
 		return empty?ChunkGenerationResult.CHUNK_EMPTY:ChunkGenerationResult.CHUNK_NORMAL;
 	}
-	public byte getCubeAt(int absx,int absy,int absz)
+	/*public byte getCubeAt(int absx,int absy,int absz)
 	{
 		int h=getHeight(absx,absz);
-		return (byte)(h>=absy ?1 : (absy<=SEA_HEIGHT? 4:0));
-	}
+		byte toRet=0;
+		if(h>=absy){
+			if(h/(float)(70) + Math.random()>2) toRet=19;
+			else toRet=1;
+		}
+		else if(absy<=SEA_HEIGHT){
+			toRet=4;
+		}
+		return toRet;
+	}*/
 	public void generateHeightMap(int x,int z){
 		if(x!=this.savedHeightMapX||z!=this.savedHeightMapZ){
 			int minY=this.endBlockHeight;
@@ -110,7 +118,9 @@ public class MapGenerator
 			//if(y<55) cubeCode=1;
 			//else if(y<100) cubeCode=(byte) ((this.mapBase.getNoise(x, z)+1+((y-55)/(float)(22)))>2?2:1);
 			//else cubeCode=2;
-			cubeCode=1;
+			if(y>95) cubeCode=20;
+			else if(y>85&& (y-85)/10f>Math.random()) cubeCode=20;
+			else cubeCode=1;
 		}
 		else cubeCode=2;
 		
@@ -231,7 +241,7 @@ public class MapGenerator
 		return 1;
 	}*/
 	//|TODO gen
-	byte[][] generateBoundFromChunk(int x,int y,int z,int pos)
+	/*byte[][] generateBoundFromChunk(int x,int y,int z,int pos)
 	{
 		int absx=x*Chunk.CHUNK_DIMENSION;
 		int absy=y*Chunk.CHUNK_DIMENSION;
@@ -301,6 +311,6 @@ public class MapGenerator
 				toRet[w][h]=1;
 			}
 		}*/
-		return toRet;
-	}
+		/*return toRet;
+	}*/
 }
