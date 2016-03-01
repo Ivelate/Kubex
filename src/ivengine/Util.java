@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.nio.ByteBuffer;
 
 import org.lwjgl.BufferUtils;
@@ -75,7 +76,7 @@ public class Util
 		return texId;
 	}
 	
-	public static int loadTextureAtlasIntoTextureArray(File[] filenames,int magfilter,int minfilter,boolean mipmap)
+	public static int loadTextureAtlasIntoTextureArray(URL[] filenames,int magfilter,int minfilter,boolean mipmap)
 	{
 		int tex = GL11.glGenTextures();
 		GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, tex);
@@ -87,7 +88,7 @@ public class Util
 		ByteBuffer buf=null;
 		PNGDecoder decoder=null;
 		try {
-			InputStream in = new FileInputStream(filenames[0]);
+			InputStream in = filenames[0].openStream();
 			decoder = new PNGDecoder(in);
 
 			buf = BufferUtils.createByteBuffer(4 * decoder.getWidth() * decoder.getHeight());
@@ -111,28 +112,27 @@ public class Util
 		{
 			GL12.glTexSubImage3D(GL30.GL_TEXTURE_2D_ARRAY,0, /*tileWidth*x*/0, /*tileHeight*y*/0, i,  tileWidth, tileHeight, 1,GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buf);
 			
-			System.out.println("ERRTEXT"+i+" "+GL11.glGetError());
+			//System.out.println("ERRTEXT"+i+" "+GL11.glGetError());
 			
 			buf.rewind();
 			if(i<filenames.length-1) loadTexture(filenames[i+1],buf);
 		}
-		System.out.println("ERRTEXT"+GL11.glGetError());
+		//System.out.println("ERRTEXT"+GL11.glGetError());
 		if(mipmap) GL30.glGenerateMipmap(GL30.GL_TEXTURE_2D_ARRAY);
 		GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, 0);
 		
-		System.out.println("ERRTEXT"+GL11.glGetError());
+		//System.out.println("ERRTEXT"+GL11.glGetError());
 		
 		return tex;
 	}
 	
-	private static ByteBuffer loadTexture(File filename,ByteBuffer buf)
+	private static ByteBuffer loadTexture(URL filename,ByteBuffer buf)
 	{
 		try {
-			InputStream in = new FileInputStream(filename);
+			InputStream in = filename.openStream();
 			PNGDecoder decoder = new PNGDecoder(in);
 
 			decoder.decode(buf, decoder.getWidth() * 4, Format.RGBA);
-			System.out.println(decoder.hasAlpha());
 			buf.flip();
 			
 			in.close();

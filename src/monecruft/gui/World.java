@@ -23,6 +23,7 @@ import ivengine.shaders.SimpleShaderProgram;
 import ivengine.view.Camera;
 import ivengine.view.MatrixHelper;
 import monecruft.MonecruftGame;
+import monecruft.MonecruftSettings;
 import monecruft.entity.EntityManager;
 import monecruft.entity.Player;
 import monecruft.shaders.DepthVoxelShaderProgram;
@@ -77,7 +78,7 @@ public class World implements DrawableUpdatable, Cleanable
 	
 	private LinkedList<Chunk> chunkAddList=new LinkedList<Chunk>();
 	
-	public World(VoxelShaderProgram VSP,VoxelShaderProgram UVSP,Camera cam,Camera sunCamera,ShadowsManager shadowsManager,Sky sky)
+	public World(VoxelShaderProgram VSP,VoxelShaderProgram UVSP,Camera cam,Camera sunCamera,ShadowsManager shadowsManager,Sky sky,MonecruftSettings settings)
 	{
 		this.shadowsManager=shadowsManager;
 		this.sunCamera=sunCamera;
@@ -101,7 +102,7 @@ public class World implements DrawableUpdatable, Cleanable
 		this.worldFacade=new WorldFacade(this);
 		this.EM=new EntityManager(p,worldFacade);
 		this.cam=cam;
-		this.MG=new MapHandler(0,128,worldFacade);
+		this.MG=new MapHandler(0,128,settings.MAP_CODE,worldFacade);
 		this.myChunks=new ChunkStorage((PLAYER_VIEW_FIELD*2)+1);
 		this.chunkGenerator=new ChunkGenerator(worldFacade);
 		this.chunkGenerator.start();

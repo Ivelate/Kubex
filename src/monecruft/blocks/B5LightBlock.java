@@ -30,17 +30,17 @@ public class B5LightBlock extends Block{
 
 	@Override
 	public byte getUpTex() {
-		return 5;
+		return 14;
 	}
 
 	@Override
 	public byte getLatTex() {
-		return 5;
+		return 14;
 	}
 
 	@Override
 	public byte getDownTex() {
-		return 5;
+		return 14;
 	}
 
 	@Override

@@ -393,12 +393,12 @@ public class MonecruftGame implements Cleanable
 		FloatBufferPool.recycleBuffer(toUpload);
 		
 		this.sky=new Sky(SSP,BCSP,cam,this.sunCam,this.squarevbo);
-		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky);
+		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky,this.settings);
 		this.hud=new Hud(this.HSP,X_RES,Y_RES);
 		//Load textures here
 		
 		glActiveTexture(TEXTURE_FETCH[TILES_TEXTURE_LOCATION]);
-		System.out.println(ResourceLoader.getResource("/images/tiles"));
+		/*System.out.println(ResourceLoader.getResource("/images/tiles"));
 		File tilesFolder=new File(ResourceLoader.getResource("/images/tiles").getFile());
 		File[] tileFiles=tilesFolder.listFiles();
 		Arrays.sort(tileFiles, new Comparator<File>(){
@@ -408,8 +408,8 @@ public class MonecruftGame implements Cleanable
 				String name1=arg1.getName().substring(0, 3);
 				return name0.compareTo(name1);
 			}	
-		});
-		tilesTexture = Util.loadTextureAtlasIntoTextureArray(tileFiles, GL11.GL_LINEAR, GL11.GL_NEAREST_MIPMAP_LINEAR, true);//TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("images/imagenes2.png"));
+		});*/
+		tilesTexture = Util.loadTextureAtlasIntoTextureArray(FileLoader.loadTileImages(), GL11.GL_LINEAR, GL11.GL_NEAREST_MIPMAP_LINEAR, true);//TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("images/imagenes2.png"));
 		
 		glActiveTexture(GL_TEXTURE0);
 		// Setup the ST coordinate system
@@ -593,13 +593,21 @@ public class MonecruftGame implements Cleanable
 	{
 		boolean fullscreen=false;
 		boolean noshadows=false;
+		int mapcode=0;
+		boolean selectingMap=false;
 		for(String s:args){
-			if(s.equals("-fullscreen")) fullscreen=true;
+			if(selectingMap){
+				selectingMap=false;
+				mapcode=Integer.parseInt(s);
+			}
+			else if(s.equals("-fullscreen")) fullscreen=true;
 			else if(s.equals("-noshadows")) noshadows=true;
+			else if(s.equals("-map")) selectingMap=true;
 		}
 		MonecruftSettings settings=new MonecruftSettings();
 		settings.FULLSCREEN_ENABLED=fullscreen;
 		settings.SHADOWS_ENABLED=!noshadows;
+		settings.MAP_CODE=mapcode;
 		new MonecruftGame(settings);
 	}
 	private void closeApp()

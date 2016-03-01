@@ -61,7 +61,7 @@ public class ByteArrayPool
 	}
 	public static byte[][][] getArrayUncleaned()
 	{
-		System.out.println(bufferNum-content.size()-cleanedContent.size());
+		//System.out.println(bufferNum-content.size()-cleanedContent.size());
 		synchronized(content) 
 		{
 			if(content.size()!=0) return content.removeFirst();
@@ -92,7 +92,7 @@ public class ByteArrayPool
 	{
 		synchronized(content) {
 			content.add(array);
-			System.out.println(bufferNum-content.size()-cleanedContent.size());
+			//System.out.println(bufferNum-content.size()-cleanedContent.size());
 			content.notify();
 		}
 	}
@@ -100,7 +100,7 @@ public class ByteArrayPool
 	{
 		synchronized(content) {
 			cleanedContent.add(array);
-			System.out.println(bufferNum-content.size()-cleanedContent.size());
+			//System.out.println(bufferNum-content.size()-cleanedContent.size());
 			content.notify();
 		}
 	}

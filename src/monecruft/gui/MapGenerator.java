@@ -24,8 +24,11 @@ public class MapGenerator
 	private int savedHeightMapMinY=-1; private int savedHeightMapMaxY=-1;
 	private boolean liquidTag=false;
 	
-	public MapGenerator(int bbegin,int bend)
+	private int mapcode=0; //|TODO likely only debug
+	
+	public MapGenerator(int bbegin,int bend,int mapcode)
 	{
+		this.mapcode=mapcode;
 		this.beginBlockHeight=bbegin;this.endBlockHeight=bend;
 		//this.mapNoise=new PerlinNoise(65431245*244233);
 		long seed=/*(new Random()).nextLong();//*/1234567890;
@@ -51,11 +54,13 @@ public class MapGenerator
 				for(int cz=0;cz<Chunk.CHUNK_DIMENSION;cz++)
 				{
 					//ret[cx][cy][cz]=cy+(y*Chunk.CHUNK_DIMENSION)==50?(byte)1:0;
-					/*if(cy==0&&y==0)*/ret[cx][cy][cz]=getCubeFromHeightMap(cx,cy+(y*Chunk.CHUNK_DIMENSION),cz);
-					/*ret[cx][cy][cz]=get3dValue(cx+(x*Chunk.CHUNK_DIMENSION),
+					if(mapcode<2)ret[cx][cy][cz]=getCubeFromHeightMap(cx,cy+(y*Chunk.CHUNK_DIMENSION),cz);
+					else {
+						ret[cx][cy][cz]=get3dValue(cx+(x*Chunk.CHUNK_DIMENSION),
 							cy+(y*Chunk.CHUNK_DIMENSION), 
-							cz+(z*Chunk.CHUNK_DIMENSION))<0 ? (byte)1: (cy+(y*Chunk.CHUNK_DIMENSION)<70? (byte)(1): (byte)(0));*/
-							if(ret[cx][cy][cz]==0&&cy>1&&ret[cx][cy-1][cz]==1&&Math.random()<0.1f) ret[cx][cy][cz]=(byte)19;
+							cz+(z*Chunk.CHUNK_DIMENSION))<0 ? (byte)1: (cy+(y*Chunk.CHUNK_DIMENSION)<70? (byte)(1): (byte)(0));
+					}
+					if(ret[cx][cy][cz]==0&&cy>1&&ret[cx][cy-1][cz]==1&&Math.random()<0.1f) ret[cx][cy][cz]=(byte)19;
 							
 					if(empty&&ret[cx][cy][cz]!=0) empty=false; 
 					//else ret[cx][cy][cz]=(byte)0;
@@ -200,7 +205,7 @@ public class MapGenerator
 		//if(elevmult<0)elevmult=0;
 		//else elevmult*=1/0.7;
 		elevmult=elevmult*elevmult;
-		int height=(int)(((baseMap+(detail*elevmult))*106)+30);
+		int height=(int)(((baseMap+(detail*elevmult))*(56*(mapcode+1)))+30);
 		if(height>120)
 		{
 			height=(int)(120+((height-120)/((float)(22)/8)));

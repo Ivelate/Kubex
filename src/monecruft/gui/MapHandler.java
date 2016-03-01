@@ -16,9 +16,9 @@ public class MapHandler
 	
 	private MapGenerator mg;
 	private WorldFacade wf;
-	public MapHandler(int bbegin,int bend,WorldFacade wf)
+	public MapHandler(int bbegin,int bend,int mapcode,WorldFacade wf)
 	{
-		this.mg=new MapGenerator(bbegin,bend);
+		this.mg=new MapGenerator(bbegin,bend,mapcode);
 		this.wf=wf;
 	}
 	//|TODO load from arch

@@ -20,7 +20,7 @@ public class PrintMap
 	{
 		BufferedImage bi=new BufferedImage(1024, 1024,
 			    BufferedImage.TYPE_INT_RGB);
-		MapGenerator mg=new MapGenerator(0,128);
+		MapGenerator mg=new MapGenerator(0,128,0);
 		for(int w=0;w<1024;w++){
 			for(int h=0;h<1024;h++){
 				int height=mg.getHeight((w*ZOOM)+INITIAL_X, (h*ZOOM)+INITIAL_Y);
