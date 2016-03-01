@@ -116,8 +116,8 @@ public class Sky
 		}
 		public void update(float tEl)
 		{
-			this.currentTime+=(tEl/300);
-			if(this.currentTime>22) this.currentTime=4;
+			this.currentTime+=(tEl/30);
+			if(this.currentTime>21) this.currentTime=5;
 			if(this.currentTime>24) this.currentTime=0;
 			
 			this.sunCamera.setPitch((float)this.solarAltitude);

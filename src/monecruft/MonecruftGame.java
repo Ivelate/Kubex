@@ -48,10 +48,14 @@ import static org.lwjgl.opengl.GL30.glGenFramebuffers;
 import static org.lwjgl.opengl.GL30.glGenRenderbuffers;
 import static org.lwjgl.opengl.GL30.glRenderbufferStorage;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Scanner;
 
 import monecruft.gui.Chunk;
@@ -105,6 +109,7 @@ import ivengine.view.MatrixHelper;
 public class MonecruftGame implements Cleanable
 {
 	public static final int[] TEXTURE_FETCH={GL_TEXTURE0,GL_TEXTURE1,GL_TEXTURE2,GL_TEXTURE3,GL_TEXTURE4,GL_TEXTURE5};
+	public static final int TILES_TEXTURE_LOCATION=0;
 	public static final int BASEFBO_COLOR_TEXTURE_LOCATION=2;
 	public static final int BASEFBO_DEPTH_TEXTURE_LOCATION=3;
 	public static final int SHADOW_TEXTURE_LOCATION=4; //Lookup from World
@@ -112,8 +117,8 @@ public class MonecruftGame implements Cleanable
 	
 	private MonecruftSettings settings;
 	
-	private int X_RES=800;
-	private int Y_RES=600;
+	private int X_RES=1200;
+	private int Y_RES=900;
 	private int SHADOW_XRES=2048;
 	private int SHADOW_YRES=2048;
 	private final int SHADOW_LAYERS=4;
@@ -143,7 +148,7 @@ public class MonecruftGame implements Cleanable
 	private ShadowsManager shadowsManager;
 	private LiquidRenderer liquidRenderer;
 	
-	private Texture tilesTexture;
+	private int tilesTexture;
 	private Texture nightDomeTexture;
 	
 	//TEXTURE HIERARCHY:
@@ -285,7 +290,8 @@ public class MonecruftGame implements Cleanable
 				this.world.draw(this.shadowsManager.getBoundaryCheckerForSplit(i));
 			}
 		}
-		this.tilesTexture.bind();
+
+		glBindTexture(GL30.GL_TEXTURE_2D_ARRAY,this.tilesTexture);
 		glBindFramebuffer(GL_FRAMEBUFFER, this.baseFbo);
 		glClear(GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 		GL11.glViewport(0,0,X_RES,Y_RES);
@@ -391,16 +397,31 @@ public class MonecruftGame implements Cleanable
 		this.hud=new Hud(this.HSP,X_RES,Y_RES);
 		//Load textures here
 		
-		tilesTexture = TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("images/monecruft_tiles.png"));
+		glActiveTexture(TEXTURE_FETCH[TILES_TEXTURE_LOCATION]);
+		System.out.println(ResourceLoader.getResource("/images/tiles"));
+		File tilesFolder=new File(ResourceLoader.getResource("/images/tiles").getFile());
+		File[] tileFiles=tilesFolder.listFiles();
+		Arrays.sort(tileFiles, new Comparator<File>(){
+			@Override
+			public int compare(File arg0, File arg1) {
+				String name0=arg0.getName().substring(0, 3);
+				String name1=arg1.getName().substring(0, 3);
+				return name0.compareTo(name1);
+			}	
+		});
+		tilesTexture = Util.loadTextureAtlasIntoTextureArray(tileFiles, GL11.GL_LINEAR, GL11.GL_NEAREST_MIPMAP_LINEAR, true);//TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("images/imagenes2.png"));
+		
+		glActiveTexture(GL_TEXTURE0);
 		// Setup the ST coordinate system
-		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);
-		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_REPEAT);
+		/*GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);
+		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_REPEAT);*/
 		
 		// Setup what to do when the texture has to be scaled
-		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, 
+		/*GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, 
 				GL11.GL_NEAREST);
 		GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, 
-				GL11.GL_NEAREST);
+				GL11.GL_NEAREST_MIPMAP_LINEAR);
+		GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);*/
 		
 		nightDomeTexture=TextureLoader.getTexture("JPG", ResourceLoader.getResourceAsStream("images/nightdome.jpg"));
 		//nightDomeTexture=TextureLoader.getTexture("PMG", ResourceLoader.getResourceAsStream("images/tiles4.PNG"));

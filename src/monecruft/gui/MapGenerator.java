@@ -10,6 +10,7 @@ public class MapGenerator
 	public static final int MAP_UNDERHEIGHT=1;
 	public static final int MAP_OVERHEIGHT=1;
 	public static final int SEA_HEIGHT=64;
+	public enum ChunkGenerationResult{CHUNK_EMPTY,CHUNK_HIGHER_THAN_HEIGHTMAP,CHUNK_NORMAL};
 	
 	private SimplexNoise mapBase;
 	private SimplexNoise mapElevation;
@@ -37,10 +38,12 @@ public class MapGenerator
 		this.elevationCoef=new SimplexNoise(3,0.8,(int)seed3,100);
 				//100);
 	}
-	public byte[][][] generateChunk(int x,int y,int z,byte[][][] c)
+	public ChunkGenerationResult generateChunk(int x,int y,int z,byte[][][] c)
 	{
-		byte[][][] ret=c==null?new byte[Chunk.CHUNK_DIMENSION][Chunk.CHUNK_DIMENSION][Chunk.CHUNK_DIMENSION]:c;
+		boolean empty=true;
+		byte[][][] ret=c;
 		generateHeightMap(x,z);
+		if(y*Chunk.CHUNK_DIMENSION>savedHeightMapMaxY&&y*Chunk.CHUNK_DIMENSION>SEA_HEIGHT) return ChunkGenerationResult.CHUNK_HIGHER_THAN_HEIGHTMAP; //|TODO full of water here
 		for(int cx=0;cx<Chunk.CHUNK_DIMENSION;cx++)
 		{
 			for(int cy=0;cy<((y==World.HEIGHT-1)?Chunk.CHUNK_DIMENSION-1:Chunk.CHUNK_DIMENSION);cy++)
@@ -49,10 +52,13 @@ public class MapGenerator
 				{
 					//ret[cx][cy][cz]=cy+(y*Chunk.CHUNK_DIMENSION)==50?(byte)1:0;
 					/*if(cy==0&&y==0)*/ret[cx][cy][cz]=getCubeFromHeightMap(cx,cy+(y*Chunk.CHUNK_DIMENSION),cz);
-					//else ret[cx][cy][cz]=(byte)0;
 					/*ret[cx][cy][cz]=get3dValue(cx+(x*Chunk.CHUNK_DIMENSION),
 							cy+(y*Chunk.CHUNK_DIMENSION), 
-							cz+(z*Chunk.CHUNK_DIMENSION))<0 ? (byte)6: (cy+(y*Chunk.CHUNK_DIMENSION)<70? (byte)(4): (byte)(0));*/
+							cz+(z*Chunk.CHUNK_DIMENSION))<0 ? (byte)1: (cy+(y*Chunk.CHUNK_DIMENSION)<70? (byte)(1): (byte)(0));*/
+							if(ret[cx][cy][cz]==0&&cy>1&&ret[cx][cy-1][cz]==1&&Math.random()<0.1f) ret[cx][cy][cz]=(byte)19;
+							
+					if(empty&&ret[cx][cy][cz]!=0) empty=false; 
+					//else ret[cx][cy][cz]=(byte)0;
 					/*int dist=cy-((cx-16)*(cx-16) + (cz-16)*(cz-16))/100;
 					ret[cx][cy][cz]=cy>16?(byte)0:(dist<10?(byte)1:4);
 					if(y<3) ret[cx][cy][cz]=1;*/
@@ -67,7 +73,7 @@ public class MapGenerator
 				}
 			}
 		}
-		return ret;
+		return empty?ChunkGenerationResult.CHUNK_EMPTY:ChunkGenerationResult.CHUNK_NORMAL;
 	}
 	public byte getCubeAt(int absx,int absy,int absz)
 	{
@@ -194,7 +200,7 @@ public class MapGenerator
 		//if(elevmult<0)elevmult=0;
 		//else elevmult*=1/0.7;
 		elevmult=elevmult*elevmult;
-		int height=(int)(((baseMap+(detail*elevmult))*56)+30);
+		int height=(int)(((baseMap+(detail*elevmult))*106)+30);
 		if(height>120)
 		{
 			height=(int)(120+((height-120)/((float)(22)/8)));

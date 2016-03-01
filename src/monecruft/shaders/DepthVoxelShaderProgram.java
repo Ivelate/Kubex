@@ -24,6 +24,12 @@ public class DepthVoxelShaderProgram extends VoxelShaderProgram{
 	{
 		int loc=glGetAttribLocation(this.getID(), "location");
 		glVertexAttribPointer(loc,3,GL_FLOAT,false,getSize()*4,0);
+		
+		int propAttrib = glGetAttribLocation(this.getID(), "properties");
+		glVertexAttribPointer(propAttrib,1,GL_FLOAT,false,getSize()*4,3*4);
+		
+		
+		glEnableVertexAttribArray(propAttrib);
 		glEnableVertexAttribArray(loc);
 	}
 	@Override

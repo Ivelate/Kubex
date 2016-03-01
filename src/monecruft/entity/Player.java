@@ -16,10 +16,10 @@ import ivengine.view.Camera;
 public class Player implements KeyToggleListener, KeyValueListener
 {
 	//private static final float DEFAULT_SPEED=8;
-	private static final double DEFAULT_SPEED=8;
-	private static final double FLY_SPEED=100;
-	private static final double DEFAULT_JUMPSPEED=7;
-	private static final double FLY_JUMPSPEED=20;
+	private static final double DEFAULT_SPEED=5;
+	private static final double FLY_SPEED=30;
+	private static final double DEFAULT_JUMPSPEED=6;
+	private static final double FLY_JUMPSPEED=15;
 	private static final double DEFAULT_HEIGHT=1.8f;
 	private static final double DEFAULT_HEIGHT_APROX=1.79f;
 	private static final double EYE_POS=1.65f;
@@ -64,14 +64,21 @@ public class Player implements KeyToggleListener, KeyValueListener
 		double xAxisPressed=InputHandler.isAPressed()||InputHandler.isDPressed()?SQRT2:1;
 		boolean underwater=isUnderwater(wf,EYE_POS/2);
 		currentSpeed=flying?FLY_SPEED:underwater?DEFAULT_SPEED/2:DEFAULT_SPEED;
-		if(InputHandler.isWPressed()) moveForward(currentSpeed*tEl/xAxisPressed,wf);
+		
+		boolean climbing=false;
+		if(InputHandler.isWPressed()) {
+			if(moveForward(currentSpeed*tEl/xAxisPressed,wf)){
+				this.moveY(this.ypos+currentSpeed*2/3*tEl, wf);
+				climbing=true;
+			}
+		}
 		if(InputHandler.isAPressed()) moveLateral(-currentSpeed*tEl/yAxisPressed,wf);
 		if(InputHandler.isSPressed()) moveForward(-currentSpeed*tEl/xAxisPressed,wf);
 		if(InputHandler.isDPressed()) moveLateral(currentSpeed*tEl/yAxisPressed,wf);
 		this.addPitch(-(float)(Mouse.getDY()/DEFAULT_MOUSE_SENSIVITY));
 		this.addYaw((float)(Mouse.getDX()/DEFAULT_MOUSE_SENSIVITY));
 		//Gravity
-		if(!grounded) {
+		if(!grounded&&!climbing) {
 			if(underwater){
 				this.yvel-=wf.getWorldGravity()*tEl/2;
 				if(this.yvel<-wf.getWorldGravity()/2) this.yvel=-wf.getWorldGravity()/2;
@@ -237,10 +244,12 @@ public class Player implements KeyToggleListener, KeyValueListener
 			}
 		}
 	}
-	protected void moveForward(double amount,WorldFacade wf)
+	protected boolean moveForward(double amount,WorldFacade wf)
 	{
-		moveX(this.xpos+Math.sin(this.yaw)*amount,wf);
-		moveZ(this.zpos-Math.cos(this.yaw)*amount,wf);
+		boolean cx=moveX(this.xpos+Math.sin(this.yaw)*amount,wf);
+		boolean cz=moveZ(this.zpos-Math.cos(this.yaw)*amount,wf);
+		
+		return cx||cz;
 	}
 	protected void moveLateral(double amount,WorldFacade wf)
 	{
@@ -264,7 +273,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 		this.cam.setPitch(pitch);
 		this.cam.setYaw(yaw);
 	}
-	private void moveX(double to,WorldFacade wf){
+	private boolean moveX(double to,WorldFacade wf){
 		this.grounded=false;
 		double step=this.xpos;
 		boolean end=false;
@@ -275,7 +284,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 					step=to;
 					end=true;
 				}
-				if(!stepX(step,wf)) break;
+				if(!stepX(step,wf)) {end=false; break;}
 			}
 		}else{
 			while(!end){
@@ -284,11 +293,13 @@ public class Player implements KeyToggleListener, KeyValueListener
 					step=to;
 					end=true;
 				}
-				if(!stepX(step,wf)) break;
+				if(!stepX(step,wf)) {end=false; break;}
 			}
 		}
+		
+		return !end;
 	}
-	private void moveY(double to,WorldFacade wf){
+	private boolean moveY(double to,WorldFacade wf){
 		double step=this.ypos;
 		boolean end=false;
 		if(to<step){
@@ -298,7 +309,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 					step=to;
 					end=true;
 				}
-				if(!stepY(step,wf)) break;
+				if(!stepY(step,wf)) {end=false; break;}
 			}
 		}else{
 			while(!end){
@@ -307,11 +318,13 @@ public class Player implements KeyToggleListener, KeyValueListener
 					step=to;
 					end=true;
 				}
-				if(!stepY(step,wf)) break;
+				if(!stepY(step,wf)) {end=false; break;}
 			}
 		}
+		
+		return !end;
 	}
-	private void moveZ(double to,WorldFacade wf){
+	private boolean moveZ(double to,WorldFacade wf){
 		this.grounded=false;
 		double step=this.zpos;
 		boolean end=false;
@@ -322,7 +335,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 					step=to;
 					end=true;
 				}
-				if(!stepZ(step,wf)) break;
+				if(!stepZ(step,wf)) {end=false; break;}
 			}
 		}else{
 			while(!end){
@@ -331,9 +344,11 @@ public class Player implements KeyToggleListener, KeyValueListener
 					step=to;
 					end=true;
 				}
-				if(!stepZ(step,wf)) break;
+				if(!stepZ(step,wf)) {end=false; break;}
 			}
 		}
+		
+		return !end;
 	}
 	private boolean stepX(double to,WorldFacade wf)
 	{

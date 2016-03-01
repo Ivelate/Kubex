@@ -12,7 +12,10 @@ public class BlockLibrary
 		new B6Glass(),
 		new B7TNT(),
 		new B8RainMaker(),
-		new B9SuperTower()
+		new B9SuperTower(),
+		new B10DebugUtil(),
+		new B11Lava(),
+		new B12Vegetation()
 	};
 	private static Block defaultBlock=new B0Air();
 	
@@ -43,6 +46,10 @@ public class BlockLibrary
 	public static boolean isLightSource(byte blockID){
 		if(blockID<0||blockID>=blockList.length) return defaultBlock.getLightProduced()!=0;
 		return blockList[blockID].getLightProduced()!=0;
+	}
+	public static boolean isCrossSectional(byte blockID){
+		if(blockID<0||blockID>=blockList.length) return defaultBlock.isCrossSectional();
+		return blockList[blockID].isCrossSectional();
 	}
 	public static byte getLightProduced(byte blockID){
 		if(blockID<0||blockID>=blockList.length) return defaultBlock.getLightProduced();

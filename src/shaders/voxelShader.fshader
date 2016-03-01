@@ -1,5 +1,7 @@
 #version 330 core
-uniform sampler2D tiles;
+
+#define SQRT2 1.41421356
+uniform sampler2DArray tiles;
 uniform sampler2DArrayShadow shadowMap;
 uniform float daylightAmount;
 uniform vec3 sunNormal;
@@ -13,6 +15,7 @@ in vec2 Properties;
 in vec2 Brightness;
 const vec4 fogcolor = vec4(0.7, 0.9, 1.0, 1.0);
 const float fogdensity = .00001;
+const vec3[] normals={vec3(-1,0,0),vec3(1,0,0),vec3(0,-1,0),vec3(0,1,0),vec3(0,0,-1),vec3(0,0,1),vec3(0,1,0),vec3(0,1,0),vec3(0,1,0),vec3(0,1,0)};/*vec3(-SQRT2,0,SQRT2),vec3(SQRT2,0,SQRT2),vec3(-SQRT2,0,-SQRT2),vec3(SQRT2,0,-SQRT2)};*/
 
 layout(location = 0) out vec4 outcolor;
 /*layout(location = 1) out vec3 outPosition;
@@ -25,39 +28,37 @@ return (fract(val)*0.999f) + 0.0005;
 void main(){
 vec4 outColor;
 vec3 normal;
+	normal=normals[int( Properties.y)];
 	if(Properties.y<1.5f)
 	{
-		normal=Properties.y<0.5f? vec3(-1,0,0) : vec3(1,0,0);
-		outColor=texture2D(tiles,
-			vec2(
-				(adjFract(Location.z)+Properties.x)/16,
-				((1-adjFract(Location.y))+floor(((Properties.x)+0.001)/16))/16
+		//normal=Properties.y<0.5f? vec3(-1,0,0) : vec3(1,0,0);
+		outColor=texture(tiles,
+			vec3(
+				Location.z,
+				1-Location.y,
+				floor(Properties.x+0.5)
 				));
-		/*outColor=texture2D(tiles,
-			vec2(
-				(adjFract(Location.x)+Properties.x)/16,
-				(adjFract(Location.z)+floor(((Properties.x)+0.001)/16))/16
-				));//**vec4(1.0,1.0,1.0,alpha);vec4(adjFract(Location.x/10),adjFract(Location.y/10),adjFract(Location.z/10),1.0);
-		//outColor=vec4(0.5f,1.0f*(Location.y/32),0.5f,alpha);*/
 	}
 	else if(Properties.y<3.5f)
 	{
-		normal=Properties.y<2.5f? vec3(0,-1,0) : vec3(0,1,0);
-		outColor=texture2D(tiles,
-			vec2(
-				(adjFract(Location.x)+Properties.x)/16,
-				(adjFract(Location.z)+floor(((Properties.x)+0.001)/16))/16
+		//normal=Properties.y<2.5f? vec3(0,-1,0) : vec3(0,1,0);
+		outColor=texture(tiles,
+			vec3(
+				Location.x,
+				Location.z,
+				floor(Properties.x+0.5)
 				));
 	}
 	else{
-		normal=Properties.y<4.5f? vec3(0,0,-1) : vec3(0,0,1);
-		outColor=texture2D(tiles,
-			vec2(
-				(adjFract(Location.x)+Properties.x)/16,
-				((1-adjFract(Location.y))+floor(((Properties.x)+0.001)/16))/16
+		//normal=Properties.y<4.5f? vec3(0,0,-1) : Properties.y<5.5f? vec3(0,0,1): Properties.y<6.5f? vec3(0,0,1): Properties.y<7.5f? vec3(0,0,1): Properties.y<8.5f? vec3(0,0,1): vec3(0,0,1);
+		outColor=texture(tiles,
+			vec3(
+				Location.x,
+				1-Location.y,
+				floor(Properties.x+0.5)
 				));
 	}
-	if(outColor.w<0.1) discard;
+	if(outColor.w<0.5) discard;
 	
 	float z = gl_FragCoord.z / gl_FragCoord.w;
 	
@@ -83,6 +84,7 @@ vec3 normal;
 		vec4 shadowLoc=vec4(sunLocation.x,sunLocation.y,float(floor(sindex+0.5f)),sunLocation.z-bias);
 		float shadow=texture(shadowMap,shadowLoc);
 		//outColor=((shadow - vec4(0.8,0.8,0.8,0.8)) * 5) * ((shadow - vec4(0.8,0.8,0.8,0.8)) * 5);
+		shadow=shadow*sqrt(sqrt(dotsun*dotsun*dotsun));
 		/*sunLocation.w=sunLocation.z;
 		sunLocation.z=float(floor(sindex+0.5f));
 

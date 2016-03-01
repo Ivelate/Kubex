@@ -150,7 +150,7 @@ public class ChunkUpdater extends Thread
 	{
 		double xcomp=p.getX()-c.getX()*Chunk.CHUNK_DIMENSION;
 		double zcomp=p.getZ()-c.getZ()*Chunk.CHUNK_DIMENSION;
-		return xcomp*xcomp + zcomp*zcomp;
+		return xcomp*xcomp + zcomp*zcomp - 0.01f*c.getY();
 		//return Math.abs(p.getX()-c.getX()*Chunk.CHUNK_DIMENSION) + Math.abs(p.getZ()-c.getZ()*Chunk.CHUNK_DIMENSION);
 	}
 	public synchronized void fullClean(boolean block)

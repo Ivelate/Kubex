@@ -80,16 +80,26 @@ public class WorldFacade
 			return null;
 		}
 	}
-	public boolean[] getNeighboursAdded(Chunk c)
+	public int getNeighboursAdded(Chunk c)
 	{
-		boolean[] neigh=new boolean[6];
-		neigh[Chunk.Direction.XP.ordinal()]=getChunkByIndex(c.getX()+1,c.getY(),c.getZ())!=null;
-		neigh[Chunk.Direction.XM.ordinal()]=getChunkByIndex(c.getX()-1,c.getY(),c.getZ())!=null;
-		neigh[Chunk.Direction.YP.ordinal()]=getChunkByIndex(c.getX(),c.getY()+1,c.getZ())!=null;
-		neigh[Chunk.Direction.YM.ordinal()]=getChunkByIndex(c.getX(),c.getY()-1,c.getZ())!=null;
-		neigh[Chunk.Direction.ZP.ordinal()]=getChunkByIndex(c.getX(),c.getY(),c.getZ()+1)!=null;
-		neigh[Chunk.Direction.ZM.ordinal()]=getChunkByIndex(c.getX(),c.getY(),c.getZ()-1)!=null;
-		return neigh;
+		int res=0;
+		for(int x=-1;x<=1;x++)
+		{
+			for(int y=-1;y<=1;y++)
+			{
+				for(int z=-1;z<=1;z++)
+				{
+					if(x!=0||y!=0||z!=0) {
+						Chunk cn=this.world.getChunkStorage().getChunkByIndex(c.getX()+x,c.getY()+y,c.getZ()+z);
+						if((cn!=null&&cn.isLightCalculated()) || (y==-1&&c.getY()==0) || (y==1&&c.getY()==World.HEIGHT-1)) {
+							int index=x*9 + z*3 + y + 13; //(x+1)*9 + (z+1)*3 + (y+1)
+							res=res | (1<<index);
+						}
+					}
+				}
+			}
+		}
+		return res;
 	}
 	public Chunk[] getNeighbours(Chunk c)
 	{
@@ -135,5 +145,37 @@ public class WorldFacade
 	public void updateCameraCenter(double x,double y,double z)
 	{
 		this.world.updateCameraCenter(x,y,z);
+	}
+	public void notifyNeighbours(Chunk c)
+	{
+		for(int x=-1;x<=1;x++)
+		{
+			for(int y=-1;y<=1;y++)
+			{
+				for(int z=-1;z<=1;z++)
+				{
+					if(x!=0||y!=0||z!=0) {
+						Chunk cn=this.world.getChunkStorage().getChunkByIndex(c.getX()+x,c.getY()+y,c.getZ()+z);
+						if(cn!=null) cn.notifyNeighbourAdded(-x,-y,-z);
+					}
+				}
+			}
+		}
+	}
+	public void notifyNeighboursRemove(Chunk c)
+	{
+		for(int x=-1;x<=1;x++)
+		{
+			for(int y=-1;y<=1;y++)
+			{
+				for(int z=-1;z<=1;z++)
+				{
+					if(x!=0||y!=0||z!=0) {
+						Chunk cn=this.world.getChunkStorage().getChunkByIndex(c.getX()+x,c.getY()+y,c.getZ()+z);
+						if(cn!=null) cn.notifyNeighbourRemoved(-x,-y,-z);
+					}
+				}
+			}
+		}
 	}
 }

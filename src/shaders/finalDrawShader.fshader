@@ -26,7 +26,7 @@ void main()
 		if(begind<0) begind=1/(invProjZ.x*pos.x + invProjZ.y*pos.y + invProjZ.z*dw + invProjZ.w);
 		else
 		{
-			float finald=1/(invProjZ.x*pos.x + invProjZ.y*pos.y + invProjZ.z*dw + invProjZ.w);
+			float finald=1/(invProjZ.x*pos.x + invProjZ.y*pos.y + invProjZ.z*dw + invProjZ.w); //Badbadbad, getting w, assuming 1=z , normalizing z based upon w, so 1/...
 			waterd+=(finald-begind);
 			begind=-1;
 		}
@@ -37,9 +37,16 @@ void main()
 		waterd+=(finald-begind);
 		begind=-1;
 	}
+	
+	float dw=texture(baseFboDepthTex,vec2(pos.x,pos.y)).x;
+	float testill=1/(invProjZ.x*pos.x + invProjZ.y*pos.y + invProjZ.z*dw + invProjZ.w);
+	float inc=1;
+	//if(testill<10) inc=3;
+		
+		
 	//bool water=texture(liquidLayersTex,vec3(pos.x,pos.y,floor(0.5))).x < 1;
 	vec4 extinction=exp(- vec4(waterd,waterd,waterd,0)/vec4(4.5,75,300,1));
-	outcolor=texture2D(colorTex,vec2(pos.x,pos.y))*extinction;
+	outcolor=texture2D(colorTex,vec2(pos.x,pos.y))*extinction*inc;
 	//outcolor.x=max(0,outcolor.x);outcolor.y=max(0,outcolor.y);outcolor.z=max(0,outcolor.z);
 	
 	//if(water) outcolor=outcolor-vec4(0.5,0.5,-0.5,0);

@@ -2,6 +2,8 @@ package monecruft.gui;
 
 import monecruft.blocks.BlockLibrary;
 import monecruft.gui.Chunk.Direction;
+import monecruft.gui.MapGenerator.ChunkGenerationResult;
+import monecruft.storage.ByteArrayPool;
 
 public class MapHandler 
 {
@@ -20,10 +22,10 @@ public class MapHandler
 		this.wf=wf;
 	}
 	//|TODO load from arch
-	public byte[][][] getChunk(int x,int y,int z){
-			return this.getChunk(x, y, z,null);
-	}
-	public byte[][][] getChunk(int x,int y,int z,byte[][][] c){
+	/*public boolean getChunk(int x,int y,int z){
+			return this.getChunk(x, y, z,ByteArrayPool.getArrayUncleaned());
+	}*/
+	public ChunkGenerationResult getChunk(int x,int y,int z,byte[][][] c){
 		return this.mg.generateChunk(x, y, z,c);
 	}
 	public byte[][][] getBounds(int x,int y,int z)

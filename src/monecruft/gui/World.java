@@ -40,7 +40,7 @@ public class World implements DrawableUpdatable, Cleanable
 {
 	private static final int MAX_CHUNK_LOADS_PER_TICK=10;
 	public static final int PLAYER_VIEW_FIELD=9;
-	public static final int HEIGHT=4;
+	public static final int HEIGHT=10;
 	private static final float WATER_ALPHA=0.5f;
 	private static final float CHUNK_UPDATE_TICK=0.3f;
 	private static final int[] DIFTABLE=createDiftable(PLAYER_VIEW_FIELD+1);	
@@ -112,9 +112,10 @@ public class World implements DrawableUpdatable, Cleanable
 		//this.chunkGenerator.generateChunk(0, 3, 0);
 		for(int x=0, osc=1,val=1;x<=PLAYER_VIEW_FIELD;x+=osc,osc=(osc+val)*-1,val=-val)
 		{
-			for(int z=-DIFTABLE[Math.abs(x)];z<=DIFTABLE[Math.abs(x)];z++)
+			//for(int z=-DIFTABLE[Math.abs(x)];z<=DIFTABLE[Math.abs(x)];z++)
+			for(int z=0,zosc=1,zval=1;z<=DIFTABLE[Math.abs(x)];z+=zosc,zosc=(zosc+zval)*-1,zval=-zval)
 			{
-				for(int y=0;y<HEIGHT;y++)
+				for(int y=HEIGHT-1;y>=0;y--)
 				{
 					this.chunkGenerator.generateChunk(x+(int)Math.floor(p.getX()/Chunk.CHUNK_DIMENSION),y,z+(int)Math.floor(p.getZ()/Chunk.CHUNK_DIMENSION));
 				}
@@ -199,21 +200,6 @@ public class World implements DrawableUpdatable, Cleanable
 		Chunk c;
 		while((c=this.myChunks.next())!=null) {
 				c.draw(cam,this.getActiveShader(),bc);
-				if(c.lightCalculatedFlag){
-					c.lightCalculatedFlag=false;
-					Chunk neighbour=this.myChunks.getChunk(c.getX()+1, c.getY(), c.getZ());
-					if(neighbour!=null) neighbour.notifyNeighbourAdded(Chunk.Direction.XM);
-						neighbour=this.myChunks.getChunk(c.getX()-1, c.getY(), c.getZ());
-					if(neighbour!=null) neighbour.notifyNeighbourAdded(Chunk.Direction.XP);
-						neighbour=this.myChunks.getChunk(c.getX(), c.getY()+1, c.getZ());
-					if(neighbour!=null) neighbour.notifyNeighbourAdded(Chunk.Direction.YM);
-						neighbour=this.myChunks.getChunk(c.getX(), c.getY()-1, c.getZ());
-					if(neighbour!=null) neighbour.notifyNeighbourAdded(Chunk.Direction.YP);
-						neighbour=this.myChunks.getChunk(c.getX(), c.getY(), c.getZ()+1);
-					if(neighbour!=null) neighbour.notifyNeighbourAdded(Chunk.Direction.ZM);
-						neighbour=this.myChunks.getChunk(c.getX(), c.getY(), c.getZ()-1);
-					if(neighbour!=null) neighbour.notifyNeighbourAdded(Chunk.Direction.ZP);
-				}
 			}
 		//glBindVertexArray(0);
 	}
@@ -361,7 +347,7 @@ public class World implements DrawableUpdatable, Cleanable
 	public float getContentArtificialLight(float x,float y,float z)
 	{
 		Chunk c;
-		if((c=this.myChunks.getChunk(x/Chunk.CHUNK_DIMENSION, y/Chunk.CHUNK_DIMENSION, z/Chunk.CHUNK_DIMENSION))!=null){
+		if((c=this.myChunks.getChunk(x/Chunk.CHUNK_DIMENSION, y/Chunk.CHUNK_DIMENSION, z/Chunk.CHUNK_DIMENSION))!=null && c.isLightCalculated()){
 			float toRet= c.getArtificialBrightnessAt(VoxelUtils.trueMod(x,Chunk.CHUNK_DIMENSION),VoxelUtils.trueMod(y,Chunk.CHUNK_DIMENSION),VoxelUtils.trueMod(z,Chunk.CHUNK_DIMENSION));
 			return toRet;
 		}
@@ -370,7 +356,7 @@ public class World implements DrawableUpdatable, Cleanable
 	public float getContentNaturalLight(float x,float y,float z)
 	{
 		Chunk c;
-		if((c=this.myChunks.getChunk(x/Chunk.CHUNK_DIMENSION, y/Chunk.CHUNK_DIMENSION, z/Chunk.CHUNK_DIMENSION))!=null){
+		if((c=this.myChunks.getChunk(x/Chunk.CHUNK_DIMENSION, y/Chunk.CHUNK_DIMENSION, z/Chunk.CHUNK_DIMENSION))!=null&& c.isLightCalculated()){
 			float toRet= c.getNaturalBrightnessAt(VoxelUtils.trueMod(x,Chunk.CHUNK_DIMENSION),VoxelUtils.trueMod(y,Chunk.CHUNK_DIMENSION),VoxelUtils.trueMod(z,Chunk.CHUNK_DIMENSION));
 			return toRet;
 		}
@@ -470,7 +456,7 @@ public class World implements DrawableUpdatable, Cleanable
 	{
 		if(z>this.lastChunkCenterZ){
 			for(int cx=this.lastChunkCenterX, osc=0,val=-1;cx<=this.lastChunkCenterX+PLAYER_VIEW_FIELD;cx+=osc,osc=(osc+val)*-1,val=-val){
-				for(int cy=0;cy<World.HEIGHT;cy++){
+				for(int cy=World.HEIGHT-1;cy>=0;cy--){
 					this.chunkGenerator.generateChunk(cx, cy, z+DIFTABLE[Math.abs(cx-this.lastChunkCenterX)]);
 					this.removeChunk(cx, cy, this.lastChunkCenterZ-DIFTABLE[Math.abs(cx-this.lastChunkCenterX)]);
 				}
@@ -478,7 +464,7 @@ public class World implements DrawableUpdatable, Cleanable
 			this.lastChunkCenterZ=z;
 		}else if(z<this.lastChunkCenterZ){
 			for(int cx=this.lastChunkCenterX, osc=0,val=-1;cx<=this.lastChunkCenterX+PLAYER_VIEW_FIELD;cx+=osc,osc=(osc+val)*-1,val=-val){
-				for(int cy=0;cy<World.HEIGHT;cy++){
+				for(int cy=World.HEIGHT-1;cy>=0;cy--){
 					this.chunkGenerator.generateChunk(cx, cy, z-DIFTABLE[Math.abs(cx-this.lastChunkCenterX)]);
 					this.removeChunk(cx, cy, this.lastChunkCenterZ+DIFTABLE[Math.abs(cx-this.lastChunkCenterX)]);
 				}
@@ -488,7 +474,7 @@ public class World implements DrawableUpdatable, Cleanable
 		
 		if(x>this.lastChunkCenterX){
 			for(int cz=this.lastChunkCenterZ, osc=0,val=-1;cz<=this.lastChunkCenterZ+PLAYER_VIEW_FIELD;cz+=osc,osc=(osc+val)*-1,val=-val){
-				for(int cy=0;cy<World.HEIGHT;cy++){
+				for(int cy=World.HEIGHT-1;cy>=0;cy--){
 					this.chunkGenerator.generateChunk(x+DIFTABLE[Math.abs(cz-this.lastChunkCenterZ)], cy, cz);
 					this.removeChunk(this.lastChunkCenterX-DIFTABLE[Math.abs(cz-this.lastChunkCenterZ)], cy, cz);
 				}
@@ -496,7 +482,7 @@ public class World implements DrawableUpdatable, Cleanable
 			this.lastChunkCenterX=x;
 		}else if(x<this.lastChunkCenterX){
 			for(int cz=this.lastChunkCenterZ, osc=0,val=-1;cz<=this.lastChunkCenterZ+PLAYER_VIEW_FIELD;cz+=osc,osc=(osc+val)*-1,val=-val){
-				for(int cy=0;cy<World.HEIGHT;cy++){
+				for(int cy=World.HEIGHT-1;cy>=0;cy--){
 					this.chunkGenerator.generateChunk(x-DIFTABLE[Math.abs(cz-this.lastChunkCenterZ)], cy, cz);
 					this.removeChunk(this.lastChunkCenterX+DIFTABLE[Math.abs(cz-this.lastChunkCenterZ)], cy, cz);
 				}
