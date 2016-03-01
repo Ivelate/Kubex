@@ -30,17 +30,17 @@ public class B6Glass extends Block{
 
 	@Override
 	public byte getUpTex() {
-		return 6;
+		return 12;
 	}
 
 	@Override
 	public byte getLatTex() {
-		return 6;
+		return 12;
 	}
 
 	@Override
 	public byte getDownTex() {
-		return 6;
+		return 12;
 	}
 
 	@Override
@@ -56,5 +56,11 @@ public class B6Glass extends Block{
 	@Override
 	public boolean canSeeTrough() {
 		return true;
+	}
+
+	@Override
+	public boolean isCrossSectional() {
+		// TODO Auto-generated method stub
+		return false;
 	}
 }

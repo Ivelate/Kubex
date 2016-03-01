@@ -9,7 +9,7 @@ public class B1Grass extends OpaqueSolidBlock{
 
 	@Override
 	public byte getLatTex() {
-		return -128;
+		return 0;
 	}
 
 	@Override

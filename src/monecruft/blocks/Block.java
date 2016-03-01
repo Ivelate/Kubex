@@ -8,6 +8,7 @@ public abstract class Block
 	public abstract boolean isOpaque(); //Letting light pass/not
 	public abstract boolean canSeeTrough(); //Can you see trough them? For culling
 	public abstract boolean isPartnerGrouped(); //Only for non-opaque blocks: Draw ignored if is placed together with a same ID block
+	public abstract boolean isCrossSectional(); //Instead of drawed as a cube, it is drawed as a cross section
 	public abstract boolean isDrawable(); //Can be drawed
 	public abstract boolean isLiquid(); //Is liquid
 	public abstract byte getLightProduced();

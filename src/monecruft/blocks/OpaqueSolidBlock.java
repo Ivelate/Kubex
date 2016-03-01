@@ -37,5 +37,9 @@ public abstract class OpaqueSolidBlock extends Block{
 	{
 		return false;
 	}
-
+	@Override
+	public boolean isCrossSectional()
+	{
+		return false;
+	}
 }

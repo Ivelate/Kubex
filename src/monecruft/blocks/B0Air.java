@@ -63,4 +63,10 @@ public class B0Air extends Block{
 		return true;
 	}
 
+	@Override
+	public boolean isCrossSectional() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
 }

@@ -43,6 +43,11 @@ public abstract class LiquidBlock extends Block{
 	{
 		return true;
 	}
+	@Override
+	public boolean isCrossSectional()
+	{
+		return false;
+	}
 	
 	@Override
 	public int getLiquidLevel()

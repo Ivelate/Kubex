@@ -3,6 +3,7 @@ package monecruft.gui;
 import java.util.LinkedList;
 
 import monecruft.shaders.VoxelShaderProgram;
+import monecruft.storage.ByteArrayPool;
 
 public class ChunkGenerator extends Thread
 {
@@ -25,7 +26,8 @@ public class ChunkGenerator extends Thread
 			synchronized(this){
 				while(requestList.size()==0||WF.getAddListSize()>=MAX_CHUNKS_LOADED){
 					try {
-						wait();
+						if(ByteArrayPool.getUncleanedArraysCount()>0) ByteArrayPool.recycleCleanArray(ByteArrayPool.cleanArray(ByteArrayPool.getArrayUncleaned()));
+						else wait();
 						if(endRequested) break threadMainLoop;
 					} catch (InterruptedException e) {}
 				}

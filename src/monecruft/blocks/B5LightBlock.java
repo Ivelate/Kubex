@@ -57,4 +57,10 @@ public class B5LightBlock extends Block{
 	public boolean canSeeTrough() {
 		return false;
 	}
+
+	@Override
+	public boolean isCrossSectional() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 }
