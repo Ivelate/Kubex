@@ -25,6 +25,8 @@ import static org.lwjgl.opengl.GL13.GL_TEXTURE2;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE3;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE4;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE5;
+import static org.lwjgl.opengl.GL13.GL_TEXTURE6;
+import static org.lwjgl.opengl.GL13.GL_TEXTURE7;
 import static org.lwjgl.opengl.GL13.glActiveTexture;
 import static org.lwjgl.opengl.GL15.glBindBuffer;
 import static org.lwjgl.opengl.GL15.glBufferData;
@@ -60,6 +62,7 @@ import java.util.Scanner;
 
 import monecruft.gui.Chunk;
 import monecruft.gui.DepthPeelingLiquidRenderer;
+import monecruft.gui.FinalDrawManager;
 import monecruft.gui.GlobalTextManager;
 import monecruft.gui.Hud;
 import monecruft.gui.LiquidRenderer;
@@ -108,8 +111,9 @@ import ivengine.view.MatrixHelper;
 
 public class MonecruftGame implements Cleanable
 {
-	public static final int[] TEXTURE_FETCH={GL_TEXTURE0,GL_TEXTURE1,GL_TEXTURE2,GL_TEXTURE3,GL_TEXTURE4,GL_TEXTURE5};
+	public static final int[] TEXTURE_FETCH={GL_TEXTURE0,GL_TEXTURE1,GL_TEXTURE2,GL_TEXTURE3,GL_TEXTURE4,GL_TEXTURE5,GL_TEXTURE6};
 	public static final int TILES_TEXTURE_LOCATION=0;
+	public static final int BASEFBO_NORMALS_BRIGHTNESS_TEXTURE_LOCATION=1;
 	public static final int BASEFBO_COLOR_TEXTURE_LOCATION=2;
 	public static final int BASEFBO_DEPTH_TEXTURE_LOCATION=3;
 	public static final int SHADOW_TEXTURE_LOCATION=4; //Lookup from World
@@ -117,14 +121,14 @@ public class MonecruftGame implements Cleanable
 	
 	private MonecruftSettings settings;
 	
-	private int X_RES=1200;
-	private int Y_RES=900;
+	private int X_RES=800;
+	private int Y_RES=600;
 	private int SHADOW_XRES=2048;
 	private int SHADOW_YRES=2048;
 	private final int SHADOW_LAYERS=4;
 	private final int LIQUID_LAYERS=5;
 	
-	private final float CAMERA_NEAR=0.02f;
+	private final float CAMERA_NEAR=0.2f;
 	private final float CAMERA_FAR=(float)Math.sqrt(World.HEIGHT*World.HEIGHT + World.PLAYER_VIEW_FIELD*World.PLAYER_VIEW_FIELD)*Chunk.CHUNK_DIMENSION;
 	
 	private final float[] SHADOW_SPLITS;
@@ -147,6 +151,7 @@ public class MonecruftGame implements Cleanable
 	private GlobalTextManager textManager;
 	private ShadowsManager shadowsManager;
 	private LiquidRenderer liquidRenderer;
+	private FinalDrawManager finalDrawManager;
 	
 	private int tilesTexture;
 	private Texture nightDomeTexture;
@@ -323,20 +328,18 @@ public class MonecruftGame implements Cleanable
 		glDisable(GL_DEPTH_TEST);
 		
 		//glClear(GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
-		this.FDSP.enable();
+		Matrix4f temp=Matrix4f.invert(this.cam.getProjectionViewMatrix(), null);
+		this.finalDrawManager.draw(temp,this.cam.getViewMatrix(),this.cam.getProjectionMatrix(),X_RES,Y_RES);
+		/*this.FDSP.enable();
 		glBindBuffer(GL15.GL_ARRAY_BUFFER,this.squarevbo);
-		this.FDSP.setupAttributes();
-		glUniform1i(this.FDSP.colorTex,BASEFBO_COLOR_TEXTURE_LOCATION);
-		glUniform1i(this.FDSP.liquidLayersTex,LIQUIDLAYERS_TEXTURE_LOCATION);
-		glUniform1i(this.FDSP.baseFboDepthTex,BASEFBO_DEPTH_TEXTURE_LOCATION);
-		glUniform1i(this.FDSP.liquidLayersTexLength,this.liquidRenderer.getNumLayers());
+		this.FDSP.setupAttributes();*/
 		
-		GL20.glUniform4f(this.FDSP.invProjZ,this.camInvProjEnv.getInvProjMatrix().m03,this.camInvProjEnv.getInvProjMatrix().m13,this.camInvProjEnv.getInvProjMatrix().m23,this.camInvProjEnv.getInvProjMatrix().m33);
+		//GL20.glUniform4f(this.FDSP.invProjZ,this.camInvProjEnv.getInvProjMatrix().m03,this.camInvProjEnv.getInvProjMatrix().m13,this.camInvProjEnv.getInvProjMatrix().m23,this.camInvProjEnv.getInvProjMatrix().m33);
 		/*glUniform1i(this.FDSP.positionTex,2);
 		glUniform1i(this.FDSP.normalAndLightTex,3);
 		glUniform1i(this.FDSP.shadowMap,4);*/
-		glDrawArrays(GL_TRIANGLES, 0, Sky.NUM_COMPONENTS);
-		this.FDSP.disable();
+		/*glDrawArrays(GL_TRIANGLES, 0, Sky.NUM_COMPONENTS);
+		this.FDSP.disable();*/
 		
 		this.HSP.enable();
 		//glDisable(GL11.GL_CULL_FACE);
@@ -394,6 +397,7 @@ public class MonecruftGame implements Cleanable
 		
 		this.sky=new Sky(SSP,BCSP,cam,this.sunCam,this.squarevbo);
 		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky,this.settings);
+		this.finalDrawManager=new FinalDrawManager(this.FDSP,this.world,this.sky,this.shadowsManager,this.liquidRenderer,this.camInvProjEnv.getInvProjMatrix(),CAMERA_NEAR,CAMERA_FAR);
 		this.hud=new Hud(this.HSP,X_RES,Y_RES);
 		//Load textures here
 		
@@ -449,8 +453,8 @@ public class MonecruftGame implements Cleanable
 		glBindFramebuffer(GL_FRAMEBUFFER, this.baseFbo);
 		
 		int colorTexture=glGenTextures();
-		/*int positionTexture=glGenTextures();
-		int normalTexture=glGenTextures();*/
+		int brightnessNormalsTexture=glGenTextures();
+		//int normalTexture=glGenTextures();
 		
 		glActiveTexture(TEXTURE_FETCH[BASEFBO_COLOR_TEXTURE_LOCATION]);
 		glBindTexture(GL_TEXTURE_2D, colorTexture);
@@ -459,19 +463,19 @@ public class MonecruftGame implements Cleanable
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
 		
-		/*glActiveTexture(GL_TEXTURE2); this.positionTexture=GL13.GL_TEXTURE2;
-		glBindTexture(GL_TEXTURE_2D, positionTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB32F, X_RES, Y_RES, 0,GL_RGB, GL_FLOAT, (FloatBuffer)null);
+		glActiveTexture(TEXTURE_FETCH[BASEFBO_NORMALS_BRIGHTNESS_TEXTURE_LOCATION]);
+		glBindTexture(GL_TEXTURE_2D, brightnessNormalsTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0,GL11.GL_RGBA, X_RES, Y_RES, 0,GL11.GL_RGBA, GL_UNSIGNED_BYTE, (FloatBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, positionTexture, 0);
+		GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, brightnessNormalsTexture, 0);
 		
-		glActiveTexture(GL_TEXTURE3); this.normalAndLightTexture=GL13.GL_TEXTURE3;
+		/*glActiveTexture(TEXTURE_FETCH[BASEFBO_BRIGHTNESS_TEXTURE_LOCATION]);
 		glBindTexture(GL_TEXTURE_2D, normalTexture);
 		glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, X_RES, Y_RES, 0,GL_RGB , GL_UNSIGNED_BYTE, (FloatBuffer)null); //Normals are pre-set (6 values max)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, normalTexture, 0);*/
+		GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, brightnessTexture, 0);*/
 		
 		//FBO DEPTH IS A TEXTURE
 		int baseFboDepth=glGenTextures();
@@ -488,11 +492,11 @@ public class MonecruftGame implements Cleanable
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, X_RES, Y_RES);
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthbuf);*/
 		
-		IntBuffer drawBuffers = BufferUtils.createIntBuffer(1);
+		IntBuffer drawBuffers = BufferUtils.createIntBuffer(2);
 		
 		drawBuffers.put(GL_COLOR_ATTACHMENT0);
-		/*drawBuffers.put(GL_COLOR_ATTACHMENT1);
-		drawBuffers.put(GL_COLOR_ATTACHMENT2);*/
+		drawBuffers.put(GL_COLOR_ATTACHMENT1);
+		/*drawBuffers.put(GL_COLOR_ATTACHMENT2);*/
 		
 		drawBuffers.flip();
 		GL20.glDrawBuffers(drawBuffers);

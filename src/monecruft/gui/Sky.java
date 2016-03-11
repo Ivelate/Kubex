@@ -116,7 +116,7 @@ public class Sky
 		}
 		public void update(float tEl)
 		{
-			this.currentTime+=(tEl/600);
+			this.currentTime+=(tEl/50);
 			if(this.currentTime>21) this.currentTime=4;
 			if(this.currentTime>24) this.currentTime=0;
 			

@@ -40,8 +40,8 @@ import monecruftProperties.DrawableUpdatable;
 public class World implements DrawableUpdatable, Cleanable
 {
 	private static final int MAX_CHUNK_LOADS_PER_TICK=10;
-	public static final int PLAYER_VIEW_FIELD=9;
-	public static final int HEIGHT=10;
+	public static final int PLAYER_VIEW_FIELD=7;
+	public static final int HEIGHT=4;
 	private static final float WATER_ALPHA=0.5f;
 	private static final float CHUNK_UPDATE_TICK=0.3f;
 	private static final int[] DIFTABLE=createDiftable(PLAYER_VIEW_FIELD+1);	
@@ -67,7 +67,7 @@ public class World implements DrawableUpdatable, Cleanable
 	private SquareCorners currentWorldCornersHigh;
 	private Vector3d cameraCenterVector=new Vector3d();
 	
-	private float currentTime=9;
+	private float currentTime=12;
 	private float chunkUpdateTickCont=0;
 	
 	private VoxelShaderProgram VSP;
@@ -141,7 +141,7 @@ public class World implements DrawableUpdatable, Cleanable
 		
 		//int alphaUniformLocation=glGetUniformLocation(this.getActiveShader().getID(),"alpha");
 		
-		if(this.getActiveShader().supportShadows()){
+		/*if(this.getActiveShader().supportShadows()){
 			int shadowTexLocation=glGetUniformLocation(this.getActiveShader().getID(),"shadowMap");
 			int sunNormalLocation=glGetUniformLocation(this.getActiveShader().getID(),"sunNormal");
 			int splitDistancesLocation=glGetUniformLocation(this.getActiveShader().getID(),"splitDistances");
@@ -177,7 +177,7 @@ public class World implements DrawableUpdatable, Cleanable
 		if(this.getActiveShader().supportLighting()){
 			int daylightUniformLocation=glGetUniformLocation(this.getActiveShader().getID(),"daylightAmount");
 			GL20.glUniform1f(daylightUniformLocation, this.getDaylightAmount());
-		}
+		}*/
 	}
 	@Override
 	public void draw()
