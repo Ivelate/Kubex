@@ -15,8 +15,9 @@ public class BlockLibrary
 		new B9SuperTower(),
 		new B10DebugUtil(),
 		new B11Lava(),
-		new B12Vegetation(),
-		new B13Snow()
+		new B12VegetationGrass(),
+		new B13Snow(),
+		new B14VegetationDandellion()
 	};
 	private static Block defaultBlock=new B0Air();
 	
@@ -82,6 +83,14 @@ public class BlockLibrary
 	{
 		if(blockID<0||blockID>=blockList.length) return defaultBlock.getLiquidMaxLevel();
 		return blockList[blockID].getLiquidMaxLevel();
+	}
+	public static byte getLiquidBlockWithLevel(byte baseCube,int level)
+	{
+		return (byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(baseCube)-level));
+	}
+	public static byte getLiquidBaseCube(byte cube)
+	{
+		return (byte)(cube+BlockLibrary.getLiquidLevel(cube)-BlockLibrary.getLiquidMaxLevel(cube));
 	}
 	public static boolean isSameBlock(byte blockID1,byte blockID2){
 		if(isLiquid(blockID1)&&isLiquid(blockID2)){

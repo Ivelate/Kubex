@@ -40,8 +40,8 @@ import monecruftProperties.DrawableUpdatable;
 public class World implements DrawableUpdatable, Cleanable
 {
 	private static final int MAX_CHUNK_LOADS_PER_TICK=10;
-	public static final int PLAYER_VIEW_FIELD=7;
-	public static final int HEIGHT=4;
+	public static final int PLAYER_VIEW_FIELD=12;
+	public static final int HEIGHT=8;
 	private static final float WATER_ALPHA=0.5f;
 	private static final float CHUNK_UPDATE_TICK=0.3f;
 	private static final int[] DIFTABLE=createDiftable(PLAYER_VIEW_FIELD+1);	
@@ -67,7 +67,7 @@ public class World implements DrawableUpdatable, Cleanable
 	private SquareCorners currentWorldCornersHigh;
 	private Vector3d cameraCenterVector=new Vector3d();
 	
-	private float currentTime=12;
+	private float currentTime=17;
 	private float chunkUpdateTickCont=0;
 	
 	private VoxelShaderProgram VSP;
@@ -238,7 +238,7 @@ public class World implements DrawableUpdatable, Cleanable
 		
 		if(this.getActiveShader().isParticipatingMedia()){
 			float light=this.EM.getPlayer().getAverageLightExposed(this.worldFacade);
-			this.sky.drawBackgroundColor(0.375f*light, 0.75f*light, 1.0f*light);
+			//this.sky.drawBackgroundColor(0.375f*light, 0.75f*light, 1.0f*light);
 		}
 	}
 	public void afterDrawTasks()

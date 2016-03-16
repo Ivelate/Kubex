@@ -1,6 +1,6 @@
 package monecruft.blocks;
 
-public class B12Vegetation extends Block{
+public class B12VegetationGrass extends Block{
 
 	@Override
 	public boolean isOpaque() {
@@ -45,7 +45,7 @@ public class B12Vegetation extends Block{
 
 	@Override
 	public String getCubeName() {
-		return "Vegetation";
+		return "Vegetation - Grass";
 	}
 
 	@Override

@@ -26,6 +26,7 @@ import org.lwjgl.util.vector.Vector3f;
 import ivengine.view.Camera;
 import ivengine.view.MatrixHelper;
 import monecruft.shaders.BasicColorShaderProgram;
+import monecruft.shaders.DeferredShaderProgram;
 import monecruft.shaders.SkyShaderProgram;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.SquareCorners;
@@ -47,49 +48,27 @@ public class Sky
 	private double solarAltitude=getSolarAltitude(solarDeclination, getSolarTime(julianDay, currentTime, DEFAULT_TIMEZONE, DEFAULT_LONGITUDE), DEFAULT_LATITUDE);
 	private double solarAzimuth=getSolarAzimuth(solarDeclination, getSolarTime(julianDay, currentTime, DEFAULT_TIMEZONE, DEFAULT_LONGITUDE), DEFAULT_LATITUDE);
 	
-	public static final int NUM_COMPONENTS=6;
-	private SkyShaderProgram SSP;
-	private BasicColorShaderProgram BCSP;
-	private int vbo;
-	
 	private Camera cam;
 	private Camera sunCamera;
 
 	
-	public Sky(SkyShaderProgram SSP,BasicColorShaderProgram BCSP,Camera cam,Camera sunCamera,int squarevbo)
+	public Sky(Camera cam,Camera sunCamera)
 	{
 		this.cam=cam;
 		this.sunCamera=sunCamera;
-			this.SSP=SSP;
-			this.BCSP=BCSP;
-			this.vbo=squarevbo;
-		}
-		public void draw()
+	}
+		public void uploadToShader(DeferredShaderProgram DSP)
 		{
-			this.SSP.enable();
-			double solarTime = getSolarTime(julianDay, currentTime, DEFAULT_TIMEZONE, DEFAULT_LONGITUDE);
-			this.solarAltitude = getSolarAltitude(solarDeclination, solarTime, DEFAULT_LATITUDE);
 			double zenithS = (Math.PI / 2.) - solarAltitude;
-			this.solarAzimuth = getSolarAzimuth(solarDeclination, solarTime, DEFAULT_LATITUDE);
 			YyxColor sunYyx = getYyxColorForZenithAndTurbidity(zenithS, DEFAULT_TURBIDITY);
-			
-			glDisable( GL11.GL_BLEND );
-			glEnable(GL11.GL_CULL_FACE);
-			glEnable(GL11.GL_DEPTH_TEST);
-			glDepthFunc(GL11.GL_EQUAL);
-			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
-			SSP.setupAttributes();
-			MatrixHelper.uploadMatrix(Matrix4f.invert(this.cam.getProjectionViewMatrix(),null), this.SSP.getInvertedViewRotationMatrixLoc());
-			sunYyx.uploadToShader(this.SSP);
-			this.coeffs.uploadToShader(this.SSP);
-			glUniform1f(this.SSP.getSolarZenithUniform(),(float)zenithS);
-			glUniform1f(this.SSP.getSolarAzimuthUniform(),(float)solarAzimuth);
-			glDrawArrays(GL_TRIANGLES, 0, NUM_COMPONENTS);
-			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
-			glDepthFunc(GL11.GL_LEQUAL);
-			this.SSP.disable();
+
+			sunYyx.uploadToShader(DSP);
+			this.coeffs.uploadToShader(DSP);
+			glUniform1f(glGetUniformLocation(DSP.getID(),"solar_zenith"),(float)zenithS);
+			glUniform1f(glGetUniformLocation(DSP.getID(),"solar_azimuth"),(float)solarAzimuth);
+
 		}
-		public void drawBackgroundColor(float r,float g,float b)
+		/*public void drawBackgroundColor(float r,float g,float b)
 		{
 			this.BCSP.enable();
 			glDisable( GL11.GL_BLEND );
@@ -109,19 +88,23 @@ public class Sky
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
 			glDepthFunc(GL11.GL_LEQUAL);
 			this.BCSP.disable();
-		}
+		}*/
 		public void setCurrentTime(float currentTime)
 		{
 			this.currentTime=currentTime;
 		}
 		public void update(float tEl)
 		{
-			this.currentTime+=(tEl/50);
+			this.currentTime+=(tEl);
 			if(this.currentTime>21) this.currentTime=4;
 			if(this.currentTime>24) this.currentTime=0;
 			
 			this.sunCamera.setPitch((float)this.solarAltitude);
 			this.sunCamera.setYaw(-(float)(this.solarAzimuth));
+			
+			double solarTime = getSolarTime(julianDay, currentTime, DEFAULT_TIMEZONE, DEFAULT_LONGITUDE);
+			this.solarAltitude = getSolarAltitude(solarDeclination, solarTime, DEFAULT_LATITUDE);
+			this.solarAzimuth = getSolarAzimuth(solarDeclination, solarTime, DEFAULT_LATITUDE);
 		}
 		public double getSolarAltitude()
 		{
@@ -230,13 +213,13 @@ public class Sky
 			public double y;
 			public double x;
 			public double Y;
-			public void uploadToShader(SkyShaderProgram SSP)
+			public void uploadToShader(DeferredShaderProgram DSP)
 			{
-				int loc = glGetUniformLocation(SSP.getID(), "zenitalAbs.x");
+				int loc = glGetUniformLocation(DSP.getID(), "zenitalAbs.x");
 				glUniform1f(loc, (float)x);
-				loc = glGetUniformLocation(SSP.getID(), "zenitalAbs.y");
+				loc = glGetUniformLocation(DSP.getID(), "zenitalAbs.y");
 				glUniform1f(loc, (float)y);
-				loc = glGetUniformLocation(SSP.getID(), "zenitalAbs.Y");
+				loc = glGetUniformLocation(DSP.getID(), "zenitalAbs.Y");
 				glUniform1f(loc, (float)Y);
 			}
 		}
@@ -260,39 +243,39 @@ public class Sky
 			public double yD;
 			public double yE;
 			
-			public void uploadToShader(SkyShaderProgram SSP)
+			public void uploadToShader(DeferredShaderProgram DSP)
 			{
-				int loc = glGetUniformLocation(SSP.getID(), "coeff.x.A");
+				int loc = glGetUniformLocation(DSP.getID(), "coeff.x.A");
 				glUniform1f(loc, (float)xA);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.x.B");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.x.B");
 				glUniform1f(loc, (float)xB);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.x.C");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.x.C");
 				glUniform1f(loc, (float)xC);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.x.D");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.x.D");
 				glUniform1f(loc, (float)xD);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.x.E");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.x.E");
 				glUniform1f(loc, (float)xE);
 
-				loc = glGetUniformLocation(SSP.getID(), "coeff.y.A");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.y.A");
 				glUniform1f(loc, (float)yA);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.y.B");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.y.B");
 				glUniform1f(loc, (float)yB);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.y.C");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.y.C");
 				glUniform1f(loc, (float)yC);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.y.D");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.y.D");
 				glUniform1f(loc, (float)yD);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.y.E");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.y.E");
 				glUniform1f(loc, (float)yE);
 				
-				loc = glGetUniformLocation(SSP.getID(), "coeff.Y.A");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.Y.A");
 				glUniform1f(loc, (float)YA);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.Y.B");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.Y.B");
 				glUniform1f(loc, (float)YB);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.Y.C");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.Y.C");
 				glUniform1f(loc, (float)YC);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.Y.D");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.Y.D");
 				glUniform1f(loc, (float)YD);
-				loc = glGetUniformLocation(SSP.getID(), "coeff.Y.E");
+				loc = glGetUniformLocation(DSP.getID(), "coeff.Y.E");
 				glUniform1f(loc, (float)YE);
 			}
 		}

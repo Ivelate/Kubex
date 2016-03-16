@@ -7,6 +7,8 @@ import static org.lwjgl.opengl.GL15.glBufferData;
 import static org.lwjgl.opengl.GL15.glBufferSubData;
 import static org.lwjgl.opengl.GL15.glGenBuffers;
 import static org.lwjgl.opengl.GL20.glUniform1i;
+import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
+import static org.lwjgl.opengl.GL30.glBindFramebuffer;
 import static org.lwjgl.opengl.GL20.glGetUniformLocation;
 import static org.lwjgl.opengl.GL20.glUniform1f;
 
@@ -21,7 +23,8 @@ import org.lwjgl.util.vector.Vector4f;
 
 import ivengine.view.MatrixHelper;
 import monecruft.MonecruftGame;
-import monecruft.shaders.FinalDrawShaderProgram;
+import monecruft.entity.Player;
+import monecruft.shaders.DeferredShaderProgram;
 import monecruft.storage.FloatBufferPool;
 
 public class FinalDrawManager 
@@ -47,16 +50,14 @@ public class FinalDrawManager
 	private Vector4f xmyp=new Vector4f();
 	private Vector4f xpyp=new Vector4f();
 	
-	private FinalDrawShaderProgram FDSP;
 	private LiquidRenderer liquidRenderer;
 	private ShadowsManager shadowsManager;
 	private World world;
 	private Sky sky;
 	private float cnear,cfar;
 	
-	public FinalDrawManager(FinalDrawShaderProgram FDSP,World world,Sky sky,ShadowsManager shadowsManager, LiquidRenderer liquidRenderer,Matrix4f projCameraInverseMatrix,float cnear,float cfar)
+	public FinalDrawManager(World world,Sky sky,ShadowsManager shadowsManager, LiquidRenderer liquidRenderer,Matrix4f projCameraInverseMatrix,float cnear,float cfar)
 	{
-		this.FDSP=FDSP;
 		this.world=world;
 		this.sky=sky;
 		this.shadowsManager=shadowsManager;
@@ -81,7 +82,7 @@ public class FinalDrawManager
 		vboContent[37]=xpyp.x/xpyp.w; vboContent[38]=xpyp.y/xpyp.w; vboContent[39]=xpyp.z/xpyp.w;
 		vboContent[45]=xmyp.x/xmyp.w; vboContent[46]=xmyp.y/xmyp.w; vboContent[47]=xmyp.z/xmyp.w;		
 	}
-	public void draw(Matrix4f projWorldInverseMatrix,Matrix4f viewMatrix,Matrix4f projectionMatrix,float xres,float yres)
+	public final void draw(DeferredShaderProgram[] programs,int[] fbos,Matrix4f projWorldInverseMatrix,Matrix4f viewMatrix,Matrix4f projectionMatrix,float xres,float yres)
 	{		
 		Matrix4f.transform(projWorldInverseMatrix, xpypProjection, xpyp);
 		Matrix4f.transform(projWorldInverseMatrix, xmypProjection, xmyp);
@@ -104,49 +105,75 @@ public class FinalDrawManager
 		this.vbobuffer.clear();
 		
 		//Ready. Drawing
-		this.FDSP.enable();
-		this.FDSP.setupAttributes();
-		
-		MatrixHelper.uploadMatrix(viewMatrix, this.FDSP.viewMatrix);
-		MatrixHelper.uploadMatrix(projectionMatrix, this.FDSP.projectionMatrix);
-		glUniform1i(this.FDSP.colorTex,MonecruftGame.BASEFBO_COLOR_TEXTURE_LOCATION);
-		glUniform1i(this.FDSP.liquidLayersTex,MonecruftGame.LIQUIDLAYERS_TEXTURE_LOCATION);
-		glUniform1i(this.FDSP.baseFboDepthTex,MonecruftGame.BASEFBO_DEPTH_TEXTURE_LOCATION);
-		glUniform1i(this.FDSP.brightnessNormalTex,MonecruftGame.BASEFBO_NORMALS_BRIGHTNESS_TEXTURE_LOCATION);
-		glUniform1i(this.FDSP.liquidLayersTexLength,this.liquidRenderer.getNumLayers());
-		glUniform1f(this.FDSP.cfar,cfar);
-		glUniform1f(this.FDSP.cnear,cnear);
-		glUniform1f(this.FDSP.cwidth,xres);
-		glUniform1f(this.FDSP.cheight,yres);
-		GL20.glUniform1f(this.FDSP.daylightAmount, this.world.getDaylightAmount());
-		
-		//SHADOWS
-		
-		Vector3f sunNormal=this.sky.getSunNormal();
-		GL20.glUniform3f(this.FDSP.sunNormal, sunNormal.x, sunNormal.y, sunNormal.z);
-		GL20.glUniform1i(this.FDSP.shadowMap, MonecruftGame.SHADOW_TEXTURE_LOCATION);
-
-		float[] dsplits=this.shadowsManager.getSplitDistances();
-		switch(this.shadowsManager.getNumberSplits())
+		for(int i=0;i<programs.length;i++)
 		{
-		case 1: GL20.glUniform4f(this.FDSP.splitDistances, dsplits[1],0,0,0);
-			break;
-		case 2: GL20.glUniform4f(this.FDSP.splitDistances, dsplits[1],dsplits[2],0,0);
-			break;
-		case 3: GL20.glUniform4f(this.FDSP.splitDistances, dsplits[1],dsplits[2],dsplits[3],0);
-			break;
-		case 4: GL20.glUniform4f(this.FDSP.splitDistances, dsplits[1],dsplits[2],dsplits[3],dsplits[4]);
-			break;
-		}
-
-		for(int i=0;i<this.shadowsManager.getNumberSplits();i++){
-			MatrixHelper.uploadMatrix(this.shadowsManager.getOrthoProjectionForSplitScreenAdjusted(i), this.FDSP.shadowMatrixes+(i));
-		}
+			glBindFramebuffer(GL_FRAMEBUFFER, fbos[i]);
+			programs[i].enable();
+			programs[i].setupAttributes();
+			uploadToShader(programs[i],viewMatrix,projectionMatrix,xres,yres);
 		
-		glDrawArrays(GL_TRIANGLES, 0, 6);
+			glDrawArrays(GL_TRIANGLES, 0, 6);
+		
+			programs[i].disable();
+		}
 		
 		glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
-		this.FDSP.disable();
+	}
+	
+	protected void uploadToShader(DeferredShaderProgram DSP,Matrix4f viewMatrix,Matrix4f projectionMatrix,float xres,float yres)
+	{		
+		MatrixHelper.uploadMatrix(viewMatrix, glGetUniformLocation(DSP.getID(),"viewMatrix"));
+		MatrixHelper.uploadMatrix(projectionMatrix, glGetUniformLocation(DSP.getID(),"projectionMatrix"));
+		glUniform1i(glGetUniformLocation(DSP.getID(),"colorTex"),DSP.colorTexLocation());
+		glUniform1i(glGetUniformLocation(DSP.getID(),"liquidLayersTex"),MonecruftGame.LIQUIDLAYERS_TEXTURE_LOCATION);
+		glUniform1i(glGetUniformLocation(DSP.getID(),"baseFboDepthTex"),MonecruftGame.BASEFBO_DEPTH_TEXTURE_LOCATION);
+		glUniform1i(glGetUniformLocation(DSP.getID(),"brightnessNormalTex"),MonecruftGame.BASEFBO_NORMALS_BRIGHTNESS_TEXTURE_LOCATION);
+		glUniform1i(glGetUniformLocation(DSP.getID(),"liquidLayersTexLength"),this.liquidRenderer.getNumLayers());
+		if(DSP.miscTexLocation()!=-1) glUniform1i(glGetUniformLocation(DSP.getID(),"miscTex"),DSP.miscTexLocation());
+		glUniform1f(glGetUniformLocation(DSP.getID(),"cfar"),cfar);
+		glUniform1f(glGetUniformLocation(DSP.getID(),"cnear"),cnear);
+		glUniform1f(glGetUniformLocation(DSP.getID(),"cwidth"),xres);
+		glUniform1f(glGetUniformLocation(DSP.getID(),"cheight"),yres);
 		
+		glUniform1f(glGetUniformLocation(DSP.getID(), "time"),(float)(System.currentTimeMillis()%100000)/1000);
+		
+		GL20.glUniform1f(glGetUniformLocation(DSP.getID(),"daylightAmount"), this.world.getDaylightAmount());
+		Vector3f sunNormal=this.sky.getSunNormal();
+		GL20.glUniform3f(glGetUniformLocation(DSP.getID(),"sunNormal"), sunNormal.x, sunNormal.y, sunNormal.z);
+		
+		if(DSP.supportWorldPosition())
+		{
+			GL20.glUniform3f(glGetUniformLocation(DSP.getID(),"WorldPosition"), (float)(this.world.getCameraCenter().x%500),(float)(this.world.getCameraCenter().y%500),(float)(this.world.getCameraCenter().z%500));
+		}
+		
+		//SHADOWS
+		if(DSP.supportShadows())
+		{
+			GL20.glUniform1i(glGetUniformLocation(DSP.getID(),"shadowMap"), MonecruftGame.SHADOW_TEXTURE_LOCATION);
+
+			float[] dsplits=this.shadowsManager.getSplitDistances();
+			int splitDistances=glGetUniformLocation(DSP.getID(),"splitDistances");
+			switch(this.shadowsManager.getNumberSplits())
+			{
+			case 1: GL20.glUniform4f(splitDistances, dsplits[1],0,0,0);
+				break;
+			case 2: GL20.glUniform4f(splitDistances, dsplits[1],dsplits[2],0,0);
+				break;
+			case 3: GL20.glUniform4f(splitDistances, dsplits[1],dsplits[2],dsplits[3],0);
+				break;
+			case 4: GL20.glUniform4f(splitDistances, dsplits[1],dsplits[2],dsplits[3],dsplits[4]);
+				break;
+			}
+
+			int shadowMatrixes=glGetUniformLocation(DSP.getID(),"shadowMatrixes");
+			for(int i=0;i<this.shadowsManager.getNumberSplits();i++){
+				MatrixHelper.uploadMatrix(this.shadowsManager.getOrthoProjectionForSplitScreenAdjusted(i), shadowMatrixes+(i));
+			}
+		}
+		
+		if(DSP.supportSkyParameters())
+		{
+			this.sky.uploadToShader(DSP);
+		}
 	}
 }

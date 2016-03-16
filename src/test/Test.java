@@ -132,8 +132,8 @@ public class Test
 		
 		// TEXTURES
 		
-	    int texId=Util.loadPNGTexture("D:/rotatetrans.png",GL13.GL_TEXTURE0);
-	    System.out.println(Util.loadPNGTexture("D:/ballena.png",GL13.GL_TEXTURE1));
+	    int texId=0;//Util.loadPNGTexture("D:/rotatetrans.png",GL13.GL_TEXTURE0); |TODO ehhmmmm fix
+	    //System.out.println(Util.loadPNGTexture("D:/ballena.png",GL13.GL_TEXTURE1));
 		System.out.println(texId);
 	    glUniform1i(glGetUniformLocation(ssp.getID(), "text"), 0);
 	    

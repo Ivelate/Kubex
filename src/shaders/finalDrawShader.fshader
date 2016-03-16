@@ -11,11 +11,11 @@ uniform float cfar;
 uniform float cwidth;
 uniform float cheight;
 
-const float fogdensity = .00001;
-const vec4 fogcolor = vec4(0.7, 0.9, 1.0, 1.0);
-uniform float daylightAmount;
+uniform float time;
 
-uniform float fresnelR0=((1-1.33f)/(2.33f))*((1-1.33f)/(2.33f)); //Air-water
+const float fogdensity = .00001;
+const vec4 fogcolor = vec4(0.6, 0.74, 0.8, 1.0);
+uniform float daylightAmount;
 
 uniform vec3 sunNormal;
 uniform vec4 splitDistances;
@@ -34,8 +34,6 @@ in vec3 FarFaceLocation;
 in vec3 FarFaceCamViewLocation;
 
 layout(location = 0) out vec4 outcolor;
-
-bool traceScreenSpaceRay(vec3 csOrig,vec3 csDir,mat4 proj,sampler2D csZBuffer,float width,float height,float cnear,float cfar,float mnearfar,float snearfar,float zThickness,float maxDistance,out vec2 hitPixel);
 
 void main()
 {
@@ -93,6 +91,7 @@ void main()
 	}
 		
 	bool water=waterd>0;
+	float outw=water?0.8:1.0;
 	
 	//START ILLUMINATION
 	
@@ -100,6 +99,11 @@ void main()
 	
 	if(z<1)
 	{
+		if(water) {
+			trueDepth=firstWaterDepth;
+			normal=firstWaterNormal;
+			worldPosition=FarFaceLocation*trueDepth/cfar;
+		}
 		//SHADOWS
 		int sindex=0;
 		if(trueDepth>splitDistances.x)
@@ -114,7 +118,7 @@ void main()
 		float sunsetdot=dot(sunNormal,vec3(0,1,0));
 		if(dotsun>0 && sunsetdot>-0.2)
 		{
-			float sunsetAttenuation=sunsetdot>0?1:(sunsetdot+0.2)*5;
+			float sunsetAttenuation=sunsetdot>0?1.0:(sunsetdot+0.2)*5;
 			vec3 smallnormal=normal * length(worldPosition)*0.01;
 			vec4 sunLocation=shadowMatrixes[sindex]*vec4(worldPosition+smallnormal,1);
 			float shadow=0;
@@ -132,6 +136,7 @@ void main()
 		float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness;
 	
 		if(!water) outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
+		else outw=(shadowAttenuation-0.3f)*1.14;
 		
 		float fog = clamp(exp(-fogdensity * trueDepth * trueDepth), 0.2, 1);
   		outcolor = mix(fogcolor*((daylightAmount-0.15)*1.17647), outcolor, fog);
@@ -139,113 +144,9 @@ void main()
 	
 	if(water)
 	{
-		float waterCos=-dot(lookVector,firstWaterNormal);
-		float fresnel=fresnelR0 + (1-fresnelR0)*pow(1-waterCos,5);
-		//fresnel=mix(fresnel,0,clamp(sqrt(abs((pos.x-0.5)*2)),0,0.5));
-		//Caculating reflected color.
-		vec3 viewNormal=(viewMatrix*vec4(firstWaterNormal.xyz,0)).xyz;
-		vec3 viewDir=normalize(FarFaceCamViewLocation);
-		vec3 viewPos=FarFaceCamViewLocation*firstWaterDepth/cfar;
-		vec3 viewPosP=(viewMatrix*vec4(FarFaceLocation*firstWaterDepth/cfar,1)).xyz;
-		vec2 hitPixel=vec2(0,0);
-		bool collision=traceScreenSpaceRay(viewPos,reflect(viewDir,viewNormal).xyz,projectionMatrix,baseFboDepthTex,
-											cwidth,cheight,cnear,cfar,mnearfar,snearfar,1,2000,hitPixel);
-		vec4 reflected=vec4(0.2941f,0.4156f,0.6666f,1);
-		vec4 reflectedt=reflected;
-
-		if(collision) reflectedt=texture(colorTex,vec2(hitPixel.x/cwidth,hitPixel.y/cheight));
-	
-		reflected=reflectedt;
-		//reflected=mix(reflectedt,reflected,clamp((abs((pos.x-0.5)*2)-0.5)*2,0,1));
-		
 		vec4 crefracted=vec4((outcolor.xyz*exp(-vec3(0.46,0.09,0.06)*(waterd/*+(1-Brightness.x)*16*/))).xyz,1);
-	
 		outcolor=mix(vec4(0.05,0.05,0.1,1),crefracted,exp(-0.01*waterd));
-	
-		outcolor=mix(outcolor,reflected,fresnel);
 	}
 	
-	//outcolor=vec4(outcolor.x * FarFaceCamViewLocation.x/FarFaceCamViewLocation.z,outcolor.y * FarFaceCamViewLocation.y/FarFaceCamViewLocation.z,0,1);
-}
-float distanceSquared(vec2 P0, vec2 P1)
-{
-	vec2 diff=P1-P0;
-	return dot(diff,diff);
-}
-bool traceScreenSpaceRay(vec3 csOrig,vec3 csDir,mat4 proj,sampler2D csZBuffer,float width,float height,float cnear,float cfar,float mnearfar,float snearfar,float zThickness,float maxDistance,out vec2 hitPixel)
-{
-
-	// Clip to the near plane VERY FUCKING IMPORTANT BECAUSE OR FRIEND PROJECTION MATRIX FUCKS UP WHEN DIVIDING BY w<0
-	float rayLength = ((csOrig.z + csDir.z * maxDistance) > -cnear) ?
-		(-cnear - csOrig.z) / csDir.z : maxDistance;
-
-	vec3 csEndPoint = csOrig + csDir * rayLength;
-	hitPixel = vec2(-1, -1);
-
-	// Project into screen space
-	vec4 H0 = proj * vec4(csOrig, 1.0), H1 = proj * vec4(csEndPoint, 1.0);
-	float k0 = 1.0 / H0.w, k1 = 1.0 / H1.w;
-	vec3 Q0 = csOrig * k0, Q1 = csEndPoint * k1;
-
-	// Screen-space endpoints
-	vec2 P0 = H0.xy * k0, P1 = H1.xy * k1;
-	//Porting to REAL screen space
-	P0.x=((P0.x+1)/2)*width; P0.y=((P0.y+1)/2)*height;
-	P1.x=((P1.x+1)/2)*width; P1.y=((P1.y+1)/2)*height;
-	//Q0.z=(Q0.z+1)/2; Q1.z=(Q1.z+1)/2; 
-	
-	P1 += vec2((distanceSquared(P0, P1) < 0.0001) ? 0.01 : 0.0);
-	vec2 delta = P1 - P0;
-	
-	bool permute = false;
-	if (abs(delta.x) < abs(delta.y)) {
-		permute = true;
-		delta = delta.yx; P0 = P0.yx; P1 = P1.yx;
-	}
-
-	float stepDir = sign(delta.x), invdx = stepDir / delta.x;
-
-	// Track the derivatives of Q and k.
-	vec3 dQ = (Q1 - Q0) * invdx;
-	//return dQ;
-	float dk = (k1 - k0) * invdx;
-	vec2 dP = vec2(stepDir, delta.y * invdx);
-
-	/*dP *= stride; dQ *= stride; dk *= stride;
-	P0 += dP * jitter; Q0 += dQ * jitter; k0 += dk * jitter;*/
-	float prevZMaxEstimate = csOrig.z;
-	
-	// Slide P from P0 to P1, (now-homogeneous) Q from Q0 to Q1, k from k0 to k1
-	vec3 Q = Q0; float k = k0, stepCount = 0.0, end = P1.x * stepDir;
-	for (vec2 P = P0;
-		((P.x * stepDir) <= end);
-		P += dP, Q.z += dQ.z, k += dk) {
-
-		// Project back from homogeneous to camera space
-		hitPixel = permute ? P.yx : P;
-
-		// The depth range that the ray covers within this loop iteration.
-		// Assume that the ray is moving in increasing z and swap if backwards.
-		float rayZMin = prevZMaxEstimate;
-		// Compute the value at 1/2 pixel into the future
-		float rayZMax = (dQ.z * 0.5 + Q.z) / (dk * 0.5 + k);
-		prevZMaxEstimate = rayZMax;
-		if (rayZMin > rayZMax) { 
-			float aux=rayZMin;
-			rayZMin=rayZMax;
-			rayZMax=aux;
-		}
-
-		if(hitPixel.x>=width||hitPixel.x<0||hitPixel.y>=height||hitPixel.y<0) break;
-		float sceneMaxZ = mnearfar / (((texture(csZBuffer, vec2(hitPixel.x/width,hitPixel.y/height)).x) * snearfar) - cfar);
-		float sceneMinZ=sceneMaxZ - zThickness;
-		
-		if (((rayZMax >= sceneMinZ) && (rayZMin <= sceneMaxZ))) {
-		
-			return true;
-			break; // Breaks out of both loops, since the inner loop is a macro
-		}
-	}	
-	
-	return false;
+	outcolor.w=outw;
 }

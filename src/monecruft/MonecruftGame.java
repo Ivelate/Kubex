@@ -70,8 +70,10 @@ import monecruft.gui.ShadowsManager;
 import monecruft.gui.Sky;
 import monecruft.gui.World;
 import monecruft.shaders.BasicColorShaderProgram;
+import monecruft.shaders.DeferredReflectionsShaderProgram;
 import monecruft.shaders.DepthVoxelShaderProgram;
-import monecruft.shaders.FinalDrawShaderProgram;
+import monecruft.shaders.DeferredShaderProgram;
+import monecruft.shaders.DeferredTerrainShaderProgram;
 import monecruft.shaders.HudShaderProgram;
 import monecruft.shaders.SkyShaderProgram;
 import monecruft.shaders.TerrainVoxelShaderProgram;
@@ -111,29 +113,29 @@ import ivengine.view.MatrixHelper;
 
 public class MonecruftGame implements Cleanable
 {
-	public static final int[] TEXTURE_FETCH={GL_TEXTURE0,GL_TEXTURE1,GL_TEXTURE2,GL_TEXTURE3,GL_TEXTURE4,GL_TEXTURE5,GL_TEXTURE6};
+	public static final int[] TEXTURE_FETCH={GL_TEXTURE0,GL_TEXTURE1,GL_TEXTURE2,GL_TEXTURE3,GL_TEXTURE4,GL_TEXTURE5,GL_TEXTURE6,GL_TEXTURE7};
 	public static final int TILES_TEXTURE_LOCATION=0;
 	public static final int BASEFBO_NORMALS_BRIGHTNESS_TEXTURE_LOCATION=1;
 	public static final int BASEFBO_COLOR_TEXTURE_LOCATION=2;
 	public static final int BASEFBO_DEPTH_TEXTURE_LOCATION=3;
 	public static final int SHADOW_TEXTURE_LOCATION=4; //Lookup from World
 	public static final int LIQUIDLAYERS_TEXTURE_LOCATION=5;
+	public static final int DEFERREDFBO_COLOR_TEXTURE_LOCATION=6;
+	public static final int WATER_NORMAL_TEXTURE_LOCATION=7;
 	
 	private MonecruftSettings settings;
 	
-	private int X_RES=800;
-	private int Y_RES=600;
+	private int X_RES=1400;
+	private int Y_RES=900;
 	private int SHADOW_XRES=2048;
 	private int SHADOW_YRES=2048;
 	private final int SHADOW_LAYERS=4;
-	private final int LIQUID_LAYERS=5;
+	private final int LIQUID_LAYERS=3;
 	
-	private final float CAMERA_NEAR=0.2f;
+	private final float CAMERA_NEAR=0.1f;
 	private final float CAMERA_FAR=(float)Math.sqrt(World.HEIGHT*World.HEIGHT + World.PLAYER_VIEW_FIELD*World.PLAYER_VIEW_FIELD)*Chunk.CHUNK_DIMENSION;
 	
 	private final float[] SHADOW_SPLITS;
-	
-	private int squarevbo;
 	
 	private TerrainVoxelShaderProgram VSP;
 	private UnderwaterVoxelShaderProgram UVSP;
@@ -141,7 +143,8 @@ public class MonecruftGame implements Cleanable
 	private SkyShaderProgram SSP;
 	private BasicColorShaderProgram BCSP;
 	private DepthVoxelShaderProgram DVSP;
-	private FinalDrawShaderProgram FDSP;
+	private DeferredTerrainShaderProgram DTSP;
+	private DeferredReflectionsShaderProgram DRSP;
 	private TimeManager TM;
 	private Camera cam; private CameraInverseProjEnvelope camInvProjEnv;
 	private Camera sunCam;
@@ -171,6 +174,7 @@ public class MonecruftGame implements Cleanable
 	private Thread shutdownHook;
 	
 	private int baseFbo;
+	private int deferredFbo;
 	private int[] shadowFbos;
 	
 	private boolean changeContext=false; //To change with option menu.
@@ -293,6 +297,7 @@ public class MonecruftGame implements Cleanable
 				//this.sunCam.updateProjection(this.shadowsManager.getOrthoProjectionForSplit(1));*/
 				this.world.overrideCurrentPVMatrix(this.shadowsManager.getOrthoProjectionForSplit(i));
 				this.world.draw(this.shadowsManager.getBoundaryCheckerForSplit(i));
+				this.world.drawLiquids();
 			}
 		}
 
@@ -316,7 +321,7 @@ public class MonecruftGame implements Cleanable
 		
 		nightDomeTexture.bind();
 		
-		this.sky.draw();
+		//this.sky.draw();
 		
 		//tilesTexture.bind();
 		//this.world.drawLiquids();
@@ -324,12 +329,13 @@ public class MonecruftGame implements Cleanable
 
 		//this.VSP.disable();
 		
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glDisable(GL_DEPTH_TEST);
-		
+		int[] fbos={this.deferredFbo,0};
+		DeferredShaderProgram[] programs={this.DTSP,this.DRSP};
+		//if(Math.random()>0.5f) programs[0]=this.DRSP;
 		//glClear(GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 		Matrix4f temp=Matrix4f.invert(this.cam.getProjectionViewMatrix(), null);
-		this.finalDrawManager.draw(temp,this.cam.getViewMatrix(),this.cam.getProjectionMatrix(),X_RES,Y_RES);
+		this.finalDrawManager.draw(programs,fbos,temp,this.cam.getViewMatrix(),this.cam.getProjectionMatrix(),X_RES,Y_RES);
 		/*this.FDSP.enable();
 		glBindBuffer(GL15.GL_ARRAY_BUFFER,this.squarevbo);
 		this.FDSP.setupAttributes();*/
@@ -354,7 +360,7 @@ public class MonecruftGame implements Cleanable
 	{
 		FloatBufferPool.init(Chunk.CHUNK_DIMENSION*Chunk.CHUNK_DIMENSION*Chunk.CHUNK_DIMENSION*2*6*6,20);
 		ByteArrayPool.init(Chunk.CHUNK_DIMENSION,(World.PLAYER_VIEW_FIELD*2 +1)*World.HEIGHT*(World.PLAYER_VIEW_FIELD*2 +1)*2);
-		glEnable(GL_DEPTH_TEST);
+		//glEnable(GL_DEPTH_TEST);
 		glEnable(GL11.GL_CULL_FACE);
 		GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 		glEnable( GL11.GL_BLEND );
@@ -370,7 +376,8 @@ public class MonecruftGame implements Cleanable
 		this.HSP=new HudShaderProgram(true);
 		this.SSP=new SkyShaderProgram(true);
 		this.BCSP=new BasicColorShaderProgram(true);
-		this.FDSP=new FinalDrawShaderProgram(true);
+		this.DTSP=new DeferredTerrainShaderProgram(true);
+		this.DRSP=new DeferredReflectionsShaderProgram(true);
 		this.TM=new TimeManager();
 		this.cam=new Camera(CAMERA_NEAR,CAMERA_FAR,80f,(float)(X_RES*3/4)/Y_RES); //FOV more width than height by design
 		this.camInvProjEnv=new CameraInverseProjEnvelope(this.cam);
@@ -381,23 +388,9 @@ public class MonecruftGame implements Cleanable
 		this.sunCam.moveTo(0, 5, 0);
 		this.sunCam.setPitch(0);
 		
-		this.squarevbo=glGenBuffers();
-		glBindBuffer(GL15.GL_ARRAY_BUFFER,this.squarevbo);
-	
-		FloatBuffer toUpload=FloatBufferPool.getBuffer();
-		float[] list={	-1,-1,  1,-1,  1,1,
-						-1,-1,  1,1,  -1,1};
-
-		toUpload.put(list);
-		toUpload.flip();
-		glBufferData(GL15.GL_ARRAY_BUFFER,(list.length*4),GL15.GL_STATIC_DRAW);
-		glBufferSubData(GL15.GL_ARRAY_BUFFER,0,toUpload);
-		glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
-		FloatBufferPool.recycleBuffer(toUpload);
-		
-		this.sky=new Sky(SSP,BCSP,cam,this.sunCam,this.squarevbo);
+		this.sky=new Sky(cam,this.sunCam);
 		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky,this.settings);
-		this.finalDrawManager=new FinalDrawManager(this.FDSP,this.world,this.sky,this.shadowsManager,this.liquidRenderer,this.camInvProjEnv.getInvProjMatrix(),CAMERA_NEAR,CAMERA_FAR);
+		this.finalDrawManager=new FinalDrawManager(this.world,this.sky,this.shadowsManager,this.liquidRenderer,this.camInvProjEnv.getInvProjMatrix(),CAMERA_NEAR,CAMERA_FAR);
 		this.hud=new Hud(this.HSP,X_RES,Y_RES);
 		//Load textures here
 		
@@ -414,6 +407,8 @@ public class MonecruftGame implements Cleanable
 			}	
 		});*/
 		tilesTexture = Util.loadTextureAtlasIntoTextureArray(FileLoader.loadTileImages(), GL11.GL_LINEAR, GL11.GL_NEAREST_MIPMAP_LINEAR, true);//TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("images/imagenes2.png"));
+		
+		Util.loadPNGTexture(FileLoader.loadWaterNormalImage(), TEXTURE_FETCH[WATER_NORMAL_TEXTURE_LOCATION]);
 		
 		glActiveTexture(GL_TEXTURE0);
 		// Setup the ST coordinate system
@@ -497,6 +492,26 @@ public class MonecruftGame implements Cleanable
 		drawBuffers.put(GL_COLOR_ATTACHMENT0);
 		drawBuffers.put(GL_COLOR_ATTACHMENT1);
 		/*drawBuffers.put(GL_COLOR_ATTACHMENT2);*/
+		
+		drawBuffers.flip();
+		GL20.glDrawBuffers(drawBuffers);
+		
+		this.deferredFbo=glGenFramebuffers();
+		glBindFramebuffer(GL_FRAMEBUFFER, this.deferredFbo);
+		
+		int deferredColorTex=glGenTextures();
+		//int normalTexture=glGenTextures();
+		
+		glActiveTexture(TEXTURE_FETCH[DEFERREDFBO_COLOR_TEXTURE_LOCATION]);
+		glBindTexture(GL_TEXTURE_2D, deferredColorTex);
+		glTexImage2D(GL_TEXTURE_2D, 0,GL11.GL_RGBA, X_RES, Y_RES, 0,GL11.GL_RGBA, GL_UNSIGNED_BYTE, (FloatBuffer)null);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, deferredColorTex, 0);
+		
+		drawBuffers = BufferUtils.createIntBuffer(1);
+		
+		drawBuffers.put(GL_COLOR_ATTACHMENT0);
 		
 		drawBuffers.flip();
 		GL20.glDrawBuffers(drawBuffers);

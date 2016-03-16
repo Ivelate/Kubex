@@ -23,14 +23,14 @@ public class Util
 			java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
 			return s.hasNext() ? s.next() : "";
 	}
-	public static int loadPNGTexture(String filename, int textureUnit) {
+	public static int loadPNGTexture(URL filename, int textureUnit) {
 		ByteBuffer buf = null;
 		int tWidth = 0;
 		int tHeight = 0;
 		
 		try {
 			// Open the PNG file as an InputStream
-			InputStream in = new FileInputStream(filename);
+			InputStream in = filename.openStream();
 			// Link the PNG decoder to this stream
 			PNGDecoder decoder = new PNGDecoder(in);
 			

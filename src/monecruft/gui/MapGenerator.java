@@ -59,8 +59,15 @@ public class MapGenerator
 						ret[cx][cy][cz]=get3dValue(cx+(x*Chunk.CHUNK_DIMENSION),
 							cy+(y*Chunk.CHUNK_DIMENSION), 
 							cz+(z*Chunk.CHUNK_DIMENSION))<0 ? (byte)1: (cy+(y*Chunk.CHUNK_DIMENSION)<70? (byte)(1): (byte)(0));
+						if(cy + y*Chunk.CHUNK_DIMENSION<=SEA_HEIGHT+15){
+							if(ret[cx][cy][cz]==0)ret[cx][cy][cz]=4;
+						}
 					}
-					if(ret[cx][cy][cz]==0&&cy>1&&ret[cx][cy-1][cz]==1&&Math.random()<0.1f) ret[cx][cy][cz]=(byte)19;
+					double rand=Math.random();
+					if(ret[cx][cy][cz]==0&&cy>1&&ret[cx][cy-1][cz]==1) {
+						if(rand<0.1) ret[cx][cy][cz]=(byte)19;
+						else if(rand<0.12) ret[cx][cy][cz]=(byte)21;
+					}
 							
 					if(empty&&ret[cx][cy][cz]!=0) empty=false; 
 					//else ret[cx][cy][cz]=(byte)0;
@@ -119,7 +126,9 @@ public class MapGenerator
 			//else if(y<100) cubeCode=(byte) ((this.mapBase.getNoise(x, z)+1+((y-55)/(float)(22)))>2?2:1);
 			//else cubeCode=2;
 			if(y>95) cubeCode=20;
-			else if(y>85&& (y-85)/10f>Math.random()) cubeCode=20;
+			else if(y>85&& (y-85)/10f>Math.random()) {
+				cubeCode=20;
+			}
 			else cubeCode=1;
 		}
 		else cubeCode=2;

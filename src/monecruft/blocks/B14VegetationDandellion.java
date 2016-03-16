@@ -1,6 +1,6 @@
 package monecruft.blocks;
 
-public class B5LightBlock extends Block{
+public class B14VegetationDandellion extends Block{
 
 	@Override
 	public boolean isOpaque() {
@@ -10,7 +10,7 @@ public class B5LightBlock extends Block{
 	@Override
 	public boolean isSolid()
 	{
-		return true;
+		return false;
 	}
 	
 	@Override
@@ -25,27 +25,27 @@ public class B5LightBlock extends Block{
 
 	@Override
 	public byte getLightProduced() {
-		return 15;
+		return 0;
 	}
 
 	@Override
 	public byte getUpTex() {
-		return 13;
+		return 9;
 	}
 
 	@Override
 	public byte getLatTex() {
-		return 13;
+		return 16;
 	}
 
 	@Override
 	public byte getDownTex() {
-		return 13;
+		return 2;
 	}
 
 	@Override
 	public String getCubeName() {
-		return "Light block";
+		return "Vegetation - Dandellion";
 	}
 
 	@Override
@@ -55,12 +55,12 @@ public class B5LightBlock extends Block{
 
 	@Override
 	public boolean canSeeTrough() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public boolean isCrossSectional() {
 		// TODO Auto-generated method stub
-		return false;
+		return true;
 	}
 }
