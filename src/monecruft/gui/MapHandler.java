@@ -28,6 +28,10 @@ public class MapHandler
 	public ChunkGenerationResult getChunk(int x,int y,int z,byte[][][] c){
 		return this.mg.generateChunk(x, y, z,c);
 	}
+	public void generateChunkObjects(Chunk c)
+	{
+		this.mg.generateChunkObjects(c);
+	}
 	/*public byte[][][] getBounds(int x,int y,int z)
 	{
 		byte[][][] bounds=new byte[6][Chunk.CHUNK_DIMENSION][Chunk.CHUNK_DIMENSION];

@@ -194,8 +194,7 @@ void main()
 		vec3 viewPos=FarFaceCamViewLocation*firstWaterDepth/cfar;
 		//vec3 viewPosP=(viewMatrix*vec4(FarFaceLocation*firstWaterDepth/cfar,1)).xyz;
 		vec2 hitPixel=vec2(0,0);
-		bool collision=traceScreenSpaceRay(viewPos,reflect(viewDir,viewNormal).xyz,projectionMatrix,baseFboDepthTex,
-											cwidth,cheight,cnear,cfar,mnearfar,snearfar,25,2000,hitPixel);
+		bool collision=false;
 											
 		vec4 reflected;
 		if(collision) reflected=texture(colorTex,vec2(hitPixel.x/cwidth,hitPixel.y/cheight));
@@ -207,7 +206,7 @@ void main()
 		if(especular>0.005)
 		{
 			float shadowed=inw*1.25;
-			if(shadowed>0.1) outcolor=clamp(outcolor + /*vec4(sindex==0?1:0,sindex==1?1:0,sindex==2?1:0,0)*/vec4(especular,especular,especular,0)*shadowed,vec4(0,0,0,0),vec4(1,1,1,1));
+			if(shadowed>0.1) outcolor=clamp(outcolor + vec4(especular,especular,especular,0)*shadowed,vec4(0,0,0,0),vec4(1,1,1,1));
 		}
 	}
 	}

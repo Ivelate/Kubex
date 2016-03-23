@@ -15,6 +15,7 @@ public abstract class Block
 	public abstract byte getUpTex();
 	public abstract byte getLatTex();
 	public abstract byte getDownTex();
+	public abstract boolean occludesNaturalLight();
 	
 	public int getLiquidLevel() //Auto override if needed
 	{

@@ -63,4 +63,10 @@ public class B14VegetationDandellion extends Block{
 		// TODO Auto-generated method stub
 		return true;
 	}
+
+	@Override
+	public boolean occludesNaturalLight() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 }

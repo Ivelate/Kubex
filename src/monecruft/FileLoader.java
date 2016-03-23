@@ -6,7 +6,7 @@ import org.newdawn.slick.util.ResourceLoader;
 
 public class FileLoader 
 {
-	private static int IMAGE_NUMBER=18;
+	private static int IMAGE_NUMBER=21;
 	private static String TILES_ROUTE="images/tiles/";
 	private static String MISC_ROUTE="images/";
 	public static URL[] loadTileImages()
@@ -32,6 +32,9 @@ public class FileLoader
 		tileImages[15]=FileLoader.class.getClassLoader().getResource(TILES_ROUTE+"015_snowlat.png");
 		tileImages[16]=FileLoader.class.getClassLoader().getResource(TILES_ROUTE+"016_flower_dandelion.png");
 		tileImages[17]=FileLoader.class.getClassLoader().getResource(TILES_ROUTE+"017_tallgrass.png");
+		tileImages[18]=FileLoader.class.getClassLoader().getResource(TILES_ROUTE+"018_wood.png");
+		tileImages[19]=FileLoader.class.getClassLoader().getResource(TILES_ROUTE+"019_leaves.png");
+		tileImages[20]=FileLoader.class.getClassLoader().getResource(TILES_ROUTE+"020_wood_top.png");
 		
 		return tileImages;
 	}

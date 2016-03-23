@@ -70,10 +70,12 @@ import monecruft.gui.ShadowsManager;
 import monecruft.gui.Sky;
 import monecruft.gui.World;
 import monecruft.shaders.BasicColorShaderProgram;
+import monecruft.shaders.DeferredNoReflectionsShaderProgram;
 import monecruft.shaders.DeferredReflectionsShaderProgram;
 import monecruft.shaders.DepthVoxelShaderProgram;
 import monecruft.shaders.DeferredShaderProgram;
 import monecruft.shaders.DeferredTerrainShaderProgram;
+import monecruft.shaders.DeferredTerrainUnshadowShaderProgram;
 import monecruft.shaders.HudShaderProgram;
 import monecruft.shaders.SkyShaderProgram;
 import monecruft.shaders.TerrainVoxelShaderProgram;
@@ -125,8 +127,8 @@ public class MonecruftGame implements Cleanable
 	
 	private MonecruftSettings settings;
 	
-	private int X_RES=1400;
-	private int Y_RES=900;
+	private int X_RES=800;
+	private int Y_RES=600;
 	private int SHADOW_XRES=2048;
 	private int SHADOW_YRES=2048;
 	private final int SHADOW_LAYERS=4;
@@ -143,8 +145,8 @@ public class MonecruftGame implements Cleanable
 	private SkyShaderProgram SSP;
 	private BasicColorShaderProgram BCSP;
 	private DepthVoxelShaderProgram DVSP;
-	private DeferredTerrainShaderProgram DTSP;
-	private DeferredReflectionsShaderProgram DRSP;
+	private DeferredShaderProgram DTSP;
+	private DeferredShaderProgram DRSP;
 	private TimeManager TM;
 	private Camera cam; private CameraInverseProjEnvelope camInvProjEnv;
 	private Camera sunCam;
@@ -372,12 +374,12 @@ public class MonecruftGame implements Cleanable
 		textManager=new GlobalTextManager();
 		this.UVSP=new UnderwaterVoxelShaderProgram(true);
 		this.DVSP=new DepthVoxelShaderProgram(true);
-		this.VSP=this.settings.SHADOWS_ENABLED?new TerrainVoxelShaderProgram(true):new UnshadowedVoxelShaderProgram(true);
+		this.VSP=/*this.settings.SHADOWS_ENABLED?*/new TerrainVoxelShaderProgram(true)/*:new UnshadowedVoxelShaderProgram(true)*/;
 		this.HSP=new HudShaderProgram(true);
 		this.SSP=new SkyShaderProgram(true);
 		this.BCSP=new BasicColorShaderProgram(true);
-		this.DTSP=new DeferredTerrainShaderProgram(true);
-		this.DRSP=new DeferredReflectionsShaderProgram(true);
+		this.DTSP=this.settings.SHADOWS_ENABLED?new DeferredTerrainShaderProgram(true):new DeferredTerrainUnshadowShaderProgram(true);
+		this.DRSP=this.settings.REFLECTIONS_ENABLED?new DeferredReflectionsShaderProgram(true):new DeferredNoReflectionsShaderProgram(true);
 		this.TM=new TimeManager();
 		this.cam=new Camera(CAMERA_NEAR,CAMERA_FAR,80f,(float)(X_RES*3/4)/Y_RES); //FOV more width than height by design
 		this.camInvProjEnv=new CameraInverseProjEnvelope(this.cam);
@@ -614,6 +616,7 @@ public class MonecruftGame implements Cleanable
 		boolean noshadows=false;
 		int mapcode=0;
 		boolean selectingMap=false;
+		boolean noreflections=false;
 		for(String s:args){
 			if(selectingMap){
 				selectingMap=false;
@@ -622,11 +625,13 @@ public class MonecruftGame implements Cleanable
 			else if(s.equals("-fullscreen")) fullscreen=true;
 			else if(s.equals("-noshadows")) noshadows=true;
 			else if(s.equals("-map")) selectingMap=true;
+			else if(s.equals("-noreflections")) noreflections=true;
 		}
 		MonecruftSettings settings=new MonecruftSettings();
 		settings.FULLSCREEN_ENABLED=fullscreen;
 		settings.SHADOWS_ENABLED=!noshadows;
 		settings.MAP_CODE=mapcode;
+		settings.REFLECTIONS_ENABLED=!noreflections;
 		new MonecruftGame(settings);
 	}
 	private void closeApp()

@@ -40,7 +40,7 @@ import monecruftProperties.DrawableUpdatable;
 public class World implements DrawableUpdatable, Cleanable
 {
 	private static final int MAX_CHUNK_LOADS_PER_TICK=10;
-	public static final int PLAYER_VIEW_FIELD=12;
+	public static final int PLAYER_VIEW_FIELD=10;
 	public static final int HEIGHT=8;
 	private static final float WATER_ALPHA=0.5f;
 	private static final float CHUNK_UPDATE_TICK=0.3f;
@@ -67,7 +67,7 @@ public class World implements DrawableUpdatable, Cleanable
 	private SquareCorners currentWorldCornersHigh;
 	private Vector3d cameraCenterVector=new Vector3d();
 	
-	private float currentTime=17;
+	private float currentTime=12;
 	private float chunkUpdateTickCont=0;
 	
 	private VoxelShaderProgram VSP;

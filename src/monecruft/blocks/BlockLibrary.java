@@ -17,7 +17,9 @@ public class BlockLibrary
 		new B11Lava(),
 		new B12VegetationGrass(),
 		new B13Snow(),
-		new B14VegetationDandellion()
+		new B14VegetationDandellion(),
+		new B15Wood(),
+		new B16Leaves()
 	};
 	private static Block defaultBlock=new B0Air();
 	
@@ -32,6 +34,11 @@ public class BlockLibrary
 	public static boolean canSeeTrough(byte blockID){
 		if(blockID<0||blockID>=blockList.length) return defaultBlock.canSeeTrough();
 		return blockList[blockID].canSeeTrough();
+	}
+	public static boolean occludesNaturalLight(byte blockID)
+	{
+		if(blockID<0||blockID>=blockList.length) return defaultBlock.occludesNaturalLight();
+		return blockList[blockID].occludesNaturalLight();
 	}
 	public static boolean isSolid(byte blockID){
 		if(blockID<0||blockID>=blockList.length) return defaultBlock.isSolid();

@@ -60,4 +60,9 @@ public abstract class LiquidBlock extends Block{
 	{
 		return this.maxLiquidLevel;
 	}
+	@Override
+	public boolean occludesNaturalLight()
+	{
+		return true;
+	}
 }

@@ -519,8 +519,11 @@ public class Chunk implements Cleanable
 	{
 		if(this.updateCubes.size()>0)
 		{
-			List<CubePosition> updateCubesLocal=this.updateCubes;
-			this.updateCubes=new LinkedList<CubePosition>();
+			List<CubePosition> updateCubesLocal;
+			synchronized(this.updateCubes){
+				updateCubesLocal=this.updateCubes;
+				this.updateCubes=new LinkedList<CubePosition>();
+			}
 			for(CubePosition cp:updateCubesLocal)
 			{
 				byte cube=this.getCubeAt(cp.x, cp.y, cp.z);
@@ -755,7 +758,7 @@ public class Chunk implements Cleanable
 					}
 				}
 				else if(cube==14){ //|TODO please change me
-					int expPower=20;
+					int expPower=5;
 					int expPower2=expPower*expPower;
 					for(int x=-expPower;x<expPower;x++){
 						
@@ -964,14 +967,17 @@ public class Chunk implements Cleanable
 				z<CHUNK_DIMENSION&&z>=0	) 
 		{
 			//Cube update
-			Iterator<CubePosition> i=this.updateCubes.iterator();
-			while(i.hasNext())
+			synchronized(this.updateCubes)
 			{
-				CubePosition cp=i.next();
-				if(cp.x==x&&cp.y==y&&cp.z==z) return;//i.remove();
+				Iterator<CubePosition> i=this.updateCubes.iterator();
+				while(i.hasNext())
+				{
+					CubePosition cp=i.next();
+					if(cp.x==x&&cp.y==y&&cp.z==z) return;//i.remove();
+				}
+				if(this.updateCubes.size()==0) this.WF.insertChunkInUpdateList(this);
+				this.updateCubes.add(new CubePosition(x,y,z));
 			}
-			if(this.updateCubes.size()==0) this.WF.insertChunkInUpdateList(this);
-			this.updateCubes.add(new CubePosition(x,y,z));
 		}
 		else
 		{
@@ -1065,11 +1071,8 @@ public class Chunk implements Cleanable
 					removeArtificialBrightnessAt(x,y,z);
 				}
 			
-				if(!BlockLibrary.isOpaque(val))
+				if(BlockLibrary.isOpaque(val)) //|TODO MEEEC WHAT ABOUT LEAVES?
 				{
-					recalculateBrightnessOfCube(x,y,z);
-				}
-				else{
 					removeArtificialBrightnessAt(x,y,z);
 					byte exNaturalBright=getNaturalLightLevelAt(x,y,z);
 					removeNaturalBrightnessAt(x,y,z);
@@ -1083,6 +1086,22 @@ public class Chunk implements Cleanable
 						this.destroyNaturalLightInRay(x,y-1,z,downChunks,0);
 						this.recalculateLightInRay(x, y-1, z, downChunks, 0);
 					}	
+				}
+				else if(BlockLibrary.occludesNaturalLight(val)){
+					if(getNaturalLightLevelAt(x,y,z)==15){
+						removeNaturalBrightnessAt(x,y,z);
+						this.setNaturalBrightnessAt(x, y, z, (byte)14);
+						ArrayList<Chunk> downChunks=new ArrayList<Chunk>();
+						for(int yc=this.chunky-1;yc>=0;yc--){
+							Chunk chu=this.WF.getChunkByIndex(this.chunkx, yc, this.chunkz);
+							downChunks.add(chu);
+						}
+						this.destroyNaturalLightInRay(x,y-1,z,downChunks,0);
+						this.recalculateLightInRay(x, y-1, z, downChunks, 0);
+					}
+				}
+				else{
+					recalculateBrightnessOfCube(x,y,z);
 				}
 			}
 		}
@@ -1541,6 +1560,7 @@ public class Chunk implements Cleanable
 		}
 		//Lightmap calculated: Lets check for neighbors added (And inform near neighbors that this chunk has been added too)
 		this.neighborsAdded=this.WF.getNeighboursAdded(this);
+		if(this.neighborsAdded==134209535) this.WF.getMapHandler().generateChunkObjects(this);
 		this.WF.notifyNeighbours(this);
 		this.lightCalculated=true;
 	}
@@ -1554,7 +1574,7 @@ public class Chunk implements Cleanable
 		if(getNaturalLightIn(x,yi,z)==15) return getY();
 		for(int y=yi;y>=0;y--)
 		{
-			if(BlockLibrary.isOpaque(this.chunkCubes.get(x,y,z))||BlockLibrary.isLiquid(this.chunkCubes.get(x,y,z))) return getY();
+			if(BlockLibrary.isOpaque(this.chunkCubes.get(x,y,z))||BlockLibrary.occludesNaturalLight(this.chunkCubes.get(x,y,z))) return getY();
 			setNaturalLightIn(x,y,z,(byte)15);
 		}
 		if(downChunk.size()>stage&&downChunk.get(stage)!=null)
@@ -1569,7 +1589,7 @@ public class Chunk implements Cleanable
 		if(getNaturalLightIn(x,yi,z)!=15) return;
 		for(int y=yi;y>=0;y--)
 		{
-			if(BlockLibrary.isOpaque(this.chunkCubes.get(x,y,z))||BlockLibrary.isLiquid(this.chunkCubes.get(x,y,z))) return;
+			if(BlockLibrary.isOpaque(this.chunkCubes.get(x,y,z))||BlockLibrary.occludesNaturalLight(this.chunkCubes.get(x,y,z))) return;
 			this.removeNaturalBrightnessAt(x, y, z);
 		}
 		}
@@ -1583,7 +1603,7 @@ public class Chunk implements Cleanable
 		if(yi>=0){
 		for(int y=yi;y>=0;y--)
 		{
-			if(BlockLibrary.isOpaque(this.chunkCubes.get(x,y,z))||BlockLibrary.isLiquid(this.chunkCubes.get(x,y,z))) return;
+			if(BlockLibrary.isOpaque(this.chunkCubes.get(x,y,z))||BlockLibrary.occludesNaturalLight(this.chunkCubes.get(x,y,z))) return;
 			this.recalculateBrightnessOfCube(x, y, z);
 		}
 		}
@@ -2058,6 +2078,7 @@ public class Chunk implements Cleanable
 		{
 			this.changed=true;
 			this.neighborsAdded=nadded;
+			if(this.neighborsAdded==134209535) this.WF.getMapHandler().generateChunkObjects(this);
 		}
 	}
 	

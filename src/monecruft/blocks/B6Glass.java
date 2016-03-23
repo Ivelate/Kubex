@@ -63,4 +63,10 @@ public class B6Glass extends Block{
 		// TODO Auto-generated method stub
 		return false;
 	}
+
+	@Override
+	public boolean occludesNaturalLight() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 }

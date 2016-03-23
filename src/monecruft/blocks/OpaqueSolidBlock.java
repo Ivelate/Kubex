@@ -42,4 +42,9 @@ public abstract class OpaqueSolidBlock extends Block{
 	{
 		return false;
 	}
+	@Override
+	public boolean occludesNaturalLight()
+	{
+		return true;
+	}
 }

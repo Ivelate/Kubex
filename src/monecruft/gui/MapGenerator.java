@@ -87,6 +87,75 @@ public class MapGenerator
 		}
 		return empty?ChunkGenerationResult.CHUNK_EMPTY:ChunkGenerationResult.CHUNK_NORMAL;
 	}
+	public void generateChunkObjects(Chunk c)
+	{
+		for(int x=0;x<Chunk.CHUNK_DIMENSION;x++)
+		{
+			for(int z=0;z<Chunk.CHUNK_DIMENSION;z++)
+			{
+				byte lastCube=c.getCubeAt(x, -1, z);
+				if(!BlockLibrary.isSolid(lastCube)) continue;
+				for(int y=0;y<Chunk.CHUNK_DIMENSION;y++)
+				{
+					byte cube=c.getCubeAt(x, y, z);
+					if(cube==0&&lastCube==1){
+						if(Math.random()<0.005) generateTreeAt(x,y,z,c);
+						break;
+					}
+					lastCube=cube;
+				}
+			}
+		}
+	}
+	private void generateTreeAt(int x,int y,int z,Chunk c)
+	{
+		/*for(int dx=-3;dx<=3;dx++)
+		{
+			if(Math.abs(dx)==3) continue;
+			for(int dz=-3+Math.abs(dx);dz<=3-Math.abs(dx);dz++)
+			{
+				if(Math.abs(dz)==3) continue;
+				int dxz=Math.abs(dz)+Math.abs(dx);
+				for(int dy=0;dy<=3-dxz;dy++)
+				{
+					if(c.getCubeAt(x+dx, y+dy+3, z+dz)==0)c.setCubeAt(x+dx, y+dy+3, z+dz, (byte)23);
+				}
+			}
+		}
+		c.setCubeAt(x, y, z, (byte)22);
+		c.setCubeAt(x, y+1, z, (byte)22);
+		c.setCubeAt(x, y+2, z, (byte)22);
+		c.setCubeAt(x, y+3, z, (byte)22);
+		c.setCubeAt(x, y+4, z, (byte)22);*/
+		int height=(int)(Math.random()*6)+3;
+		for(int cy=0;cy<height;cy++)
+		{
+			c.setCubeAt(x, y+cy, z, (byte)22);
+			if(cy==height-1) c.setCubeAt(x, y+height, z, (byte)23);
+			int dx=0;int dz=0; int armL=0;
+			if(Math.random()*(cy/(float)(height))>0.3f){
+				armL=(int)(Math.random()*(height/2)+1);
+				double dir=Math.random();
+				dx=dir<0.25?-1:dir<0.5?1:0;
+				dz=dir>0.5?(dir<0.75?-1:1):0;
+				for(int i=0;i<armL;i++){
+					c.setCubeAt(x+(i*dx), y+cy, z+(i*dz), (byte)22);
+				}
+			}
+			
+			int width=cy/(height/2);
+			for(int cz=-width-(dz<0?armL:0);cz<=width+(dz>0?armL:0);cz++)
+			{
+				//if(Math.abs(cz)==width) continue;
+				int dxz=Math.abs(dz<0?cz+armL:dz>0?cz-armL:cz);
+				for(int cx=-width+dxz-(dx<0?armL:0);cx<=width-dxz+(dx>0?armL:0);cx++)
+				{
+					if(c.getCubeAt(x+cx, y+cy, z+cz)==0)c.setCubeAt(x+cx, y+cy, z+cz, (byte)23);
+					else if(c.getCubeAt(x+cx, y+cy, z+cz)==22) c.setCubeAt(x+cx, y+cy+1, z+cz, (byte)23);
+				}
+			}
+		}
+	}
 	/*public byte getCubeAt(int absx,int absy,int absz)
 	{
 		int h=getHeight(absx,absz);
