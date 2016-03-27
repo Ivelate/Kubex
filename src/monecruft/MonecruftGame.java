@@ -51,6 +51,7 @@ import static org.lwjgl.opengl.GL30.glGenRenderbuffers;
 import static org.lwjgl.opengl.GL30.glRenderbufferStorage;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.FloatBuffer;
@@ -83,6 +84,7 @@ import monecruft.shaders.UnderwaterVoxelShaderProgram;
 import monecruft.shaders.UnshadowedVoxelShaderProgram;
 import monecruft.shaders.VoxelShaderProgram;
 import monecruft.storage.ByteArrayPool;
+import monecruft.storage.FileManager;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.InputHandler;
 import monecruft.utils.TimeManager;
@@ -127,8 +129,8 @@ public class MonecruftGame implements Cleanable
 	
 	private MonecruftSettings settings;
 	
-	private int X_RES=800;
-	private int Y_RES=600;
+	private int X_RES=1400;
+	private int Y_RES=900;
 	private int SHADOW_XRES=2048;
 	private int SHADOW_YRES=2048;
 	private final int SHADOW_LAYERS=4;
@@ -157,6 +159,7 @@ public class MonecruftGame implements Cleanable
 	private ShadowsManager shadowsManager;
 	private LiquidRenderer liquidRenderer;
 	private FinalDrawManager finalDrawManager;
+	private FileManager fileManager;
 	
 	private int tilesTexture;
 	private Texture nightDomeTexture;
@@ -183,6 +186,9 @@ public class MonecruftGame implements Cleanable
 	
 	public MonecruftGame(MonecruftSettings settings) throws LWJGLException, IOException 
 	{
+		/*File outpfil=new File("outpfil.log");
+		outpfil.createNewFile();
+		System.setOut(new PrintStream(new FileOutputStream(outpfil)));*/
 		this.settings=settings;
 		
 		if(settings.FULLSCREEN_ENABLED){
@@ -391,7 +397,11 @@ public class MonecruftGame implements Cleanable
 		this.sunCam.setPitch(0);
 		
 		this.sky=new Sky(cam,this.sunCam);
-		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky,this.settings);
+		File mapRoute=new File(this.settings.MAP_ROUTE);
+		mapRoute.mkdir();
+		this.fileManager=new FileManager(mapRoute);
+		this.fileManager.getSettingsFromFile(settings);
+		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky,fileManager,this.settings);
 		this.finalDrawManager=new FinalDrawManager(this.world,this.sky,this.shadowsManager,this.liquidRenderer,this.camInvProjEnv.getInvProjMatrix(),CAMERA_NEAR,CAMERA_FAR);
 		this.hud=new Hud(this.HSP,X_RES,Y_RES);
 		//Load textures here
@@ -615,23 +625,39 @@ public class MonecruftGame implements Cleanable
 		boolean fullscreen=false;
 		boolean noshadows=false;
 		int mapcode=0;
+		String maproute="patata";
+		long seed=1234567890;
 		boolean selectingMap=false;
+		boolean selectingSeed=false;
+		boolean selectingMapRoute=false;
 		boolean noreflections=false;
 		for(String s:args){
 			if(selectingMap){
 				selectingMap=false;
 				mapcode=Integer.parseInt(s);
 			}
+			else if(selectingMapRoute){
+				selectingMapRoute=false;
+				maproute=s;
+			}
+			else if(selectingSeed){
+				selectingSeed=false;
+				seed=Long.parseLong(s);
+			}
 			else if(s.equals("-fullscreen")) fullscreen=true;
 			else if(s.equals("-noshadows")) noshadows=true;
 			else if(s.equals("-map")) selectingMap=true;
 			else if(s.equals("-noreflections")) noreflections=true;
+			else if(s.equals("-maproute")) selectingMapRoute=true;
+			else if(s.equals("-seed")) selectingSeed=true;
 		}
 		MonecruftSettings settings=new MonecruftSettings();
 		settings.FULLSCREEN_ENABLED=fullscreen;
 		settings.SHADOWS_ENABLED=!noshadows;
 		settings.MAP_CODE=mapcode;
 		settings.REFLECTIONS_ENABLED=!noreflections;
+		settings.MAP_ROUTE=maproute;
+		settings.MAP_SEED=seed;
 		new MonecruftGame(settings);
 	}
 	private void closeApp()
@@ -644,6 +670,7 @@ public class MonecruftGame implements Cleanable
 	@Override
 	public void fullClean() {
 		world.fullClean();
+		this.fileManager.fullClean();
 		VSP.fullClean();
 		this.TM=null;
 		this.cam=null;

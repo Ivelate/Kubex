@@ -26,12 +26,11 @@ public class MapGenerator
 	
 	private int mapcode=0; //|TODO likely only debug
 	
-	public MapGenerator(int bbegin,int bend,int mapcode)
+	public MapGenerator(int bbegin,int bend,int mapcode,long seed)
 	{
 		this.mapcode=mapcode;
 		this.beginBlockHeight=bbegin;this.endBlockHeight=bend;
 		//this.mapNoise=new PerlinNoise(65431245*244233);
-		long seed=/*(new Random()).nextLong();//*/1234567890;
 		long seed1=seed>>43;
 		long seed2=seed>>21;
 		long seed3=seed;
@@ -89,6 +88,7 @@ public class MapGenerator
 	}
 	public void generateChunkObjects(Chunk c)
 	{
+		//if(1==1) return;
 		for(int x=0;x<Chunk.CHUNK_DIMENSION;x++)
 		{
 			for(int z=0;z<Chunk.CHUNK_DIMENSION;z++)
@@ -187,6 +187,8 @@ public class MapGenerator
 		}
 	}
 	public byte getCubeFromHeightMap(int x,int y,int z){
+		//if(y>=64) return 0;
+		//else if(1==1) return 1;
 		int height=this.savedHeightMap[x+1][z+1];
 		byte cubeCode;
 		if(y>height) cubeCode=0;

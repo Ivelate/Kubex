@@ -136,7 +136,11 @@ void main()
 		float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness;
 	
 		if(!water) outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
-		else outw=(shadowAttenuation-0.3f)*1.14;
+		else {
+		float daylightWaterAmout=1.25*(daylightAmount-0.2);
+			outcolor=outcolor*vec4(daylightWaterAmout,daylightWaterAmout,daylightWaterAmout,1.0);
+			outw=(shadowAttenuation-0.3f)*1.14;
+		}
 		
 		float fog = clamp(exp(-fogdensity * trueDepth * trueDepth), 0.2, 1);
   		outcolor = mix(fogcolor*((daylightAmount-0.15)*1.17647), outcolor, fog);

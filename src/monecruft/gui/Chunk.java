@@ -12,6 +12,7 @@ import ivengine.shaders.SimpleShaderProgram;
 import ivengine.view.Camera;
 import ivengine.view.MatrixHelper;
 
+import java.io.File;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -21,12 +22,14 @@ import java.util.concurrent.Semaphore;
 
 import monecruft.blocks.BlockLibrary;
 import monecruft.gui.MapGenerator.ChunkGenerationResult;
+import monecruft.gui.MapHandler.ChunkData;
 import monecruft.shaders.DepthVoxelShaderProgram;
 import monecruft.shaders.VoxelShaderProgram;
 import monecruft.storage.ArrayCubeStorage;
 import monecruft.storage.ByteArrayPool;
 import monecruft.storage.ConstantValueCubeStorage;
 import monecruft.storage.CubeStorage;
+import monecruft.storage.FileManager;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.BoundaryChecker;
 import monecruft.utils.BoundingBoxBoundaryChecker;
@@ -70,6 +73,7 @@ public class Chunk implements Cleanable
 	private boolean drawed=false;
 	private boolean changed=true;
 	private boolean updateFlag=false;
+	private boolean initcializedFlag=false;
 	private boolean solidEmpty=true;
 	private boolean liquidEmpty=true;
 	private boolean deleted=false;
@@ -90,14 +94,16 @@ public class Chunk implements Cleanable
 		this.chunkModelMatrix=new Matrix4f();
 		//Matrix4f.translate(new Vector3f(chunkx*Chunk.CHUNK_DIMENSION,chunky*Chunk.CHUNK_DIMENSION,chunkz*Chunk.CHUNK_DIMENSION), this.chunkModelMatrix, this.chunkModelMatrix);
 		byte[][][] cubes=ByteArrayPool.getArrayUncleaned();
-		ChunkGenerationResult arrayEmpty=WF.getMapHandler().getChunk(chunkxpos, chunkypos,chunkzpos,cubes);
+		ChunkData chunkGenerationData=WF.getMapHandler().getChunk(chunkxpos, chunkypos,chunkzpos,cubes);
 		
-		if(arrayEmpty!=ChunkGenerationResult.CHUNK_NORMAL) {
+		if(chunkGenerationData.chunkGenerationResult!=ChunkGenerationResult.CHUNK_NORMAL) {
 			this.chunkCubes=new ConstantValueCubeStorage((byte)0,this,CubeStorageType.CUBES_STORAGE);
-			if(arrayEmpty==ChunkGenerationResult.CHUNK_EMPTY) ByteArrayPool.recycleCleanArray(cubes);
+			if(chunkGenerationData.chunkGenerationResult==ChunkGenerationResult.CHUNK_EMPTY) ByteArrayPool.recycleCleanArray(cubes);
 			else ByteArrayPool.recycleArray(cubes);
 		}
 		else this.chunkCubes=new ArrayCubeStorage(cubes,false);
+		
+		this.initcializedFlag=chunkGenerationData.initcializedFlag;
 		/*for(int i=0;i<4;i++)
 		{
 			int x=(int)(Math.random()*CHUNK_DIMENSION);
@@ -432,6 +438,7 @@ public class Chunk implements Cleanable
 					//Bye array!
 					if(this.chunkCubes.isTrueStorage()){
 						byte defval=this.chunkCubes.get(0, 0, 0);
+						this.WF.getMapHandler().storeChunk(getX(), getY(), getZ(), this.chunkCubes,this.initcializedFlag);
 						this.chunkCubes.dispose();
 						this.chunkCubes=new ConstantValueCubeStorage(defval,this,CubeStorageType.CUBES_STORAGE);
 					}
@@ -905,13 +912,14 @@ public class Chunk implements Cleanable
 			//If solid
 			else{
 				byte[][][] cubes=ByteArrayPool.getArrayUncleaned();
-				ChunkGenerationResult arrayEmpty=WF.getMapHandler().getChunk(this.getX(), this.getY(),this.getZ(),cubes);
-				if(arrayEmpty==ChunkGenerationResult.CHUNK_HIGHER_THAN_HEIGHTMAP){
+				ChunkData chunkGenerationData=WF.getMapHandler().getChunk(this.getX(), this.getY(),this.getZ(),cubes);
+				if(chunkGenerationData.chunkGenerationResult==ChunkGenerationResult.CHUNK_HIGHER_THAN_HEIGHTMAP){
 					ByteArrayPool.recycleArray(cubes);
 					cubes=ByteArrayPool.getArray();
 				}
 				this.chunkCubes.dispose();
-				this.chunkCubes=new ArrayCubeStorage(cubes,arrayEmpty!=ChunkGenerationResult.CHUNK_NORMAL);
+				this.chunkCubes=new ArrayCubeStorage(cubes,chunkGenerationData.chunkGenerationResult!=ChunkGenerationResult.CHUNK_NORMAL);
+				this.initcializedFlag=this.initcializedFlag||chunkGenerationData.initcializedFlag;
 				if(set) this.chunkCubes.set(x, y, z, val);
 			}
 			break;
@@ -1548,6 +1556,26 @@ public class Chunk implements Cleanable
 			}
 		}
 		
+		//Artificial light inside chunk
+		if(!(!this.chunkCubes.isTrueStorage() && !BlockLibrary.isLightSource(this.chunkCubes.get(0, 0, 0))))
+		{
+			for(int x=0;x<CHUNK_DIMENSION;x++)
+			{
+				for(int z=0;z<CHUNK_DIMENSION;z++)
+				{
+					for(int y=0;y<CHUNK_DIMENSION;y++)
+					{
+						if(BlockLibrary.isLightSource(this.chunkCubes.get(x, y, z)))
+						{
+							noNaturalLight=false;
+							fullNaturalLight=false;
+							setArtificialBrightnessAt(x,y,z,BlockLibrary.getLightProduced(this.chunkCubes.get(x, y, z)));
+						}
+					}
+				}
+			}
+		}
+		
 		if(noNaturalLight) {
 			//System.out.println("No nat at "+getX()+" "+getY()+" "+getZ());
 			this.chunkCubesLight.dispose();
@@ -1560,7 +1588,10 @@ public class Chunk implements Cleanable
 		}
 		//Lightmap calculated: Lets check for neighbors added (And inform near neighbors that this chunk has been added too)
 		this.neighborsAdded=this.WF.getNeighboursAdded(this);
-		if(this.neighborsAdded==134209535) this.WF.getMapHandler().generateChunkObjects(this);
+		if(this.neighborsAdded==134209535&&!this.initcializedFlag) {
+			this.initcializedFlag=true;
+			this.WF.getMapHandler().generateChunkObjects(this);
+		}
 		this.WF.notifyNeighbours(this);
 		this.lightCalculated=true;
 	}
@@ -2078,7 +2109,10 @@ public class Chunk implements Cleanable
 		{
 			this.changed=true;
 			this.neighborsAdded=nadded;
-			if(this.neighborsAdded==134209535) this.WF.getMapHandler().generateChunkObjects(this);
+			if(this.neighborsAdded==134209535&&!this.initcializedFlag) {
+				this.initcializedFlag=true;
+				this.WF.getMapHandler().generateChunkObjects(this);
+			}
 		}
 	}
 	
@@ -2096,10 +2130,31 @@ public class Chunk implements Cleanable
 	{
 		if(!this.deleted){
 			this.deleted=true;
+			
 			this.WF.notifyNeighboursRemove(this);
 			if(this.toUpload!=null){ FloatBufferPool.recycleBuffer(this.toUpload); this.toUpload=null;}
 			if(this.toUploadLiquid!=null) {FloatBufferPool.recycleBuffer(this.toUploadLiquid); this.toUploadLiquid=null;}
 			
+			if(this.chunkCubes.isTrueStorage()||this.chunkCubes.get(0, 0, 0)==0||BlockLibrary.isLiquid(this.chunkCubes.get(0, 0, 0))) {
+				this.WF.getMapHandler().storeChunk(getX(), getY(), getZ(), this.chunkCubes,this.initcializedFlag);
+				
+				if(this.chunkCubes.isTrueStorage()){
+				byte[][][] test=new byte[32][32][32];
+				this.WF.getMapHandler().getChunk(getX(), getY(), getZ(), test);
+				for(int x=0;x<32;x++)
+				{
+					for(int y=0;y<32;y++)
+					{
+						for(int z=0;z<32;z++)
+						{
+							if(this.chunkCubes.getArray()[x][y][z]!=test[x][y][z]){
+								System.out.println("MEEEEEEEEEEEEEEEEEEEEEEECCC "+getX()+" "+getY()+" "+getZ()+" "+x+" "+y+" "+z);
+							}
+						}
+					}
+				}
+				}
+			}
 			this.chunkCubes.dispose();
 			if(this.lightCalculated) this.chunkCubesLight.dispose();
 			

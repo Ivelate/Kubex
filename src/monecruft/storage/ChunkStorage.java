@@ -130,6 +130,16 @@ public class ChunkStorage implements Cleanable{
 	}
 	@Override
 	public void fullClean() {
+		for(int cx=0;cx<this.chunkList.length;cx++)
+		{
+			for(int cy=0;cy<this.chunkList[0].length;cy++)
+			{
+				for(int cz=0;cz<this.chunkList[0][0].length;cz++)
+				{
+					if(this.chunkList[cx][cy][cz]!=null) this.chunkList[cx][cy][cz].fullClean();
+				}
+			}
+		}
 		this.chunkList=null;
 	}
 	
