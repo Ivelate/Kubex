@@ -13,7 +13,7 @@ public class BlockLibrary
 		new B7TNT(),
 		new B8RainMaker(),
 		new B9SuperTower(),
-		new B10DebugUtil(),
+		new B10Adoquin(),
 		new B11Lava(),
 		new B12VegetationGrass(),
 		new B13Snow(),

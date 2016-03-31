@@ -11,7 +11,7 @@ public abstract class LiquidRenderer
 	{
 		return this.numLayers;
 	}
-	public abstract void initResources(int layersTex);
+	public abstract void initResources(int layersTex,int currentNormalTex);
 	
 
 	public abstract void renderLayers(World w, int xres, int yres);

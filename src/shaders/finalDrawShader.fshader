@@ -97,7 +97,7 @@ void main()
 	
 	outcolor=texture2D(colorTex,vec2(pos.x,pos.y));
 	
-	if(z<1)
+	if(z<1||water)
 	{
 		if(water) {
 			trueDepth=firstWaterDepth;
@@ -135,10 +135,8 @@ void main()
 		float daylightBrightness=Brightness.x*daylightAmount*shadowAttenuation;
 		float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness;
 	
-		if(!water) outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
-		else {
-		float daylightWaterAmout=1.25*(daylightAmount-0.2);
-			outcolor=outcolor*vec4(daylightWaterAmout,daylightWaterAmout,daylightWaterAmout,1.0);
+		outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
+		if(water) {
 			outw=(shadowAttenuation-0.3f)*1.14;
 		}
 		

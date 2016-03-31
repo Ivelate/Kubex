@@ -134,7 +134,7 @@ public class MapGenerator
 			if(cy==height-1) c.setCubeAt(x, y+height, z, (byte)23);
 			int dx=0;int dz=0; int armL=0;
 			if(Math.random()*(cy/(float)(height))>0.3f){
-				armL=(int)(Math.random()*(height/2)+1);
+				armL=(int)((Math.random()*height*2)/3+1 - (cy*cy/height));
 				double dir=Math.random();
 				dx=dir<0.25?-1:dir<0.5?1:0;
 				dz=dir>0.5?(dir<0.75?-1:1):0;

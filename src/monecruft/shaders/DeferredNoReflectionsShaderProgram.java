@@ -32,5 +32,13 @@ public class DeferredNoReflectionsShaderProgram extends DeferredShaderProgram{
 	public boolean supportWorldPosition() {
 		return true;
 	}
+	@Override
+	public int miscTex2Location() {
+		return MonecruftGame.CURRENT_LIQUID_NORMAL_TEXTURE_LOCATION;
+	}
+	@Override
+	public boolean supportPlayerLighting() {
+		return false;
+	}
 
 }

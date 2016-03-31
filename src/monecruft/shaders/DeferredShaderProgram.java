@@ -46,8 +46,10 @@ public abstract class DeferredShaderProgram extends SimpleShaderProgram{
 	public abstract boolean supportShadows();
 	public abstract int colorTexLocation();
 	public abstract int miscTexLocation();
+	public abstract int miscTex2Location();
 	public abstract boolean supportSkyParameters();
 	public abstract boolean supportWorldPosition();
+	public abstract boolean supportPlayerLighting();
 	
 	@Override
 	protected void dispose() {

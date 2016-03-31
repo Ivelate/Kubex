@@ -25,6 +25,9 @@ public class DepthPeelingShaderProgram extends VoxelShaderProgram{
 		int loc=glGetAttribLocation(this.getID(), "location");
 		glVertexAttribPointer(loc,3,GL_FLOAT,false,getSize()*4,0);
 		glEnableVertexAttribArray(loc);
+		int normal=glGetAttribLocation(this.getID(), "normal");
+		glVertexAttribPointer(normal,3,GL_FLOAT,false,getSize()*4,3*4);
+		glEnableVertexAttribArray(normal);
 	}
 	@Override
 	public boolean isParticipatingMedia() {

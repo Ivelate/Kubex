@@ -23,8 +23,11 @@ public class MapHandler
 	private MapGenerator mg;
 	private FileManager fm;
 	private WorldFacade wf;
-	public MapHandler(int bbegin,int bend,int mapcode,long seed,WorldFacade wf,FileManager fm)
+	private ChunkGenerator chunkGenerator;
+	
+	public MapHandler(int bbegin,int bend,int mapcode,long seed,WorldFacade wf,ChunkGenerator chunkGenerator,FileManager fm)
 	{
+		this.chunkGenerator=chunkGenerator;
 		this.mg=new MapGenerator(bbegin,bend,mapcode,seed);
 		this.fm=fm;
 		this.wf=wf;
@@ -51,19 +54,22 @@ public class MapHandler
 	}
 	public void storeChunk(int x,int y,int z,CubeStorage c,boolean initcializedFlag)
 	{
-		if(c.isTrueStorage()){
-			this.fm.storeChunk(c.getArray(), x, y, z,initcializedFlag);
-		}
-		else this.fm.storeChunk(c.get(0,0,0), x, y, z,initcializedFlag);
+			this.chunkGenerator.addChunkStoreRequest(new ChunkStoreRequest(c, x, y, z,initcializedFlag));
 	}
 	public void generateChunkObjects(Chunk c)
 	{
 		this.mg.generateChunkObjects(c);
 	}
-	
+	public FileManager getFileManager()
+	{
+		return this.fm;
+	}
 	public boolean shouldDraw(byte blockCode,byte neighbourBlockCode,boolean liquidTag,Direction d){
 		if(liquidTag)
-			if(BlockLibrary.isLiquid(blockCode)||BlockLibrary.isSolid(blockCode)){
+			if(BlockLibrary.isSolid(blockCode)){
+				return !BlockLibrary.isOpaque(blockCode);
+			}
+			else if(BlockLibrary.isLiquid(blockCode)){
 				/*if(BlockLibrary.isSameBlock(blockCode, neighbourBlockCode)){
 					int maxh=BlockLibrary.getLiquidMaxLevel(blockCode);
 					if(d==Direction.YP){

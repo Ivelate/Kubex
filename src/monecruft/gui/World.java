@@ -109,9 +109,9 @@ public class World implements DrawableUpdatable, Cleanable
 		this.worldFacade=new WorldFacade(this);
 		this.EM=new EntityManager(p,worldFacade);
 		this.cam=cam;
-		this.MG=new MapHandler(0,128,settings.MAP_CODE,settings.MAP_SEED,worldFacade,fileManager);
 		this.myChunks=new ChunkStorage((PLAYER_VIEW_FIELD*2)+1);
 		this.chunkGenerator=new ChunkGenerator(worldFacade);
+		this.MG=new MapHandler(0,128,settings.MAP_CODE,settings.MAP_SEED,worldFacade,this.chunkGenerator,fileManager);
 		this.chunkGenerator.start();
 		this.chunkUpdater=new ChunkUpdater(p);
 		this.chunkUpdater.start();
@@ -273,7 +273,7 @@ public class World implements DrawableUpdatable, Cleanable
 	public void update(float tEl)
 	{
 		this.EM.update(tEl);
-		this.currentTime+=(tEl/3);
+		this.currentTime+=(tEl/10);
 		if(this.currentTime>24) this.currentTime=0;
 		
 		this.sky.setCurrentTime(this.currentTime);
@@ -313,9 +313,17 @@ public class World implements DrawableUpdatable, Cleanable
 			}
 		}
 	}
+	public boolean isUnderwater()
+	{
+		return this.EM.getPlayer().isUnderwater(this.worldFacade);
+	}
+	public float getAverageLightExposed()
+	{
+		return this.EM.getPlayer().getAverageLightExposed(this.worldFacade);
+	}
 	public VoxelShaderProgram getActiveShader()
 	{
-		return this.CustomVSP==null?this.EM.getPlayer().isUnderwater(this.worldFacade)?this.UVSP:this.VSP : this.CustomVSP;
+		return this.CustomVSP==null?/*this.EM.getPlayer().isUnderwater(this.worldFacade)?this.UVSP:*/this.VSP : this.CustomVSP;
 	}
 	public Matrix4f getActivePVMatrix()
 	{
@@ -548,13 +556,15 @@ public class World implements DrawableUpdatable, Cleanable
 		this.settings.CAM_YAW=this.cam.getYaw();
 		this.settings.DAY_TIME=this.currentTime;
 		
-		this.chunkGenerator.fullClean(true);
 		this.chunkUpdater.fullClean(true);
 		this.EM.fullClean();
 		System.out.println("Saving setttings to disk...");
 		this.fileManager.storeSettingsInFile(settings);
 		System.out.println("Saving chunks to disk...");
 		this.myChunks.fullClean();
+		
+		this.chunkGenerator.fullClean(true);
+		
 		this.MG=null;
 		glDeleteVertexArrays(this.vao);
 		overShutdown.interrupt();
