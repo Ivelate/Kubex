@@ -19,7 +19,9 @@ public class BlockLibrary
 		new B13Snow(),
 		new B14VegetationDandellion(),
 		new B15Wood(),
-		new B16Leaves()
+		new B16Leaves(),
+		new B17DebugWaterAntagonist(),
+		new B17DebugFunBlock()
 	};
 	private static Block defaultBlock=new B0Air();
 	

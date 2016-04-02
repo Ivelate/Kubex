@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
+import java.nio.file.Files;
 import java.util.Formatter;
 import java.util.Scanner;
 import java.util.zip.DataFormatException;
@@ -112,7 +113,7 @@ fm.loadChunk(data, 2, 0, 0);
 	//}
 	public enum ChunkLoadResult{CHUNK_EMPTY,CHUNK_NOT_FOUND,CHUNK_FULL,CHUNK_NORMAL_NOT_INITCIALIZED,CHUNK_NORMAL_INITCIALIZED};
 	private static final int REGION_SIZE=16;
-	private static final int SECTOR_SIZE=4096;
+	private static final int SECTOR_SIZE=1024;
 	private static final int LOOKUP_SIZE=4*REGION_SIZE*REGION_SIZE*REGION_SIZE;
 	private static final byte[] BYTE_ZERO_BUFFER=new byte[SECTOR_SIZE];
 	
@@ -208,7 +209,7 @@ fm.loadChunk(data, 2, 0, 0);
 		int cx=posMod(chunkx,REGION_SIZE); int cy=posMod(chunky,REGION_SIZE); int cz=posMod(chunkz,REGION_SIZE);
 		if(this.currentFile==null||this.currentFile.x!=x||this.currentFile.y!=y||this.currentFile.z!=z)
 		{
-			this.currentFile=openRegionFile(x,y,z);
+			setCurrentFile(openRegionFile(x,y,z));
 		}
 		
 		//Get file direction for chunk in lookup table
@@ -293,7 +294,7 @@ fm.loadChunk(data, 2, 0, 0);
 		int cx=posMod(chunkx,REGION_SIZE); int cy=posMod(chunky,REGION_SIZE); int cz=posMod(chunkz,REGION_SIZE);
 		if(this.currentFile==null||this.currentFile.x!=x||this.currentFile.y!=y||this.currentFile.z!=z)
 		{
-			this.currentFile=openRegionFile(x,y,z);
+			setCurrentFile(openRegionFile(x,y,z));
 		}
 		
 		//Get file direction for chunk in lookup table
@@ -314,8 +315,10 @@ fm.loadChunk(data, 2, 0, 0);
 			
 			if(compressedSize<0)
 			{
+				//System.out.println("hey"+chunkSize+" "+chunky);
 				if(chunkSize!=0&&chunkSize!=-1)
 				{
+					//System.out.println("afas");
 					//Fuck
 					this.currentFile.file.close();
 					rewriteFileCroppingSector(this.currentFile.originFile,chunkLocation,chunkSize);
@@ -431,7 +434,12 @@ fm.loadChunk(data, 2, 0, 0);
 		}
 		
 	}
-	
+	public void setCurrentFile(RegionFile rf)
+	{
+		if(this.currentFile!=null) this.currentFile.fullClean();
+		
+		this.currentFile=rf;
+	}
 	/**
 	 * Rewrites <originFile> completelly, erasing the sector occuped by the chunk in <location> and size <bsize>, and updating the 
 	 * lookup table accordingly
@@ -471,7 +479,7 @@ fm.loadChunk(data, 2, 0, 0);
 					lookupBuffer[b+3]=0;
 				}
 			}
-			out.write(this.lookupBuffer,0,4);
+			out.write(this.lookupBuffer,0,LOOKUP_SIZE);
 			
 			//Rewrite all sectors, excepting the ones deleted
 			int sectorCont=0;
@@ -492,8 +500,8 @@ fm.loadChunk(data, 2, 0, 0);
 			//Rename file
 			out.close();
 			in.close();
-			originFile.delete();
-			newFile.renameTo(originFile);
+			System.out.println("DEL "+originFile.delete());
+			System.out.println("REN "+newFile.renameTo(originFile));
 		} 
 		catch (IOException e) {
 			System.err.println("Error when rewriting region file");
@@ -545,7 +553,7 @@ fm.loadChunk(data, 2, 0, 0);
 					lookupBuffer[b]=bcurrentsize;
 				}
 			}
-			out.write(this.lookupBuffer,0,4);
+			out.write(this.lookupBuffer,0,LOOKUP_SIZE);
 			
 			//Rewrite all sectors, excepting the ones deleted
 			int sectorCont=0;
@@ -553,30 +561,28 @@ fm.loadChunk(data, 2, 0, 0);
 			while(!end){
 				int sectorReaded=0;
 				while(sectorReaded<SECTOR_SIZE){
-					int dataReaded=in.read(this.sectorBuffer,sectorReaded,this.sectorBuffer.length-sectorReaded);
+					int dataReaded=in.read(this.sectorBuffer,sectorReaded,SECTOR_SIZE-sectorReaded);
 					if(dataReaded==-1) {end=true;break;}
 					sectorReaded+=dataReaded;
 				}
-				if(sectorCont>0){
-					//If diff in size is > 0 and it needs to be expanded...
-					if(sectorCont==location+lastsize-1 &&diff>=0){
-						out.write(this.sectorBuffer,0,sectorReaded);
-						for(int i=1;i<diff;i++) out.write(BYTE_ZERO_BUFFER);
-					}
-					//else write normally except if diff is < 0 and this part needs to be culled
-					else if(sectorCont<location+currentsize||sectorCont>=location+lastsize)
-					{
-						out.write(this.sectorBuffer,0,sectorReaded);
-					}
-					sectorCont++;
+				//If diff in size is > 0 and it needs to be expanded...
+				if(sectorCont==location+lastsize-1 &&diff>=0){
+					out.write(this.sectorBuffer,0,sectorReaded);
+					for(int i=0;i<diff;i++) out.write(BYTE_ZERO_BUFFER,0,SECTOR_SIZE);
 				}
+				//else write normally except if diff is < 0 and this part needs to be culled
+				else if(sectorCont<location+currentsize||sectorCont>=location+lastsize)
+				{
+					out.write(this.sectorBuffer,0,sectorReaded);
+				}
+				sectorCont++;
 			}
 			
 			//Rename file
 			out.close();
 			in.close();
-			originFile.delete();
-			newFile.renameTo(originFile);
+			System.out.println("DEL "+originFile.delete());
+			System.out.println("REN "+newFile.renameTo(originFile));
 		} 
 		catch (IOException e) {
 			System.err.println("Error when rewriting region file");
@@ -607,6 +613,7 @@ fm.loadChunk(data, 2, 0, 0);
 		for(int i=0;i<size;i+=2)
 		{
 			int cend=buff[i]>0?buff[i] : (int)(buff[i])+256;
+			//System.out.println(chunkSize+" "+cend+" "+buff[i+1]);
 			for(int c=0;c<cend;c++)
 			{
 				chunkCubes[x][y][z]=buff[i+1];
@@ -721,6 +728,12 @@ fm.loadChunk(data, 2, 0, 0);
 		public void updateRandomAccessFile() throws FileNotFoundException
 		{
 			this.file=new RandomAccessFile(this.originFile,"rw");
+		}
+		public void fullClean()
+		{
+			try {
+				this.file.close();
+			} catch (IOException e) {}
 		}
 	}
 }

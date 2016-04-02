@@ -930,6 +930,34 @@ public class Chunk implements Cleanable
 						else break;
 					}
 				}
+				else if(cube==24){
+					//Antagonize water bb
+					byte wcube=this.getCubeAt(cp.x+1, cp.y, cp.z);
+					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x+1, cp.y, cp.z,(byte)24);
+					wcube=this.getCubeAt(cp.x-1, cp.y, cp.z);
+					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x-1, cp.y, cp.z,(byte)24);
+					wcube=this.getCubeAt(cp.x, cp.y+1, cp.z);
+					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x, cp.y+1, cp.z,(byte)24);
+					wcube=this.getCubeAt(cp.x, cp.y-1, cp.z);
+					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x, cp.y-1, cp.z,(byte)24);
+					wcube=this.getCubeAt(cp.x, cp.y, cp.z+1);
+					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x, cp.y, cp.z+1,(byte)24);
+					wcube=this.getCubeAt(cp.x+1, cp.y, cp.z-1);
+					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x, cp.y, cp.z-1,(byte)24);
+					
+					this.setCubeAt(cp.x, cp.y, cp.z,(byte)0);
+				}
+				else if(cube==25){
+					//Antagonize water bb
+					performFun(this.getCubeAt(cp.x+1, cp.y, cp.z),cp.x+1,cp.y,cp.z);
+					performFun(this.getCubeAt(cp.x-1, cp.y, cp.z),cp.x-1,cp.y,cp.z);
+					performFun(this.getCubeAt(cp.x, cp.y+1, cp.z),cp.x,cp.y+1,cp.z);
+					performFun(this.getCubeAt(cp.x, cp.y-1, cp.z),cp.x,cp.y-1,cp.z);
+					performFun(this.getCubeAt(cp.x, cp.y, cp.z+1),cp.x,cp.y,cp.z+1);
+					performFun(this.getCubeAt(cp.x, cp.y, cp.z-1),cp.x,cp.y,cp.z-1);
+					
+					this.setCubeAt(cp.x, cp.y, cp.z,(byte)0);
+				}
 				else if(cube==17&&2==1){
 					setCubeAt(cp.x,cp.y,cp.z,(byte)0);
 					int radius=5;
@@ -999,6 +1027,26 @@ public class Chunk implements Cleanable
 			return this.updateCubes.size()>0;
 		}
 		return false;
+	}
+	
+	/**
+	 * Stupid debug. Delete pls
+	 */
+	private void performFun(byte b,int x,int y,int z)
+	{
+		double r=Math.random();
+		if(r<0.2){
+			this.setCubeAt(x, y, z, (byte)(25));
+		}
+		else if(r<0.4){
+			if(b==0) this.setCubeAt(x, y, z, (byte)(1));
+		}
+		else if(r<0.6){
+			if(BlockLibrary.isOpaque(b)) this.setCubeAt(x, y, z, (byte)(0));
+		}
+		else if(r<0.7){
+			if(BlockLibrary.isOpaque(b)) this.setCubeAt(x, y, z, (byte)(7));
+		}
 	}
 	
 	/**
