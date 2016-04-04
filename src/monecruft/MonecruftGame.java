@@ -52,9 +52,11 @@ import static org.lwjgl.opengl.GL30.glGenRenderbuffers;
 import static org.lwjgl.opengl.GL30.glRenderbufferStorage;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Arrays;
@@ -71,6 +73,7 @@ import monecruft.gui.LiquidRenderer;
 import monecruft.gui.ShadowsManager;
 import monecruft.gui.Sky;
 import monecruft.gui.World;
+import monecruft.menu.MonecruftMenu;
 import monecruft.shaders.BasicColorShaderProgram;
 import monecruft.shaders.DeferredNoReflectionsShaderProgram;
 import monecruft.shaders.DeferredReflectionsShaderProgram;
@@ -642,7 +645,7 @@ public class MonecruftGame implements Cleanable
 	}
 	public static void main(String args[]) throws LWJGLException, IOException
 	{
-		boolean fullscreen=false;
+		/*boolean fullscreen=false;
 		boolean noshadows=false;
 		int mapcode=0;
 		String maproute="default_kubex_map";
@@ -670,15 +673,80 @@ public class MonecruftGame implements Cleanable
 			else if(s.equals("-noreflections")) noreflections=true;
 			else if(s.equals("-maproute")) selectingMapRoute=true;
 			else if(s.equals("-seed")) selectingSeed=true;
-		}
+		}*/
 		MonecruftSettings settings=new MonecruftSettings();
-		settings.FULLSCREEN_ENABLED=fullscreen;
+		/*settings.FULLSCREEN_ENABLED=fullscreen;
 		settings.SHADOWS_ENABLED=!noshadows;
 		settings.MAP_CODE=mapcode;
 		settings.REFLECTIONS_ENABLED=!noreflections;
 		settings.MAP_ROUTE=maproute;
-		settings.MAP_SEED=seed;
-		new MonecruftGame(settings);
+		settings.MAP_SEED=seed;*/
+		File defaultConfigFile=new File("kubex_conf.txt");
+		loadDefaultConfigFile(settings,defaultConfigFile);
+		
+		File mapRoute=new File("kubex_maps");
+		mapRoute.mkdir();
+		MonecruftMenu menu=new MonecruftMenu(settings,mapRoute);
+		
+		
+		if(menu.waitForClose()) {
+			storeDefaultConfigFile(settings,defaultConfigFile);
+			new MonecruftGame(settings);
+		}
+	}
+	private static void loadDefaultConfigFile(MonecruftSettings settings,File f)
+	{
+		if(f.exists())
+		{
+			try {
+				Scanner s=new Scanner(f);
+				while(s.hasNextLine())
+				{
+					String line=s.nextLine();
+					String[] content=line.split(":");
+					if(content[0].equals("MAP_SEED")){
+						settings.MAP_SEED=Long.parseLong(content[1]);
+					}
+					else if(content[0].equals("MAP_CODE")){
+						settings.MAP_CODE=Integer.parseInt(content[1]);
+					}
+					else if(content[0].equals("MAP_ROUTE")){
+						settings.MAP_ROUTE=content[1];
+					}
+					else if(content[0].equals("SHADOWS_ENABLED")){
+						settings.SHADOWS_ENABLED=Boolean.parseBoolean(content[1]);
+					}
+					else if(content[0].equals("REFLECTIONS_ENABLED")){
+						settings.REFLECTIONS_ENABLED=Boolean.parseBoolean(content[1]);
+					}
+					else if(content[0].equals("FULLSCREEN_ENABLED")){
+						settings.FULLSCREEN_ENABLED=Boolean.parseBoolean(content[1]);
+					}
+				}
+				s.close();
+			} 
+			catch (FileNotFoundException e) {
+				//Shouldn't happen, but no problem. Default config loaded.
+			}
+		}
+	}
+	private static void storeDefaultConfigFile(MonecruftSettings settings,File settingsFile)
+	{
+		try 
+		{
+			if(!settingsFile.exists()) settingsFile.createNewFile();
+			PrintWriter f=new PrintWriter(settingsFile,"ISO-8859-1");
+			f.println("MAP_SEED:"+settings.MAP_SEED);
+			f.println("MAP_CODE:"+settings.MAP_CODE);
+			f.println("MAP_ROUTE:"+settings.MAP_ROUTE);
+			f.println("SHADOWS_ENABLED:"+settings.SHADOWS_ENABLED);
+			f.println("REFLECTIONS_ENABLED:"+settings.REFLECTIONS_ENABLED);
+			f.println("FULLSCREEN_ENABLED:"+settings.FULLSCREEN_ENABLED);
+			f.close();
+		} 
+		catch (IOException e) {
+			System.err.println("Error storing custom configs in file. Default configs will be loaded instead next time you open the game.");
+		}
 	}
 	private void closeApp()
 	{

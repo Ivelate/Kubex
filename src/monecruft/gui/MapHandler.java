@@ -67,7 +67,7 @@ public class MapHandler
 	public boolean shouldDraw(byte blockCode,byte neighbourBlockCode,boolean liquidTag,Direction d){
 		if(liquidTag)
 			if(BlockLibrary.isSolid(blockCode)){
-				return !BlockLibrary.isOpaque(blockCode);
+				return BlockLibrary.canSeeTrough(blockCode);
 			}
 			else if(BlockLibrary.isLiquid(blockCode)){
 				/*if(BlockLibrary.isSameBlock(blockCode, neighbourBlockCode)){
