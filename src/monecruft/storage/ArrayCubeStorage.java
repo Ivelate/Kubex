@@ -29,5 +29,9 @@ public class ArrayCubeStorage implements CubeStorage
 	public boolean isTrueStorage() {
 		return true;
 	}
+	@Override
+	public byte[][][] getArray() {
+		return this.cubes;
+	}
 
 }

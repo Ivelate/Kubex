@@ -26,12 +26,11 @@ public class MapGenerator
 	
 	private int mapcode=0; //|TODO likely only debug
 	
-	public MapGenerator(int bbegin,int bend,int mapcode)
+	public MapGenerator(int bbegin,int bend,int mapcode,long seed)
 	{
 		this.mapcode=mapcode;
 		this.beginBlockHeight=bbegin;this.endBlockHeight=bend;
 		//this.mapNoise=new PerlinNoise(65431245*244233);
-		long seed=/*(new Random()).nextLong();//*/1234567890;
 		long seed1=seed>>43;
 		long seed2=seed>>21;
 		long seed3=seed;
@@ -54,7 +53,7 @@ public class MapGenerator
 				for(int cz=0;cz<Chunk.CHUNK_DIMENSION;cz++)
 				{
 					//ret[cx][cy][cz]=cy+(y*Chunk.CHUNK_DIMENSION)==50?(byte)1:0;
-					if(mapcode<2)ret[cx][cy][cz]=getCubeFromHeightMap(cx,cy+(y*Chunk.CHUNK_DIMENSION),cz);
+					if(mapcode<3)ret[cx][cy][cz]=getCubeFromHeightMap(cx,cy+(y*Chunk.CHUNK_DIMENSION),cz);
 					else {
 						ret[cx][cy][cz]=get3dValue(cx+(x*Chunk.CHUNK_DIMENSION),
 							cy+(y*Chunk.CHUNK_DIMENSION), 
@@ -89,6 +88,7 @@ public class MapGenerator
 	}
 	public void generateChunkObjects(Chunk c)
 	{
+		//if(1==1) return;
 		for(int x=0;x<Chunk.CHUNK_DIMENSION;x++)
 		{
 			for(int z=0;z<Chunk.CHUNK_DIMENSION;z++)
@@ -134,7 +134,7 @@ public class MapGenerator
 			if(cy==height-1) c.setCubeAt(x, y+height, z, (byte)23);
 			int dx=0;int dz=0; int armL=0;
 			if(Math.random()*(cy/(float)(height))>0.3f){
-				armL=(int)(Math.random()*(height/2)+1);
+				armL=(int)((Math.random()*height*2)/3+1 - (cy*cy/height));
 				double dir=Math.random();
 				dx=dir<0.25?-1:dir<0.5?1:0;
 				dz=dir>0.5?(dir<0.75?-1:1):0;
@@ -187,6 +187,8 @@ public class MapGenerator
 		}
 	}
 	public byte getCubeFromHeightMap(int x,int y,int z){
+		//if(y>=64) return 0;
+		//else if(1==1) return 1;
 		int height=this.savedHeightMap[x+1][z+1];
 		byte cubeCode;
 		if(y>height) cubeCode=0;
@@ -293,7 +295,9 @@ public class MapGenerator
 		//if(elevmult<0)elevmult=0;
 		//else elevmult*=1/0.7;
 		elevmult=elevmult*elevmult;
-		int height=(int)(((baseMap+(detail*elevmult))*(56*(mapcode+1)))+30);
+		int height=	mapcode==0? (int)(((baseMap+(detail*elevmult))*(56))+30):
+					mapcode==2? (int)(((baseMap+(detail*elevmult))*(20))+55):
+								(int)(((baseMap+(detail*elevmult))*(112))+30);
 		if(height>120)
 		{
 			height=(int)(120+((height-120)/((float)(22)/8)));

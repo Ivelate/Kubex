@@ -130,6 +130,7 @@ public class FinalDrawManager
 		glUniform1i(glGetUniformLocation(DSP.getID(),"brightnessNormalTex"),MonecruftGame.BASEFBO_NORMALS_BRIGHTNESS_TEXTURE_LOCATION);
 		glUniform1i(glGetUniformLocation(DSP.getID(),"liquidLayersTexLength"),this.liquidRenderer.getNumLayers());
 		if(DSP.miscTexLocation()!=-1) glUniform1i(glGetUniformLocation(DSP.getID(),"miscTex"),DSP.miscTexLocation());
+		if(DSP.miscTex2Location()!=-1) glUniform1i(glGetUniformLocation(DSP.getID(),"miscTex2"),DSP.miscTex2Location());
 		glUniform1f(glGetUniformLocation(DSP.getID(),"cfar"),cfar);
 		glUniform1f(glGetUniformLocation(DSP.getID(),"cnear"),cnear);
 		glUniform1f(glGetUniformLocation(DSP.getID(),"cwidth"),xres);
@@ -174,6 +175,11 @@ public class FinalDrawManager
 		if(DSP.supportSkyParameters())
 		{
 			this.sky.uploadToShader(DSP);
+		}
+		if(DSP.supportPlayerLighting())
+		{
+			int currentLightLoc=glGetUniformLocation(DSP.getID(),"currentLight");
+			GL20.glUniform1f(currentLightLoc, this.world.getAverageLightExposed());
 		}
 	}
 }

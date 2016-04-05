@@ -30,6 +30,7 @@ import monecruft.shaders.DepthVoxelShaderProgram;
 import monecruft.shaders.UnderwaterVoxelShaderProgram;
 import monecruft.shaders.VoxelShaderProgram;
 import monecruft.storage.ChunkStorage;
+import monecruft.storage.FileManager;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.BoundaryChecker;
 import monecruft.utils.SquareCorners;
@@ -60,6 +61,9 @@ public class World implements DrawableUpdatable, Cleanable
 	private Matrix4f customPVMatrix=null;
 	private WorldFacade worldFacade;
 	private Sky sky;
+	private MonecruftSettings settings;
+	
+	private FileManager fileManager;
 	
 	private final SquareCorners worldCornersLow;
 	private final SquareCorners worldCornersHigh;
@@ -78,15 +82,18 @@ public class World implements DrawableUpdatable, Cleanable
 	
 	private LinkedList<Chunk> chunkAddList=new LinkedList<Chunk>();
 	
-	public World(VoxelShaderProgram VSP,VoxelShaderProgram UVSP,Camera cam,Camera sunCamera,ShadowsManager shadowsManager,Sky sky,MonecruftSettings settings)
+	public World(VoxelShaderProgram VSP,VoxelShaderProgram UVSP,Camera cam,Camera sunCamera,ShadowsManager shadowsManager,Sky sky,FileManager fileManager,MonecruftSettings settings)
 	{
+		this.settings=settings;
+		this.currentTime=settings.DAY_TIME;
+		this.fileManager=fileManager;
 		this.shadowsManager=shadowsManager;
 		this.sunCamera=sunCamera;
 		this.sky=sky;
 		this.VSP=VSP;
 		this.UVSP=UVSP;
 		//Create player
-		Player p=new Player(0,270.7f,0,cam);
+		Player p=new Player(settings.PLAYER_X,settings.PLAYER_Y,settings.PLAYER_Z,settings.CAM_PITCH,settings.CAM_YAW,cam);
 		
 		float maxworldsize=(float)(Chunk.CHUNK_DIMENSION*(World.PLAYER_VIEW_FIELD+1.5f));
 		this.worldCornersLow=new SquareCorners(	new Vector4f(-maxworldsize,0,-maxworldsize,1),
@@ -102,9 +109,9 @@ public class World implements DrawableUpdatable, Cleanable
 		this.worldFacade=new WorldFacade(this);
 		this.EM=new EntityManager(p,worldFacade);
 		this.cam=cam;
-		this.MG=new MapHandler(0,128,settings.MAP_CODE,worldFacade);
 		this.myChunks=new ChunkStorage((PLAYER_VIEW_FIELD*2)+1);
 		this.chunkGenerator=new ChunkGenerator(worldFacade);
+		this.MG=new MapHandler(0,128,settings.MAP_CODE,settings.MAP_SEED,worldFacade,this.chunkGenerator,fileManager);
 		this.chunkGenerator.start();
 		this.chunkUpdater=new ChunkUpdater(p);
 		this.chunkUpdater.start();
@@ -266,8 +273,10 @@ public class World implements DrawableUpdatable, Cleanable
 	public void update(float tEl)
 	{
 		this.EM.update(tEl);
-		this.currentTime+=(tEl);
+		this.currentTime+=(tEl/10);
 		if(this.currentTime>24) this.currentTime=0;
+		
+		this.sky.setCurrentTime(this.currentTime);
 		this.setWorldCenter(this.EM.getPlayer().getX(), /*World.HEIGHT*Chunk.CHUNK_DIMENSION*/this.EM.getPlayer().getY(), this.EM.getPlayer().getZ());
 		
 		this.chunkUpdateTickCont+=tEl;
@@ -304,9 +313,17 @@ public class World implements DrawableUpdatable, Cleanable
 			}
 		}
 	}
+	public boolean isUnderwater()
+	{
+		return this.EM.getPlayer().isUnderwater(this.worldFacade);
+	}
+	public float getAverageLightExposed()
+	{
+		return this.EM.getPlayer().getAverageLightExposed(this.worldFacade);
+	}
 	public VoxelShaderProgram getActiveShader()
 	{
-		return this.CustomVSP==null?this.EM.getPlayer().isUnderwater(this.worldFacade)?this.UVSP:this.VSP : this.CustomVSP;
+		return this.CustomVSP==null?/*this.EM.getPlayer().isUnderwater(this.worldFacade)?this.UVSP:*/this.VSP : this.CustomVSP;
 	}
 	public Matrix4f getActivePVMatrix()
 	{
@@ -371,8 +388,9 @@ public class World implements DrawableUpdatable, Cleanable
 		//return (float)(daytime/(float)(20000));
 		float altsin=(float)((Math.sin(this.sky.getSolarAltitude()+0.3f)));
 		if(altsin<0) altsin=0;
-		float ret=0.17f+altsin;
-		if(ret>1) return 1f;
+		/*float ret=0.17f+altsin;
+		if(ret>1) return 1f;*/
+		float ret=0.45f+altsin/1.65f;
 		return ret;
 		//return 1;
 	}
@@ -526,14 +544,28 @@ public class World implements DrawableUpdatable, Cleanable
 		//Prevents game to hang during shutdown if some error happens.
 		Thread overShutdown=new Thread(){
 			@Override 
-			public void run(){try{Thread.sleep(3000);System.err.println("Over shutdown used (!!!)");System.exit(1);} catch(Exception e){}}
+			public void run(){try{Thread.sleep(5000);System.err.println("Over shutdown used (!!!)");System.exit(1);} catch(Exception e){}}
 		};
 		overShutdown.start();
-		this.chunkGenerator.fullClean(true);
+		
+		//Saves settings
+		this.settings.PLAYER_X=this.EM.getPlayer().getX();
+		this.settings.PLAYER_Y=this.EM.getPlayer().getY();
+		this.settings.PLAYER_Z=this.EM.getPlayer().getZ();
+		this.settings.CAM_PITCH=this.cam.getPitch();
+		this.settings.CAM_YAW=this.cam.getYaw();
+		this.settings.DAY_TIME=this.currentTime;
+		
 		this.chunkUpdater.fullClean(true);
-		this.MG=null;
 		this.EM.fullClean();
+		System.out.println("Saving setttings to disk...");
+		this.fileManager.storeSettingsInFile(settings);
+		System.out.println("Saving chunks to disk...");
 		this.myChunks.fullClean();
+		
+		this.chunkGenerator.fullClean(true);
+		
+		this.MG=null;
 		glDeleteVertexArrays(this.vao);
 		overShutdown.interrupt();
 	}

@@ -27,6 +27,7 @@ import static org.lwjgl.opengl.GL13.GL_TEXTURE4;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE5;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE6;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE7;
+import static org.lwjgl.opengl.GL13.GL_TEXTURE8;
 import static org.lwjgl.opengl.GL13.glActiveTexture;
 import static org.lwjgl.opengl.GL15.glBindBuffer;
 import static org.lwjgl.opengl.GL15.glBufferData;
@@ -51,8 +52,11 @@ import static org.lwjgl.opengl.GL30.glGenRenderbuffers;
 import static org.lwjgl.opengl.GL30.glRenderbufferStorage;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Arrays;
@@ -69,6 +73,7 @@ import monecruft.gui.LiquidRenderer;
 import monecruft.gui.ShadowsManager;
 import monecruft.gui.Sky;
 import monecruft.gui.World;
+import monecruft.menu.MonecruftMenu;
 import monecruft.shaders.BasicColorShaderProgram;
 import monecruft.shaders.DeferredNoReflectionsShaderProgram;
 import monecruft.shaders.DeferredReflectionsShaderProgram;
@@ -76,6 +81,8 @@ import monecruft.shaders.DepthVoxelShaderProgram;
 import monecruft.shaders.DeferredShaderProgram;
 import monecruft.shaders.DeferredTerrainShaderProgram;
 import monecruft.shaders.DeferredTerrainUnshadowShaderProgram;
+import monecruft.shaders.DeferredUnderwaterFinalShaderProgram;
+import monecruft.shaders.DeferredUnderwaterTerrainShaderProgram;
 import monecruft.shaders.HudShaderProgram;
 import monecruft.shaders.SkyShaderProgram;
 import monecruft.shaders.TerrainVoxelShaderProgram;
@@ -83,6 +90,7 @@ import monecruft.shaders.UnderwaterVoxelShaderProgram;
 import monecruft.shaders.UnshadowedVoxelShaderProgram;
 import monecruft.shaders.VoxelShaderProgram;
 import monecruft.storage.ByteArrayPool;
+import monecruft.storage.FileManager;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.InputHandler;
 import monecruft.utils.TimeManager;
@@ -115,8 +123,9 @@ import ivengine.view.MatrixHelper;
 
 public class MonecruftGame implements Cleanable
 {
-	public static final int[] TEXTURE_FETCH={GL_TEXTURE0,GL_TEXTURE1,GL_TEXTURE2,GL_TEXTURE3,GL_TEXTURE4,GL_TEXTURE5,GL_TEXTURE6,GL_TEXTURE7};
+	public static final int[] TEXTURE_FETCH={GL_TEXTURE0,GL_TEXTURE1,GL_TEXTURE2,GL_TEXTURE3,GL_TEXTURE4,GL_TEXTURE5,GL_TEXTURE6,GL_TEXTURE7,GL_TEXTURE8};
 	public static final int TILES_TEXTURE_LOCATION=0;
+	public static final int CURRENT_LIQUID_NORMAL_TEXTURE_LOCATION=8;
 	public static final int BASEFBO_NORMALS_BRIGHTNESS_TEXTURE_LOCATION=1;
 	public static final int BASEFBO_COLOR_TEXTURE_LOCATION=2;
 	public static final int BASEFBO_DEPTH_TEXTURE_LOCATION=3;
@@ -127,8 +136,8 @@ public class MonecruftGame implements Cleanable
 	
 	private MonecruftSettings settings;
 	
-	private int X_RES=800;
-	private int Y_RES=600;
+	private int X_RES=1400;
+	private int Y_RES=900;
 	private int SHADOW_XRES=2048;
 	private int SHADOW_YRES=2048;
 	private final int SHADOW_LAYERS=4;
@@ -146,6 +155,8 @@ public class MonecruftGame implements Cleanable
 	private BasicColorShaderProgram BCSP;
 	private DepthVoxelShaderProgram DVSP;
 	private DeferredShaderProgram DTSP;
+	private DeferredShaderProgram DUTSP;
+	private DeferredShaderProgram DUFSP;
 	private DeferredShaderProgram DRSP;
 	private TimeManager TM;
 	private Camera cam; private CameraInverseProjEnvelope camInvProjEnv;
@@ -157,6 +168,7 @@ public class MonecruftGame implements Cleanable
 	private ShadowsManager shadowsManager;
 	private LiquidRenderer liquidRenderer;
 	private FinalDrawManager finalDrawManager;
+	private FileManager fileManager;
 	
 	private int tilesTexture;
 	private Texture nightDomeTexture;
@@ -183,6 +195,9 @@ public class MonecruftGame implements Cleanable
 	
 	public MonecruftGame(MonecruftSettings settings) throws LWJGLException, IOException 
 	{
+		/*File outpfil=new File("outpfil.log");
+		outpfil.createNewFile();
+		System.setOut(new PrintStream(new FileOutputStream(outpfil)));*/
 		this.settings=settings;
 		
 		if(settings.FULLSCREEN_ENABLED){
@@ -299,7 +314,7 @@ public class MonecruftGame implements Cleanable
 				//this.sunCam.updateProjection(this.shadowsManager.getOrthoProjectionForSplit(1));*/
 				this.world.overrideCurrentPVMatrix(this.shadowsManager.getOrthoProjectionForSplit(i));
 				this.world.draw(this.shadowsManager.getBoundaryCheckerForSplit(i));
-				this.world.drawLiquids();
+				//this.world.drawLiquids();
 			}
 		}
 
@@ -334,6 +349,10 @@ public class MonecruftGame implements Cleanable
 		glDisable(GL_DEPTH_TEST);
 		int[] fbos={this.deferredFbo,0};
 		DeferredShaderProgram[] programs={this.DTSP,this.DRSP};
+		if(this.world.isUnderwater()) {
+			programs=new DeferredShaderProgram[]{this.DUTSP,this.DUFSP};
+			fbos=new int[]{this.deferredFbo,0};
+		}
 		//if(Math.random()>0.5f) programs[0]=this.DRSP;
 		//glClear(GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 		Matrix4f temp=Matrix4f.invert(this.cam.getProjectionViewMatrix(), null);
@@ -380,6 +399,8 @@ public class MonecruftGame implements Cleanable
 		this.BCSP=new BasicColorShaderProgram(true);
 		this.DTSP=this.settings.SHADOWS_ENABLED?new DeferredTerrainShaderProgram(true):new DeferredTerrainUnshadowShaderProgram(true);
 		this.DRSP=this.settings.REFLECTIONS_ENABLED?new DeferredReflectionsShaderProgram(true):new DeferredNoReflectionsShaderProgram(true);
+		this.DUTSP=new DeferredUnderwaterTerrainShaderProgram(true);
+		this.DUFSP=new DeferredUnderwaterFinalShaderProgram(true);
 		this.TM=new TimeManager();
 		this.cam=new Camera(CAMERA_NEAR,CAMERA_FAR,80f,(float)(X_RES*3/4)/Y_RES); //FOV more width than height by design
 		this.camInvProjEnv=new CameraInverseProjEnvelope(this.cam);
@@ -391,7 +412,11 @@ public class MonecruftGame implements Cleanable
 		this.sunCam.setPitch(0);
 		
 		this.sky=new Sky(cam,this.sunCam);
-		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky,this.settings);
+		File mapRoute=new File(this.settings.MAP_ROUTE);
+		mapRoute.mkdir();
+		this.fileManager=new FileManager(mapRoute);
+		this.fileManager.getSettingsFromFile(settings);
+		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky,fileManager,this.settings);
 		this.finalDrawManager=new FinalDrawManager(this.world,this.sky,this.shadowsManager,this.liquidRenderer,this.camInvProjEnv.getInvProjMatrix(),CAMERA_NEAR,CAMERA_FAR);
 		this.hud=new Hud(this.HSP,X_RES,Y_RES);
 		//Load textures here
@@ -558,7 +583,15 @@ public class MonecruftGame implements Cleanable
 		glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
 		glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
 		
-		this.liquidRenderer.initResources(liquidLayers);
+		int currentLiquidNormalTex=glGenTextures();
+
+		glActiveTexture(MonecruftGame.TEXTURE_FETCH[MonecruftGame.CURRENT_LIQUID_NORMAL_TEXTURE_LOCATION]);
+		glBindTexture(GL_TEXTURE_2D, currentLiquidNormalTex);
+		glTexImage2D(GL_TEXTURE_2D, 0,GL11.GL_RGB, X_RES, Y_RES, 0,GL11.GL_RGB, GL11.GL_UNSIGNED_BYTE, (FloatBuffer)null);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		
+		this.liquidRenderer.initResources(liquidLayers,currentLiquidNormalTex);
 		
 		//Reset active
 		glActiveTexture(GL13.GL_TEXTURE0);
@@ -612,27 +645,108 @@ public class MonecruftGame implements Cleanable
 	}
 	public static void main(String args[]) throws LWJGLException, IOException
 	{
-		boolean fullscreen=false;
+		/*boolean fullscreen=false;
 		boolean noshadows=false;
 		int mapcode=0;
+		String maproute="default_kubex_map";
+		long seed=1234567890;
 		boolean selectingMap=false;
+		boolean selectingSeed=false;
+		boolean selectingMapRoute=false;
 		boolean noreflections=false;
 		for(String s:args){
 			if(selectingMap){
 				selectingMap=false;
 				mapcode=Integer.parseInt(s);
 			}
+			else if(selectingMapRoute){
+				selectingMapRoute=false;
+				maproute=s;
+			}
+			else if(selectingSeed){
+				selectingSeed=false;
+				seed=Long.parseLong(s);
+			}
 			else if(s.equals("-fullscreen")) fullscreen=true;
 			else if(s.equals("-noshadows")) noshadows=true;
 			else if(s.equals("-map")) selectingMap=true;
 			else if(s.equals("-noreflections")) noreflections=true;
-		}
+			else if(s.equals("-maproute")) selectingMapRoute=true;
+			else if(s.equals("-seed")) selectingSeed=true;
+		}*/
 		MonecruftSettings settings=new MonecruftSettings();
-		settings.FULLSCREEN_ENABLED=fullscreen;
+		/*settings.FULLSCREEN_ENABLED=fullscreen;
 		settings.SHADOWS_ENABLED=!noshadows;
 		settings.MAP_CODE=mapcode;
 		settings.REFLECTIONS_ENABLED=!noreflections;
-		new MonecruftGame(settings);
+		settings.MAP_ROUTE=maproute;
+		settings.MAP_SEED=seed;*/
+		File defaultConfigFile=new File("kubex_conf.txt");
+		loadDefaultConfigFile(settings,defaultConfigFile);
+		
+		File mapRoute=new File("kubex_maps");
+		mapRoute.mkdir();
+		MonecruftMenu menu=new MonecruftMenu(settings,mapRoute);
+		
+		
+		if(menu.waitForClose()) {
+			storeDefaultConfigFile(settings,defaultConfigFile);
+			new MonecruftGame(settings);
+		}
+	}
+	private static void loadDefaultConfigFile(MonecruftSettings settings,File f)
+	{
+		if(f.exists())
+		{
+			try {
+				Scanner s=new Scanner(f);
+				while(s.hasNextLine())
+				{
+					String line=s.nextLine();
+					String[] content=line.split(":");
+					if(content[0].equals("MAP_SEED")){
+						settings.MAP_SEED=Long.parseLong(content[1]);
+					}
+					else if(content[0].equals("MAP_CODE")){
+						settings.MAP_CODE=Integer.parseInt(content[1]);
+					}
+					else if(content[0].equals("MAP_ROUTE")){
+						settings.MAP_ROUTE=content[1];
+					}
+					else if(content[0].equals("SHADOWS_ENABLED")){
+						settings.SHADOWS_ENABLED=Boolean.parseBoolean(content[1]);
+					}
+					else if(content[0].equals("REFLECTIONS_ENABLED")){
+						settings.REFLECTIONS_ENABLED=Boolean.parseBoolean(content[1]);
+					}
+					else if(content[0].equals("FULLSCREEN_ENABLED")){
+						settings.FULLSCREEN_ENABLED=Boolean.parseBoolean(content[1]);
+					}
+				}
+				s.close();
+			} 
+			catch (FileNotFoundException e) {
+				//Shouldn't happen, but no problem. Default config loaded.
+			}
+		}
+	}
+	private static void storeDefaultConfigFile(MonecruftSettings settings,File settingsFile)
+	{
+		try 
+		{
+			if(!settingsFile.exists()) settingsFile.createNewFile();
+			PrintWriter f=new PrintWriter(settingsFile,"ISO-8859-1");
+			f.println("MAP_SEED:"+settings.MAP_SEED);
+			f.println("MAP_CODE:"+settings.MAP_CODE);
+			f.println("MAP_ROUTE:"+settings.MAP_ROUTE);
+			f.println("SHADOWS_ENABLED:"+settings.SHADOWS_ENABLED);
+			f.println("REFLECTIONS_ENABLED:"+settings.REFLECTIONS_ENABLED);
+			f.println("FULLSCREEN_ENABLED:"+settings.FULLSCREEN_ENABLED);
+			f.close();
+		} 
+		catch (IOException e) {
+			System.err.println("Error storing custom configs in file. Default configs will be loaded instead next time you open the game.");
+		}
 	}
 	private void closeApp()
 	{
@@ -644,6 +758,7 @@ public class MonecruftGame implements Cleanable
 	@Override
 	public void fullClean() {
 		world.fullClean();
+		this.fileManager.fullClean();
 		VSP.fullClean();
 		this.TM=null;
 		this.cam=null;

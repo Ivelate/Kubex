@@ -6,4 +6,5 @@ public interface CubeStorage
 	public void set(int x,int y,int z,byte val);
 	public void dispose();
 	public boolean isTrueStorage();
+	public byte[][][] getArray();
 }

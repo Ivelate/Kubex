@@ -33,5 +33,9 @@ public class ConstantValueCubeStorage implements CubeStorage
 	public boolean isTrueStorage() {
 		return false;
 	}
+	@Override
+	public byte[][][] getArray() {
+		return null;
+	}
 
 }

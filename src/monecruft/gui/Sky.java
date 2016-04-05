@@ -95,9 +95,6 @@ public class Sky
 		}
 		public void update(float tEl)
 		{
-			this.currentTime+=(tEl/100);
-			if(this.currentTime>21) this.currentTime=4;
-			if(this.currentTime>24) this.currentTime=0;
 			
 			this.sunCamera.setPitch((float)this.solarAltitude);
 			this.sunCamera.setYaw(-(float)(this.solarAzimuth));

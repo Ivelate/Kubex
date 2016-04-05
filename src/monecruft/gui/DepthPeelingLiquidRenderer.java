@@ -1,6 +1,8 @@
 package monecruft.gui;
 
+import static org.lwjgl.opengl.GL11.GL_TEXTURE_2D;
 import static org.lwjgl.opengl.GL11.glClear;
+import static org.lwjgl.opengl.GL30.GL_COLOR_ATTACHMENT0;
 import static org.lwjgl.opengl.GL30.GL_DEPTH_ATTACHMENT;
 import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
 import static org.lwjgl.opengl.GL30.glBindFramebuffer;
@@ -28,7 +30,7 @@ public class DepthPeelingLiquidRenderer extends LiquidRenderer
 		this.DPS=new DepthPeelingShaderProgram(true);
 	}
 	@Override
-	public void initResources(int layersTex) 
+	public void initResources(int layersTex,int currentNormalTex) 
 	{
 		for(int i=0;i<this.layersFbos.length;i++)
 		{
@@ -36,7 +38,18 @@ public class DepthPeelingLiquidRenderer extends LiquidRenderer
 			glBindFramebuffer(GL_FRAMEBUFFER, this.layersFbos[i]);
 			GL30.glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, layersTex, 0, i);
 	
-			IntBuffer drawBuffers = BufferUtils.createIntBuffer(0);
+			IntBuffer drawBuffers = null;
+			
+			if(i==0){
+				drawBuffers=BufferUtils.createIntBuffer(1);
+				GL30.glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, currentNormalTex, 0);
+				
+				drawBuffers.put(GL_COLOR_ATTACHMENT0);
+				drawBuffers.flip();
+			}
+			else{
+				drawBuffers=BufferUtils.createIntBuffer(0);
+			}
 
 			GL20.glDrawBuffers(drawBuffers);
 			

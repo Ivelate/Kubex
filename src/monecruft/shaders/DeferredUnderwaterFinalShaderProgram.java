@@ -2,11 +2,11 @@ package monecruft.shaders;
 
 import monecruft.MonecruftGame;
 
-public class DeferredReflectionsShaderProgram extends DeferredShaderProgram{
+public class DeferredUnderwaterFinalShaderProgram extends DeferredShaderProgram{
 
-	public DeferredReflectionsShaderProgram(boolean verbose)
+	public DeferredUnderwaterFinalShaderProgram(boolean verbose)
 	{
-		super("/shaders/finalDrawShader.vshader","/shaders/finalDrawShaderReflections.fshader",true);
+		super("/shaders/finalDrawShader.vshader","/shaders/finalDrawShaderUnderwaterFinal.fshader",true);
 	}
 	@Override
 	protected void setupCustomAttributes() {
@@ -26,7 +26,7 @@ public class DeferredReflectionsShaderProgram extends DeferredShaderProgram{
 	}
 	@Override
 	public boolean supportSkyParameters() {
-		return true;
+		return false;
 	}
 	@Override
 	public boolean supportWorldPosition() {
@@ -39,7 +39,7 @@ public class DeferredReflectionsShaderProgram extends DeferredShaderProgram{
 	}
 	@Override
 	public boolean supportPlayerLighting() {
-		return false;
+		return true;
 	}
 
 }

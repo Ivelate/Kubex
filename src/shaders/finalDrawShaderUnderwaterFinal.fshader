@@ -1,33 +1,7 @@
 #version 330 core
 
 /************************************ SKY PARAMETERS **********************************************/
-struct YyxColor
-{
-	float y;
-	float x;
-	float Y;
-};
-struct PerezCoefficients
-{
-	float A;
-	float B;
-	float C;
-	float D;
-	float E;
-};
-struct PerezYxyCoefficients
-{
-	PerezCoefficients Y;
-	PerezCoefficients x;
-	PerezCoefficients y;
-};
 
-uniform YyxColor zenitalAbs;
-uniform PerezYxyCoefficients coeff;
-uniform float solar_zenith;
-uniform float solar_azimuth;
-
-uniform sampler2D nightTexture;
 uniform sampler2D colorTex;
 uniform sampler2D brightnessNormalTex;
 uniform sampler2D baseFboDepthTex;
@@ -43,6 +17,8 @@ uniform vec3 WorldPosition;
 
 uniform float time;
 
+const vec4 waterFogColor= vec4(0.06,0.15,0.2,1);
+uniform float currentLight;
 uniform float daylightAmount;
 
 uniform float fresnelR0=((1-1.33f)/(2.33f))*((1-1.33f)/(2.33f)); //Air-water
@@ -57,86 +33,15 @@ in vec3 FarFaceCamViewLocation;
 
 layout(location = 0) out vec4 outcolor;
 
-bool traceScreenSpaceRay(vec3 csOrig,vec3 csDir,mat4 proj,sampler2D csZBuffer,float width,float height,float cnear,float cfar,float mnearfar,float snearfar,float zThickness,float maxDistance,out vec2 hitPixel);
-
-/**
-  * SKY METHODS
-  */
-float Perez(float zenith, float gamma, PerezCoefficients coeffs)
-{
-    return  (1 + coeffs.A*exp(coeffs.B/cos(zenith)))*
-            (1 + coeffs.C*exp(coeffs.D*gamma)+coeffs.E*pow(cos(gamma),2));
-}
- 
-vec4 RGB(float Y, float x, float y)
-{
-    float X = x/y*Y;
-    float Z = (1-x-y)/y*Y;
-    vec4 rgb;
-    rgb.a = 1;
-    rgb.r =  3.2406f * X - 1.5372f * Y - 0.4986f * Z;
-    rgb.g = -0.9689f * X + 1.8758f * Y + 0.0415f * Z;
-    rgb.b =  0.0557f * X - 0.2040f * Y + 1.0570f * Z;
-    return rgb;
-}
- 
-float Gamma(float zenith, float azimuth)
-{
-    return acos(sin(solar_zenith)*sin(zenith)*cos(azimuth-solar_azimuth)+cos(solar_zenith)*cos(zenith));
-}
-vec4 getSkyColor(vec3 Location)
-{
-	vec4 nightcolor;
-	float azimuth = atan(Location.x, Location.z);
-   	float zenith = acos(Location.y / sqrt(Location.x*Location.x + Location.y*Location.y + Location.z*Location.z));
-
-   	float len=zenith/3.1415926;
-   	 	
-   	float xt=cos(azimuth)*len;
-   	float yt=sin(azimuth)*len;
-   	 	
-   	if(sqrt(xt*xt + yt*yt)>0.5f) {
-   		float normLight=((daylightAmount-0.15)*1.17647);
-   		return vec4(0.2*normLight,0.4*normLight,0.75*normLight,1);
-   		nightcolor=vec4(0,0,0,1.0f);
-   	}
-	else nightcolor = texture2D(nightTexture,vec2(xt+0.5f,yt+0.5f));
-	
-	float attenuation=clamp((solar_zenith-1.1)*1.19f,0,1);
-	nightcolor=nightcolor*attenuation;
-	
-	
-	vec4 daycolor;	
-	if(solar_zenith>1.94f){
-		 daycolor = vec4(0,0,0,1);
-	}
-	else{
-		float gamma = Gamma(zenith, azimuth);   
-   		zenith = min(zenith, 3.1415926f/2.0f);
-    	float Yp = zenitalAbs.Y * Perez(zenith, gamma, coeff.Y) / Perez(0, solar_zenith, coeff.Y);
-    	float xp = zenitalAbs.x * Perez(zenith, gamma, coeff.x) / Perez(0, solar_zenith, coeff.x);
-    	float yp = zenitalAbs.y * Perez(zenith, gamma, coeff.y) / Perez(0, solar_zenith, coeff.y);
- 
-   		daycolor = RGB(Yp, xp, yp);
-    }
-    
-    return daycolor + nightcolor;
-}
-
-
-
-
-
 /******************************* MAIN ************************************************************/
 
 void main()
 {
 	float mnearfar=cnear*cfar;
 	float snearfar=cfar-cnear;
+	
 	float z=texture(baseFboDepthTex,vec2(pos.x,pos.y)).x;
 	vec3 lookVector=normalize(FarFaceLocation);
-	
-	if(z==1) outcolor=getSkyColor(lookVector);
 	
 	float trueDepth=-mnearfar / ((z * snearfar) - cfar);
 	
@@ -161,16 +66,15 @@ void main()
 		float dw=texture(liquidLayersTex,vec3(pos.x,pos.y,floor(0.5))).x;
 		if(dw<1){
 			firstWaterDepth=-mnearfar / ((dw * snearfar) - cfar);
-			firstWaterNormal=normalize((texture(miscTex2,vec2(pos.x,pos.y)).xyz - vec3(0.5f,0.5f,0.5f))*2);
+			firstWaterNormal=-normalize((texture(miscTex2,vec2(pos.x,pos.y)).xyz - vec3(0.5f,0.5f,0.5f))*2);
 			water=true;
 		}
 	}
 	
-	if(z!=1||water){
-	
 	//START ILLUMINATION
 	
 	outcolor=texture2D(colorTex,vec2(pos.x,pos.y));
+	
 	float inw=outcolor.w;
 	if(water)
 	{
@@ -193,45 +97,34 @@ void main()
 		
 		vec3 texNormal=texture(miscTex,vec2((texx + time*flowx )/5,(texy + time*flowy)/5)).xyz;			//texture(miscTex,vec2((waterWorldPos.x+WorldPosition.x+time/3)/5,(waterWorldPos.z+WorldPosition.z)/5)).xyz;
 		texNormal=(texNormal - vec3(0.5,0.5,0)).xzy;
-		vec3 realNormalTexNormal=vec3(texNormal.x*0.07,texNormal.y,texNormal.z*0.07);
+		vec3 realNormalTexNormal=vec3(texNormal.x*0.2,texNormal.y,texNormal.z*0.2);
 		vec3 specularNormalTexNormal=vec3(texNormal.x*(0.3+flowLength/2),texNormal.y,texNormal.z*(0.3+flowLength/2));
-		vec3 refractionNormalTexNormal=vec3(texNormal.x*0.02,texNormal.y,texNormal.z*0.02);
+		vec3 refractionNormalTexNormal=vec3(texNormal.x*0.04,texNormal.y,texNormal.z*0.04);
 
 		vec3 realNormal=normalize(vec3(dot(realNormalTexNormal,v),dot(realNormalTexNormal,firstWaterNormal),dot(realNormalTexNormal,u)));
 
-		vec3 specularNormal=normalize(vec3(dot(specularNormalTexNormal,v),dot(specularNormalTexNormal,firstWaterNormal),dot(specularNormalTexNormal,u)));
+		vec3 specularNormal=-normalize(vec3(dot(specularNormalTexNormal,v),dot(specularNormalTexNormal,firstWaterNormal),dot(specularNormalTexNormal,u)));
 		vec3 refractionNormal=normalize(vec3(dot(refractionNormalTexNormal,v),dot(refractionNormalTexNormal,firstWaterNormal),dot(refractionNormalTexNormal,u)));
 		
-		vec4 refOutColor=texture2D(colorTex,vec2(pos.x+refractionNormalTexNormal.x,pos.y+refractionNormalTexNormal.z)); //<---------------- HERE IS THE SALSA
-		outcolor=refOutColor.w<0.9?refOutColor:outcolor;
+		vec2 refractionLoc=vec2(pos.x+refractionNormalTexNormal.x,pos.y+refractionNormalTexNormal.z);
+		vec4 refOutColor=texture2D(colorTex,refractionLoc); //<---------------- HERE IS THE SALSA
+		outcolor=refOutColor.w<0.9&&refractionLoc.x>=0&&refractionLoc.x<=1&&refractionLoc.y>=0&&refractionLoc.y<=1?refOutColor:outcolor;
 
 		float waterCos=abs(dot(lookVector,specularNormal)); 
-		float fresnel=fresnelR0 + (1-fresnelR0)*pow(1-waterCos,5); //Fresnel calculation
+		//float fresnel=fresnelR0 + (1-fresnelR0)*pow(1-waterCos,5); //Fresnel calculation
+		//MY APPROXIMATION YEAH
+		float fresnel=clamp(fresnelR0 + (1-fresnelR0) * pow(1.33-waterCos,10),0,1);
 		
 		//Caculating reflected color.
-		vec3 reflectVec=reflect(lookVector,realNormal).xyz;
-		
-		vec3 viewNormal;
-		if(reflectVec.y<0&&firstWaterNormal.y>0.99){
-			reflectVec.y=-reflectVec.y;
-			viewNormal=(viewMatrix*vec4(firstWaterNormal,0)).xyz;
-		}
-		else viewNormal=(viewMatrix*vec4(realNormal.xyz,0)).xyz; //Normal vector, view space
+		vec3 viewNormal=(viewMatrix*vec4(realNormal.xyz,0)).xyz; //Normal vector, view space
 		vec3 viewDir=normalize(FarFaceCamViewLocation);
-		vec3 halfvec=normalize(normalize(-FarFaceLocation)+sunNormal);
-		float especular=clamp(dot(halfvec,specularNormal),0,1); //Blinn-phong
-		especular=pow(especular,60);
+		vec3 refractedSunlightVector=normalize(refract(sunNormal,specularNormal,1/1.33));
+		float especular=clamp(dot(refractedSunlightVector,lookVector),0,1); //Blinn-phong
+		especular=0;//pow(especular,5); //<----------------------- NO UNDERWATER ESPECULAR
 		vec3 viewPos=FarFaceCamViewLocation*firstWaterDepth/cfar;
-		//vec3 viewPosP=(viewMatrix*vec4(FarFaceLocation*firstWaterDepth/cfar,1)).xyz;
-		vec2 hitPixel=vec2(0,0);
-		bool collision=traceScreenSpaceRay(viewPos,reflect(viewDir,viewNormal).xyz,projectionMatrix,baseFboDepthTex,
-											cwidth,cheight,cnear,cfar,mnearfar,snearfar,25,2000,hitPixel);
 											
 		vec4 reflected;
-		if(collision) reflected=texture(colorTex,vec2(hitPixel.x/cwidth,hitPixel.y/cheight));
-
-		else if(reflectVec.y>=0) reflected=getSkyColor(reflectVec);
-		else fresnel=0;
+		reflected=mix(waterFogColor*(0.3+currentLight*0.7),outcolor,exp(-0.04*(firstWaterDepth*2)));
 	
 		outcolor=mix(outcolor,reflected,fresnel);
 		
@@ -239,10 +132,8 @@ void main()
 		if(especular>0.005)
 		{
 			float shadowed=inw*1.25;
-			if(shadowed>0.1) outcolor=clamp(outcolor + /*vec4(sindex==0?1:0,sindex==1?1:0,sindex==2?1:0,0)*/vec4(especular,especular,especular,0)*shadowed,vec4(0,0,0,0),vec4(1,1,1,1));
+			if(shadowed>0.1) outcolor=clamp(outcolor + vec4(especular,especular,especular,0)*shadowed,vec4(0,0,0,0),vec4(1,1,1,1));
 		}
-		//outcolor=vec4(inw,inw,inw,1);
-	}
 	}
 }
 float distanceSquared(vec2 P0, vec2 P1)

@@ -1,24 +1,24 @@
 package monecruft.blocks;
 
-public class B10DebugUtil extends OpaqueSolidBlock{
+public class B10Adoquin extends OpaqueSolidBlock{
 
 	@Override
 	public byte getUpTex() {
-		return 8;
+		return 7;
 	}
 
 	@Override
 	public byte getLatTex() {
-		return 8;
+		return 7;
 	}
 
 	@Override
 	public byte getDownTex() {
-		return 8;
+		return 7;
 	}
 
 	@Override
 	public String getCubeName() {
-		return "Debug - Ultra debugging tool";
+		return "Adoquin block";
 	}
 }

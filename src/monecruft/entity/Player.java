@@ -25,7 +25,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 	private static final double EYE_POS=1.65f;
 	private static final double DEFAULT_SIZE=0.4f;
 	private static final double DEFAULT_SIZE_APROX=0.39f;
-	private static final double DEFAULT_MOUSE_SENSIVITY=100;
+	private static final double DEFAULT_MOUSE_SENSIVITY=150;
 	private static final double PIMEDIOS=(float)(Math.PI/2);
 	private static final double SQRT2=(float)Math.sqrt(2);
 	private static final double MAX_RAYCAST_DISTANCE=5;
@@ -46,11 +46,11 @@ public class Player implements KeyToggleListener, KeyValueListener
 	private int selectedBlock=DEFAULT_SELECTED_BLOCK;
 	
 	
-	public Player(float ix,float iy,float iz,Camera cam)
+	public Player(double ix,double iy,double iz,float pitch,float yaw,Camera cam)
 	{
 		this.cam=cam;
 		this.xpos=ix;this.ypos=iy;this.zpos=iz;
-		this.pitch=0;this.yaw=0;
+		this.pitch=pitch;this.yaw=yaw;
 		InputHandler.addKeyToggleListener(InputHandler.SHIFT_VALUE,this);
 		InputHandler.addKeyToggleListener(InputHandler.MOUSE_BUTTON1_VALUE,this);
 		InputHandler.addKeyToggleListener(InputHandler.MOUSE_BUTTON2_VALUE,this);

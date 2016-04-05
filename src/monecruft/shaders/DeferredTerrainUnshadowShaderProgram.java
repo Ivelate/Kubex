@@ -32,5 +32,13 @@ public class DeferredTerrainUnshadowShaderProgram extends DeferredShaderProgram{
 	public boolean supportWorldPosition() {
 		return false;
 	}
+	@Override
+	public int miscTex2Location() {
+		return -1;
+	}
+	@Override
+	public boolean supportPlayerLighting() {
+		return false;
+	}
 
 }
