@@ -24,6 +24,7 @@ import ivengine.view.Camera;
 import ivengine.view.MatrixHelper;
 import monecruft.MonecruftGame;
 import monecruft.MonecruftSettings;
+import monecruft.blocks.BlockLibrary;
 import monecruft.entity.EntityManager;
 import monecruft.entity.Player;
 import monecruft.shaders.DepthVoxelShaderProgram;
@@ -33,25 +34,29 @@ import monecruft.storage.ChunkStorage;
 import monecruft.storage.FileManager;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.BoundaryChecker;
+import monecruft.utils.InputHandler;
+import monecruft.utils.KeyToggleListener;
 import monecruft.utils.SquareCorners;
 import monecruft.utils.Vector3d;
 import monecruft.utils.VoxelUtils;
 import monecruftProperties.DrawableUpdatable;
 
-public class World implements DrawableUpdatable, Cleanable
+public class World implements DrawableUpdatable, Cleanable, KeyToggleListener
 {
 	private static final int MAX_CHUNK_LOADS_PER_TICK=10;
-	public static final int PLAYER_VIEW_FIELD=10;
+	private static final int[] DAY_TIME_SPEED={3600,200,50,20,10,5,1};
+	public int PLAYER_VIEW_FIELD=10;
 	public static final int HEIGHT=8;
 	private static final float WATER_ALPHA=0.5f;
 	private static final float CHUNK_UPDATE_TICK=0.3f;
-	private static final int[] DIFTABLE=createDiftable(PLAYER_VIEW_FIELD+1);	
+	private int[] DIFTABLE;	
 	
 	private int vao;
 	private EntityManager EM;
 	private MapHandler MG;
 	private ChunkStorage myChunks;
 	private ChunkGenerator chunkGenerator;
+	private ChunkStorer chunkStorer;
 	private ChunkUpdater chunkUpdater;
 	private List<Chunk> updateChunks=new LinkedList<Chunk>();
 	private LinkedList<Chunk> updateChunksAdd=new LinkedList<Chunk>();
@@ -73,6 +78,7 @@ public class World implements DrawableUpdatable, Cleanable
 	
 	private float currentTime=12;
 	private float chunkUpdateTickCont=0;
+	private int currentDaySpeed;
 	
 	private VoxelShaderProgram VSP;
 	private VoxelShaderProgram UVSP;
@@ -85,6 +91,7 @@ public class World implements DrawableUpdatable, Cleanable
 	public World(VoxelShaderProgram VSP,VoxelShaderProgram UVSP,Camera cam,Camera sunCamera,ShadowsManager shadowsManager,Sky sky,FileManager fileManager,MonecruftSettings settings)
 	{
 		this.settings=settings;
+		this.currentDaySpeed=settings.DAY_SPEED;
 		this.currentTime=settings.DAY_TIME;
 		this.fileManager=fileManager;
 		this.shadowsManager=shadowsManager;
@@ -92,10 +99,13 @@ public class World implements DrawableUpdatable, Cleanable
 		this.sky=sky;
 		this.VSP=VSP;
 		this.UVSP=UVSP;
-		//Create player
-		Player p=new Player(settings.PLAYER_X,settings.PLAYER_Y,settings.PLAYER_Z,settings.CAM_PITCH,settings.CAM_YAW,cam);
+		this.PLAYER_VIEW_FIELD=settings.RENDER_DISTANCE;
 		
-		float maxworldsize=(float)(Chunk.CHUNK_DIMENSION*(World.PLAYER_VIEW_FIELD+1.5f));
+		DIFTABLE=createDiftable(PLAYER_VIEW_FIELD+1);
+		//Create player
+		Player p=new Player(settings.PLAYER_X,settings.PLAYER_Y,settings.PLAYER_Z,settings.CAM_PITCH,settings.CAM_YAW,settings.CUBE_SHORTCUTS,cam);
+		
+		float maxworldsize=(float)(Chunk.CHUNK_DIMENSION*(PLAYER_VIEW_FIELD+1.5f));
 		this.worldCornersLow=new SquareCorners(	new Vector4f(-maxworldsize,0,-maxworldsize,1),
 												new Vector4f(maxworldsize,0,-maxworldsize,1),
 												new Vector4f(-maxworldsize,0,maxworldsize,1),
@@ -111,8 +121,10 @@ public class World implements DrawableUpdatable, Cleanable
 		this.cam=cam;
 		this.myChunks=new ChunkStorage((PLAYER_VIEW_FIELD*2)+1);
 		this.chunkGenerator=new ChunkGenerator(worldFacade);
-		this.MG=new MapHandler(0,128,settings.MAP_CODE,settings.MAP_SEED,worldFacade,this.chunkGenerator,fileManager);
+		this.chunkStorer=new ChunkStorer(worldFacade);
+		this.MG=new MapHandler(0,128,settings.MAP_CODE,settings.MAP_SEED,worldFacade,this.chunkStorer,fileManager);
 		this.chunkGenerator.start();
+		this.chunkStorer.start();
 		this.chunkUpdater=new ChunkUpdater(p);
 		this.chunkUpdater.start();
 		
@@ -137,6 +149,9 @@ public class World implements DrawableUpdatable, Cleanable
 		//glBindVertexArray(this.vao);
 		//glBindVertexArray(0);
 		this.sky.setCurrentTime(this.currentTime);
+		
+		InputHandler.addKeyToggleListener(InputHandler.P_VALUE, this);
+		InputHandler.addKeyToggleListener(InputHandler.O_VALUE, this);
 	}
 	private void setupShaderParameters()
 	{
@@ -195,7 +210,7 @@ public class World implements DrawableUpdatable, Cleanable
 	{
 		setupShaderParameters();
 		
-		float normLight=((this.getDaylightAmount()-0.15f)*1.17647f);
+		float normLight=((this.getDaylightAmount()-0.35f)*1.5384f);
 		glClearColor(0.2f*normLight, 0.4f*normLight, 0.75f*normLight, 0f);
 		
 		GL11.glDisable( GL11.GL_BLEND );
@@ -273,7 +288,7 @@ public class World implements DrawableUpdatable, Cleanable
 	public void update(float tEl)
 	{
 		this.EM.update(tEl);
-		this.currentTime+=(tEl/10);
+		this.currentTime+=(tEl/DAY_TIME_SPEED[this.currentDaySpeed]);
 		if(this.currentTime>24) this.currentTime=0;
 		
 		this.sky.setCurrentTime(this.currentTime);
@@ -542,11 +557,11 @@ public class World implements DrawableUpdatable, Cleanable
 	@Override
 	public void fullClean() {
 		//Prevents game to hang during shutdown if some error happens.
-		Thread overShutdown=new Thread(){
+		/*Thread overShutdown=new Thread(){
 			@Override 
 			public void run(){try{Thread.sleep(5000);System.err.println("Over shutdown used (!!!)");System.exit(1);} catch(Exception e){}}
 		};
-		overShutdown.start();
+		overShutdown.start();*/
 		
 		//Saves settings
 		this.settings.PLAYER_X=this.EM.getPlayer().getX();
@@ -555,7 +570,9 @@ public class World implements DrawableUpdatable, Cleanable
 		this.settings.CAM_PITCH=this.cam.getPitch();
 		this.settings.CAM_YAW=this.cam.getYaw();
 		this.settings.DAY_TIME=this.currentTime;
+		this.settings.DAY_SPEED=this.currentDaySpeed;
 		
+		FloatBufferPool.fullClean(); //Free all possible locks to avoid an unlikely closing block
 		this.chunkUpdater.fullClean(true);
 		this.EM.fullClean();
 		System.out.println("Saving setttings to disk...");
@@ -564,9 +581,32 @@ public class World implements DrawableUpdatable, Cleanable
 		this.myChunks.fullClean();
 		
 		this.chunkGenerator.fullClean(true);
+		this.chunkStorer.fullClean(true);
 		
 		this.MG=null;
 		glDeleteVertexArrays(this.vao);
-		overShutdown.interrupt();
+		//overShutdown.interrupt();
+	}
+	@Override
+	public void notifyKeyToggle(int code) 
+	{
+		switch(code)
+		{
+		case InputHandler.P_VALUE:
+			if(this.currentDaySpeed<DAY_TIME_SPEED.length-1)
+			{
+				this.currentDaySpeed++;
+			}
+			GlobalTextManager.insertText("New time speed: 1 hour = "+DAY_TIME_SPEED[this.currentDaySpeed]+" seg");
+			break;
+		case InputHandler.O_VALUE:
+			if(this.currentDaySpeed>0)
+			{
+				this.currentDaySpeed--;
+			}
+			GlobalTextManager.insertText("New time speed: 1 hour = "+DAY_TIME_SPEED[this.currentDaySpeed]+" seg");
+			break;
+		
+		}
 	}
 }

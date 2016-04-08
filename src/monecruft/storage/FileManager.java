@@ -112,22 +112,28 @@ fm.loadChunk(data, 2, 0, 0);
 		//fm.loadChunk(data, -17897, 0, 0); System.out.println("DATA "+data[0][0][0]);
 	//}
 	public enum ChunkLoadResult{CHUNK_EMPTY,CHUNK_NOT_FOUND,CHUNK_FULL,CHUNK_NORMAL_NOT_INITCIALIZED,CHUNK_NORMAL_INITCIALIZED};
-	private static final int REGION_SIZE=16;
-	private static final int SECTOR_SIZE=1024;
-	private static final int LOOKUP_SIZE=4*REGION_SIZE*REGION_SIZE*REGION_SIZE;
+	public static final int REGION_SIZE=8;
+	public static final int SECTOR_SIZE=1024;
+	public static final int LOOKUP_SIZE=4*REGION_SIZE*REGION_SIZE*REGION_SIZE;
 	private static final byte[] BYTE_ZERO_BUFFER=new byte[SECTOR_SIZE];
 	
 	private final byte[] chunkBuffer=new byte[Chunk.CHUNK_DIMENSION*Chunk.CHUNK_DIMENSION*Chunk.CHUNK_DIMENSION*2]; //Max chunk size
 	private final byte[] chunkBuffer2=new byte[chunkBuffer.length];
 	
-	private final byte[] lookupBuffer=new byte[16384];
+	private final byte[] lookupBuffer=new byte[LOOKUP_SIZE];
 	private final byte[] sectorBuffer=new byte[SECTOR_SIZE];
 	private File baseRoute;
-	private RegionFile currentFile=null;
 	
-	public FileManager(File baseRoute)
+	private RegionFileStorage activeFiles;
+	//private RegionFile currentFile=null;
+	
+	public FileManager(File baseRoute,int renderDistance)
 	{
 		this.baseRoute=baseRoute;
+		
+		int regionfilestoragesize=((renderDistance*2 + 1) / 8) + 2;
+		System.out.println(regionfilestoragesize);
+		this.activeFiles=new RegionFileStorage(regionfilestoragesize,1,regionfilestoragesize);
 	}
 	
 	public synchronized void getSettingsFromFile(MonecruftSettings settings)
@@ -165,6 +171,16 @@ fm.loadChunk(data, 2, 0, 0);
 					else if(content[0].equals("CAM_YAW")){
 						settings.CAM_YAW=Float.parseFloat(content[1]);
 					}
+					else if(content[0].equals("DAY_SPEED")){
+						settings.DAY_SPEED=Integer.parseInt(content[1]);
+					}
+					else if(content[0].equals("CUBE_SHORTCUTS")){
+						Scanner lineScanner=new Scanner(content[1]);
+						for(int i=0;i<settings.CUBE_SHORTCUTS.length;i++){
+							settings.CUBE_SHORTCUTS[i]=lineScanner.nextByte();
+						}
+						lineScanner.close();
+					}
 				}
 				s.close();
 			} 
@@ -195,6 +211,12 @@ fm.loadChunk(data, 2, 0, 0);
 			f.println("DAY_TIME:"+settings.DAY_TIME);
 			f.println("CAM_PITCH:"+settings.CAM_PITCH);
 			f.println("CAM_YAW:"+settings.CAM_YAW);
+			String cubeShortcuts="CUBE_SHORTCUTS:";
+			for(int i=0;i<settings.CUBE_SHORTCUTS.length;i++){
+				cubeShortcuts=cubeShortcuts+settings.CUBE_SHORTCUTS[i]+" ";
+			}
+			f.println(cubeShortcuts);
+			f.println("DAY_SPEED:"+settings.DAY_SPEED);
 			f.close();
 		} 
 		catch (IOException e) {
@@ -207,16 +229,19 @@ fm.loadChunk(data, 2, 0, 0);
 	{
 		int x=(int)Math.floor((float)(chunkx)/REGION_SIZE); int y=(int)Math.floor((float)(chunky)/REGION_SIZE); int z=(int)Math.floor((float)(chunkz)/REGION_SIZE); 
 		int cx=posMod(chunkx,REGION_SIZE); int cy=posMod(chunky,REGION_SIZE); int cz=posMod(chunkz,REGION_SIZE);
-		if(this.currentFile==null||this.currentFile.x!=x||this.currentFile.y!=y||this.currentFile.z!=z)
+		
+		RegionFile currentFile=this.activeFiles.getRegionFile(x, y, z);
+		if(currentFile==null)
 		{
-			setCurrentFile(openRegionFile(x,y,z));
+			currentFile=this.activeFiles.setRegionFile(openRegionFile(x,y,z));
 		}
 		
 		//Get file direction for chunk in lookup table
 		try {
-			this.currentFile.file.seek((cx*REGION_SIZE*REGION_SIZE + cy*REGION_SIZE + cz)*4);
+			//currentFile.file.seek((cx*REGION_SIZE*REGION_SIZE + cy*REGION_SIZE + cz)*4);
 			byte[] lookupData=new byte[4];
-			this.currentFile.file.read(lookupData);
+			//currentFile.file.read(lookupData);
+			currentFile.loadFromLookup((cx*REGION_SIZE*REGION_SIZE + cy*REGION_SIZE + cz)*4, lookupData);
 			
 			byte chunkSize=lookupData[0];
 			if(chunkSize==0) return ChunkLoadResult.CHUNK_NOT_FOUND;
@@ -238,12 +263,12 @@ fm.loadChunk(data, 2, 0, 0);
 			else{
 			
 				int chunkLocation=((lookupData[1]&0xFF)<<16 | (lookupData[2]&0xFF)<<8 | (lookupData[3]&0xFF))& 0xFFFFFF; 
-				this.currentFile.file.seek(LOOKUP_SIZE+(chunkLocation)*SECTOR_SIZE);
+				currentFile.file.seek(LOOKUP_SIZE+(chunkLocation)*SECTOR_SIZE);
 				byte[] sizebuf=new byte[3];
-				this.currentFile.file.read(sizebuf); //|TODO testing ayyy lmao
+				currentFile.file.read(sizebuf); //|TODO testing ayyy lmao
 				int chunksize=(((sizebuf[0]&0x7F) << 16) | ((sizebuf[1]&0xFF) << 8) | (sizebuf[2] & 0xFF)) & 0xFFFFFF;
 				boolean initcializedFlag= (sizebuf[0] & 0x80)==0x80;
-				this.currentFile.file.read(chunkBuffer, 0, chunksize);
+				currentFile.file.read(chunkBuffer, 0, chunksize);
 				this.decompress(chunkCubes,chunkBuffer,chunksize);
 				return initcializedFlag? ChunkLoadResult.CHUNK_NORMAL_INITCIALIZED : ChunkLoadResult.CHUNK_NORMAL_NOT_INITCIALIZED;
 			}
@@ -292,16 +317,20 @@ fm.loadChunk(data, 2, 0, 0);
 	{
 		int x=(int)Math.floor((float)(chunkx)/REGION_SIZE); int y=(int)Math.floor((float)(chunky)/REGION_SIZE); int z=(int)Math.floor((float)(chunkz)/REGION_SIZE);
 		int cx=posMod(chunkx,REGION_SIZE); int cy=posMod(chunky,REGION_SIZE); int cz=posMod(chunkz,REGION_SIZE);
-		if(this.currentFile==null||this.currentFile.x!=x||this.currentFile.y!=y||this.currentFile.z!=z)
+		
+		RegionFile currentFile=this.activeFiles.getRegionFile(x, y, z);
+		if(currentFile==null)
 		{
-			setCurrentFile(openRegionFile(x,y,z));
+			currentFile=this.activeFiles.setRegionFile(openRegionFile(x,y,z));
 		}
 		
 		//Get file direction for chunk in lookup table
 		try {
-			this.currentFile.file.seek((cx*REGION_SIZE*REGION_SIZE + cy*REGION_SIZE + cz)*4);
-			byte[] lookupData=new byte[4];
-			this.currentFile.file.read(lookupData);
+			
+			//currentFile.file.seek((cx*REGION_SIZE*REGION_SIZE + cy*REGION_SIZE + cz)*4);
+			byte[] lookupData=new byte[4]; //************************************************* LOAD FROM LOOKUP INSTEAD
+			//currentFile.file.read(lookupData);
+			currentFile.loadFromLookup((cx*REGION_SIZE*REGION_SIZE + cy*REGION_SIZE + cz)*4, lookupData);
 			
 			boolean updateLookup=false;
 			byte chunkSize=lookupData[0];
@@ -320,9 +349,9 @@ fm.loadChunk(data, 2, 0, 0);
 				{
 					//System.out.println("afas");
 					//Fuck
-					this.currentFile.file.close();
-					rewriteFileCroppingSector(this.currentFile.originFile,chunkLocation,chunkSize);
-					this.currentFile.updateRandomAccessFile();
+					currentFile.file.close();
+					rewriteFileCroppingSector(currentFile.originFile,chunkLocation,chunkSize);
+					currentFile.updateRandomAccessFile();
 					updateLookup=true;
 				}
 				
@@ -337,26 +366,26 @@ fm.loadChunk(data, 2, 0, 0);
 				int sectorsSize=((2+compressedSize)/SECTOR_SIZE)+1;
 				if(chunkSize==0||chunkSize==-1) {
 					//If size is 0, we append it to the end of the file
-					chunkLocation=(int)((this.currentFile.file.length()-LOOKUP_SIZE-1)/SECTOR_SIZE)+1;
+					chunkLocation=(int)((currentFile.file.length()-LOOKUP_SIZE-1)/SECTOR_SIZE)+1;
 					chunkSize=(byte)(sectorsSize);
 					updateLookup=true;
 				}
 				
 				if(sectorsSize!=chunkSize && chunkSize!=0 && chunkSize!=-1) {
-					this.currentFile.file.close();
-					rewriteFileExtendingSector(this.currentFile.originFile,chunkLocation,chunkSize,(byte)sectorsSize);
-					this.currentFile.updateRandomAccessFile();
+					currentFile.file.close();
+					rewriteFileExtendingSector(currentFile.originFile,chunkLocation,chunkSize,(byte)sectorsSize);
+					currentFile.updateRandomAccessFile();
 				}
 				
 				//Move cursor to chunk sector
-				this.currentFile.file.seek(LOOKUP_SIZE+(chunkLocation)*SECTOR_SIZE);
+				currentFile.file.seek(LOOKUP_SIZE+(chunkLocation)*SECTOR_SIZE);
 				byte[] sizeBuf=new byte[3];
 				sizeBuf[0]=(byte)(((compressedSize >> 16) &0x7F)| (initcializedFlag?0x80:0));
 				sizeBuf[1]=(byte)((compressedSize >> 8) &0xFF);
 				sizeBuf[2]=(byte)((compressedSize) &0xFF);
-				this.currentFile.file.write(sizeBuf,0,3);
+				currentFile.file.write(sizeBuf,0,3);
 				//for(int i=0;i<compressedSize;i++) System.out.println("CBUFF "+i+" "+chunkBuffer[i]);
-				this.currentFile.file.write(this.chunkBuffer, 0, compressedSize);
+				currentFile.file.write(this.chunkBuffer, 0, compressedSize);
 				
 				//Write 
 				//this.sectorBuffer[0]=chunkCubes[0][0][0]; //|TODO testing ayy lmao
@@ -366,12 +395,14 @@ fm.loadChunk(data, 2, 0, 0);
 
 			if(updateLookup)
 			{
-				this.currentFile.file.seek((cx*REGION_SIZE*REGION_SIZE + cy*REGION_SIZE + cz)*4);
+				long pos=(cx*REGION_SIZE*REGION_SIZE + cy*REGION_SIZE + cz)*4;
+				currentFile.file.seek(pos);
 				lookupData[0]=chunkSize;
 				lookupData[1]=(byte)((chunkLocation >> 16) &0xFF);
 				lookupData[2]=(byte)((chunkLocation >> 8) &0xFF);
 				lookupData[3]=(byte)((chunkLocation) &0xFF);
-				this.currentFile.file.write(lookupData,0,4);
+				currentFile.file.write(lookupData,0,4);
+				currentFile.writeInLookup((int)pos,lookupData);
 			}
 		} 
 		catch (IOException e)
@@ -433,12 +464,6 @@ fm.loadChunk(data, 2, 0, 0);
 			} catch (IOException e) {}
 		}
 		
-	}
-	public void setCurrentFile(RegionFile rf)
-	{
-		if(this.currentFile!=null) this.currentFile.fullClean();
-		
-		this.currentFile=rf;
 	}
 	/**
 	 * Rewrites <originFile> completelly, erasing the sector occuped by the chunk in <location> and size <bsize>, and updating the 
@@ -706,34 +731,6 @@ fm.loadChunk(data, 2, 0, 0);
 	
 	public void fullClean()
 	{
-		if(this.currentFile!=null){
-			try {
-				this.currentFile.file.close();
-			} catch (IOException e) {}
-		}
-	}
-	
-	private class RegionFile
-	{
-		public RandomAccessFile file;
-		public final File originFile;
-		public final int x,y,z;
-		public RegionFile(File originFile,int x,int y,int z) throws FileNotFoundException{
-			this.file=new RandomAccessFile(originFile,"rw");
-			this.originFile=originFile;
-			this.x=x;
-			this.y=y;
-			this.z=z;
-		}
-		public void updateRandomAccessFile() throws FileNotFoundException
-		{
-			this.file=new RandomAccessFile(this.originFile,"rw");
-		}
-		public void fullClean()
-		{
-			try {
-				this.file.close();
-			} catch (IOException e) {}
-		}
+		this.activeFiles.fullClean();
 	}
 }

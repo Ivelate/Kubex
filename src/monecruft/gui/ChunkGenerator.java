@@ -9,7 +9,6 @@ public class ChunkGenerator extends Thread
 {
 	public static final int MAX_CHUNKS_LOADED=9;
 	private LinkedList<ChunkGenRequest> requestList=new LinkedList<ChunkGenRequest>();
-	private LinkedList<ChunkStoreRequest> cleanList=new LinkedList<ChunkStoreRequest>();
 	
 	private WorldFacade WF;
 	private boolean endRequested=false;
@@ -24,57 +23,34 @@ public class ChunkGenerator extends Thread
 		threadMainLoop:
 		while(!endRequested){
 			ChunkGenRequest request=null;
-			ChunkStoreRequest cleanChunk=null;
 			synchronized(this){
-				while((requestList.size()==0||WF.getAddListSize()>=MAX_CHUNKS_LOADED)&&this.cleanList.size()==0){
+				while((requestList.size()==0||WF.getAddListSize()>=MAX_CHUNKS_LOADED)){
 					try {
 						if(ByteArrayPool.getUncleanedArraysCount()>0) ByteArrayPool.recycleCleanArray(ByteArrayPool.cleanArray(ByteArrayPool.getArrayUncleaned()));
 						else wait();
 						if(endRequested) break threadMainLoop;
 					} catch (InterruptedException e) {}
 				}
-				if(requestList.size()>this.cleanList.size()) request=requestList.getFirst();
-				else cleanChunk=cleanList.poll();
+				request=requestList.getFirst();
 			}
 			
-			if(request!=null){
-				Chunk c=new Chunk(request.getChunkx(),request.getChunky(),request.getChunkz(),this.WF);
-				//c.genUpdateBuffer()
-				boolean addPet=false;
-				synchronized(this){
-					if(this.requestList.size()==0||!request.equals(requestList.getFirst())) c.fullClean();
-					else{
-						this.requestList.removeFirst();
-						addPet=true;
-					}
+
+			Chunk c=new Chunk(request.getChunkx(),request.getChunky(),request.getChunkz(),this.WF);
+			//c.genUpdateBuffer()
+			boolean addPet=false;
+			synchronized(this){
+				if(this.requestList.size()==0||!request.equals(requestList.getFirst())) c.fullClean();
+				else{
+					this.requestList.removeFirst();
+					addPet=true;
 				}
-				if(addPet)this.WF.addChunkAddPetition(c);
-				request=null;
 			}
-			else{
-				performChunkStore(cleanChunk);
-			}
+			if(addPet)this.WF.addChunkAddPetition(c);
+			request=null;
 		}
-	
-		//If we are exiting, store remaining chunks
-		for(ChunkStoreRequest req: this.cleanList) performChunkStore(req);
 	
 		this.dispose();
 		
-	}
-	private void performChunkStore(ChunkStoreRequest cleanChunk)
-	{
-		if(cleanChunk.chunkCubes.isTrueStorage()){
-			this.WF.getMapHandler().getFileManager().storeChunk(cleanChunk.chunkCubes.getArray(), cleanChunk.chunkx,cleanChunk.chunky,cleanChunk.chunkz,cleanChunk.initcializedFlag);
-		}
-		else this.WF.getMapHandler().getFileManager().storeChunk(cleanChunk.chunkCubes.get(0, 0,0), cleanChunk.chunkx,cleanChunk.chunky,cleanChunk.chunkz,cleanChunk.initcializedFlag);
-		
-		cleanChunk.chunkCubes.dispose();
-	}
-	public synchronized void addChunkStoreRequest(ChunkStoreRequest req)
-	{
-		cleanList.add(req);
-		notifyAll();
 	}
 	public synchronized void generateChunk(int x,int y,int z)
 	{

@@ -43,17 +43,23 @@ public class Player implements KeyToggleListener, KeyValueListener
 	private boolean action_createNextBlock=false;
 	private boolean grounded=false;
 	
-	private int selectedBlock=DEFAULT_SELECTED_BLOCK;
+	private byte[] cubeShortcuts;
+	
+	private byte selectedBlock=DEFAULT_SELECTED_BLOCK;
 	
 	
-	public Player(double ix,double iy,double iz,float pitch,float yaw,Camera cam)
+	public Player(double ix,double iy,double iz,float pitch,float yaw,byte[] cubeShortcuts,Camera cam)
 	{
+		this.cubeShortcuts=cubeShortcuts;
 		this.cam=cam;
 		this.xpos=ix;this.ypos=iy;this.zpos=iz;
 		this.pitch=pitch;this.yaw=yaw;
 		InputHandler.addKeyToggleListener(InputHandler.SHIFT_VALUE,this);
 		InputHandler.addKeyToggleListener(InputHandler.MOUSE_BUTTON1_VALUE,this);
 		InputHandler.addKeyToggleListener(InputHandler.MOUSE_BUTTON2_VALUE,this);
+		
+		for(int i=0;i<cubeShortcuts.length;i++) InputHandler.addKeyToggleListener(InputHandler.NUM_0_VALUE+i,this);
+		
 		InputHandler.addKeyValueListener(InputHandler.MOUSE_WHEEL_VALUE, this);
 	}
 	public void update(float tEl,WorldFacade wf)
@@ -422,6 +428,10 @@ public class Player implements KeyToggleListener, KeyValueListener
 	{
 		return this.zpos;
 	}
+	public byte[] getCubeShortcuts()
+	{
+		return this.cubeShortcuts;
+	}
 	@Override
 	public void notifyKeyToggle(int code) {
 		switch(code)
@@ -443,6 +453,28 @@ public class Player implements KeyToggleListener, KeyValueListener
 			break;
 		case InputHandler.MOUSE_BUTTON1_VALUE:
 			this.action_createNextBlock=true;
+			break;
+		case InputHandler.NUM_0_VALUE:
+		case InputHandler.NUM_1_VALUE:
+		case InputHandler.NUM_2_VALUE:
+		case InputHandler.NUM_3_VALUE:
+		case InputHandler.NUM_4_VALUE:
+		case InputHandler.NUM_5_VALUE:
+		case InputHandler.NUM_6_VALUE:
+		case InputHandler.NUM_7_VALUE:
+		case InputHandler.NUM_8_VALUE:
+		case InputHandler.NUM_9_VALUE:
+			int val=code-InputHandler.NUM_0_VALUE;
+			if(InputHandler.isCTRLPressed())
+			{
+				this.cubeShortcuts[val]=this.selectedBlock;
+				GlobalTextManager.insertText("Assigned to shortcut "+val+": "+BlockLibrary.getName((byte)this.selectedBlock));
+			}
+			else
+			{
+				this.selectedBlock=this.cubeShortcuts[val];
+				GlobalTextManager.insertText("Shortcut "+val+": "+BlockLibrary.getName((byte)this.selectedBlock));
+			}
 			break;
 		}
 		

@@ -16,8 +16,23 @@ public class InputHandler
 	public static final int MOUSE_BUTTON2_VALUE=9;
 	public static final int MOUSE_WHEEL_VALUE=10;
 	
-	private static boolean[] keyInfo=new boolean[11];
-	private static LinkedList[] listenerList=new LinkedList[11];
+	public static final int NUM_0_VALUE=11;
+	public static final int NUM_1_VALUE=12;
+	public static final int NUM_2_VALUE=13;
+	public static final int NUM_3_VALUE=14;
+	public static final int NUM_4_VALUE=15;
+	public static final int NUM_5_VALUE=16;
+	public static final int NUM_6_VALUE=17;
+	public static final int NUM_7_VALUE=18;
+	public static final int NUM_8_VALUE=19;
+	public static final int NUM_9_VALUE=20;
+	
+	public static final int CTRL_VALUE=21;
+	public static final int P_VALUE=22;
+	public static final int O_VALUE=23;
+	
+	private static boolean[] keyInfo=new boolean[24];
+	private static LinkedList[] listenerList=new LinkedList[24];
 	static
 	{
 		for(int i=0;i<listenerList.length;i++)
@@ -56,6 +71,10 @@ public class InputHandler
 	public static boolean isEPressed()
 	{
 		return keyInfo[E_VALUE];
+	}
+	public static boolean isCTRLPressed()
+	{
+		return keyInfo[CTRL_VALUE];
 	}
 	public static boolean isMouseButton1Pressed()
 	{
@@ -96,6 +115,22 @@ public class InputHandler
 	public static void setE(boolean v)
 	{
 		setKey(E_VALUE,v);
+	}
+	public static void setP(boolean v)
+	{
+		setKey(P_VALUE,v);
+	}
+	public static void setO(boolean v)
+	{
+		setKey(O_VALUE,v);
+	}
+	public static void setNum(boolean v,int num)
+	{
+		setKey(NUM_0_VALUE + num,v);
+	}
+	public static void setCtrl(boolean v)
+	{
+		setKey(CTRL_VALUE,v);
 	}
 	public static void setMouseButton1(boolean v)
 	{

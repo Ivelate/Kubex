@@ -188,6 +188,7 @@ public class Chunk implements Cleanable
 			
 		FloatBuffer toUpload=FloatBufferPool.getBuffer();
 		FloatBuffer toUploadLiquid=FloatBufferPool.getBuffer();
+		if(toUpload==null||toUploadLiquid==null) return; //Close
 		
 		if(!(!this.chunkCubes.isTrueStorage()&&this.chunkCubes.get(0, 0, 0)==0)){
 		

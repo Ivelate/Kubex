@@ -144,7 +144,7 @@ public class MonecruftGame implements Cleanable
 	private final int LIQUID_LAYERS=3;
 	
 	private final float CAMERA_NEAR=0.1f;
-	private final float CAMERA_FAR=(float)Math.sqrt(World.HEIGHT*World.HEIGHT + World.PLAYER_VIEW_FIELD*World.PLAYER_VIEW_FIELD)*Chunk.CHUNK_DIMENSION;
+	private final float CAMERA_FAR;
 	
 	private final float[] SHADOW_SPLITS;
 	
@@ -191,8 +191,6 @@ public class MonecruftGame implements Cleanable
 	private int deferredFbo;
 	private int[] shadowFbos;
 	
-	private boolean changeContext=false; //To change with option menu.
-	
 	public MonecruftGame(MonecruftSettings settings) throws LWJGLException, IOException 
 	{
 		/*File outpfil=new File("outpfil.log");
@@ -206,13 +204,18 @@ public class MonecruftGame implements Cleanable
 			Y_RES=dm.getHeight();
 			IvEngine.configDisplay(dm, "Monecruft", true, false, true);
 		}
-		else IvEngine.configDisplay(X_RES, Y_RES, "Monecruft", true, false, false);
+		else {
+			this.X_RES=settings.WINDOW_XRES;
+			this.Y_RES=settings.WINDOW_YRES;
+			IvEngine.configDisplay(X_RES, Y_RES, "Monecruft", true, false, false);
+		}
 		
 		//System.out.println(GL11.glGetString(GL11.GL_VERSION)); Get version, if wanted
 		
 		Thread.currentThread().setPriority(Thread.currentThread().getPriority()+1); //Faster than the others -> game experience > loading
 		
 		//Start all resources
+		CAMERA_FAR=(float)Math.sqrt(World.HEIGHT*World.HEIGHT + settings.RENDER_DISTANCE*settings.RENDER_DISTANCE)*Chunk.CHUNK_DIMENSION;
 		float[] ssplits=ShadowsManager.calculateSplits(1f, CAMERA_FAR, SHADOW_LAYERS, 0.3f);
 		ssplits[0]=CAMERA_NEAR;
 		ssplits[1]=ssplits[1]/4;
@@ -274,15 +277,6 @@ public class MonecruftGame implements Cleanable
 		}
 		
 		closeApp();
-		
-		if(changeContext) {
-			System.gc();
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {}
-			this.settings.FULLSCREEN_ENABLED=!this.settings.FULLSCREEN_ENABLED;
-			new MonecruftGame(this.settings);
-		}
 	}
 	private void update(float delta)
 	{
@@ -380,7 +374,7 @@ public class MonecruftGame implements Cleanable
 	private void initResources() throws IOException
 	{
 		FloatBufferPool.init(Chunk.CHUNK_DIMENSION*Chunk.CHUNK_DIMENSION*Chunk.CHUNK_DIMENSION*2*6*6,20);
-		ByteArrayPool.init(Chunk.CHUNK_DIMENSION,(World.PLAYER_VIEW_FIELD*2 +1)*World.HEIGHT*(World.PLAYER_VIEW_FIELD*2 +1)*2);
+		ByteArrayPool.init(Chunk.CHUNK_DIMENSION,(settings.RENDER_DISTANCE*2 +1)*World.HEIGHT*(settings.RENDER_DISTANCE*2 +1)*2);
 		//glEnable(GL_DEPTH_TEST);
 		glEnable(GL11.GL_CULL_FACE);
 		GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -414,7 +408,7 @@ public class MonecruftGame implements Cleanable
 		this.sky=new Sky(cam,this.sunCam);
 		File mapRoute=new File(this.settings.MAP_ROUTE);
 		mapRoute.mkdir();
-		this.fileManager=new FileManager(mapRoute);
+		this.fileManager=new FileManager(mapRoute,settings.RENDER_DISTANCE);
 		this.fileManager.getSettingsFromFile(settings);
 		this.world=new World(this.VSP,this.UVSP,this.cam,this.sunCam,this.shadowsManager,this.sky,fileManager,this.settings);
 		this.finalDrawManager=new FinalDrawManager(this.world,this.sky,this.shadowsManager,this.liquidRenderer,this.camInvProjEnv.getInvProjMatrix(),CAMERA_NEAR,CAMERA_FAR);
@@ -622,12 +616,47 @@ public class MonecruftGame implements Cleanable
 		case Keyboard.KEY_ESCAPE:
 			InputHandler.setESC(Keyboard.getEventKeyState());
 			break;
-		case Keyboard.KEY_F1:
-			InputHandler.setESC(Keyboard.getEventKeyState());
-			this.changeContext=true;
+		case Keyboard.KEY_0:
+			InputHandler.setNum(Keyboard.getEventKeyState(),0);
+			break;
+		case Keyboard.KEY_1:
+			InputHandler.setNum(Keyboard.getEventKeyState(),1);
+			break;
+		case Keyboard.KEY_2:
+			InputHandler.setNum(Keyboard.getEventKeyState(),2);
+			break;
+		case Keyboard.KEY_3:
+			InputHandler.setNum(Keyboard.getEventKeyState(),3);
+			break;
+		case Keyboard.KEY_4:
+			InputHandler.setNum(Keyboard.getEventKeyState(),4);
+			break;
+		case Keyboard.KEY_5:
+			InputHandler.setNum(Keyboard.getEventKeyState(),5);
+			break;
+		case Keyboard.KEY_6:
+			InputHandler.setNum(Keyboard.getEventKeyState(),6);
+			break;
+		case Keyboard.KEY_7:
+			InputHandler.setNum(Keyboard.getEventKeyState(),7);
+			break;
+		case Keyboard.KEY_8:
+			InputHandler.setNum(Keyboard.getEventKeyState(),8);
+			break;
+		case Keyboard.KEY_9:
+			InputHandler.setNum(Keyboard.getEventKeyState(),9);
+			break;
+		case Keyboard.KEY_LCONTROL:
+			InputHandler.setCtrl(Keyboard.getEventKeyState());
 			break;
 		case Keyboard.KEY_E:
 			InputHandler.setE(Keyboard.getEventKeyState());
+			break;	
+		case Keyboard.KEY_P:
+			InputHandler.setP(Keyboard.getEventKeyState());
+			break;	
+		case Keyboard.KEY_O:
+			InputHandler.setO(Keyboard.getEventKeyState());
 			break;	
 		}
 	}
@@ -722,6 +751,15 @@ public class MonecruftGame implements Cleanable
 					else if(content[0].equals("FULLSCREEN_ENABLED")){
 						settings.FULLSCREEN_ENABLED=Boolean.parseBoolean(content[1]);
 					}
+					else if(content[0].equals("WINDOW_XRES")){
+						settings.WINDOW_XRES=Integer.parseInt(content[1]);
+					}
+					else if(content[0].equals("WINDOW_YRES")){
+						settings.WINDOW_YRES=Integer.parseInt(content[1]);
+					}
+					else if(content[0].equals("RENDER_DISTANCE")){
+						settings.RENDER_DISTANCE=Integer.parseInt(content[1]);
+					}
 				}
 				s.close();
 			} 
@@ -742,6 +780,9 @@ public class MonecruftGame implements Cleanable
 			f.println("SHADOWS_ENABLED:"+settings.SHADOWS_ENABLED);
 			f.println("REFLECTIONS_ENABLED:"+settings.REFLECTIONS_ENABLED);
 			f.println("FULLSCREEN_ENABLED:"+settings.FULLSCREEN_ENABLED);
+			f.println("WINDOW_XRES:"+settings.WINDOW_XRES);
+			f.println("WINDOW_YRES:"+settings.WINDOW_YRES);
+			f.println("RENDER_DISTANCE:"+settings.RENDER_DISTANCE);
 			f.close();
 		} 
 		catch (IOException e) {

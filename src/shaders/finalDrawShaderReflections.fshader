@@ -96,7 +96,7 @@ vec4 getSkyColor(vec3 Location)
    	float yt=sin(azimuth)*len;
    	 	
    	if(sqrt(xt*xt + yt*yt)>0.5f) {
-   		float normLight=((daylightAmount-0.15)*1.17647);
+   		float normLight=((daylightAmount-0.35)*1.5384);
    		return vec4(0.2*normLight,0.4*normLight,0.75*normLight,1);
    		nightcolor=vec4(0,0,0,1.0f);
    	}
@@ -138,6 +138,7 @@ void main()
 	
 	if(z==1) outcolor=getSkyColor(lookVector);
 	
+	
 	float trueDepth=-mnearfar / ((z * snearfar) - cfar);
 	
 	vec3 normal=vec3(texture(brightnessNormalTex,vec2(pos.x,pos.y)).xy * 2 -vec2(1,1),0);
@@ -171,6 +172,7 @@ void main()
 	//START ILLUMINATION
 	
 	outcolor=texture2D(colorTex,vec2(pos.x,pos.y));
+	
 	float inw=outcolor.w;
 	if(water)
 	{
@@ -202,8 +204,10 @@ void main()
 		vec3 specularNormal=normalize(vec3(dot(specularNormalTexNormal,v),dot(specularNormalTexNormal,firstWaterNormal),dot(specularNormalTexNormal,u)));
 		vec3 refractionNormal=normalize(vec3(dot(refractionNormalTexNormal,v),dot(refractionNormalTexNormal,firstWaterNormal),dot(refractionNormalTexNormal,u)));
 		
-		vec4 refOutColor=texture2D(colorTex,vec2(pos.x+refractionNormalTexNormal.x,pos.y+refractionNormalTexNormal.z)); //<---------------- HERE IS THE SALSA
-		outcolor=refOutColor.w<0.9?refOutColor:outcolor;
+		vec2 refractionTexVec=vec2(pos.x+refractionNormalTexNormal.x,pos.y+refractionNormalTexNormal.z);
+		vec4 refOutColor=texture2D(colorTex,refractionTexVec); //<---------------- HERE IS THE SALSA
+		
+		outcolor=refOutColor.w<0.9&&refractionTexVec.x>=0&&refractionTexVec.x<=1&&refractionTexVec.y>=0&&refractionTexVec.y<=1?refOutColor:outcolor;
 
 		float waterCos=abs(dot(lookVector,specularNormal)); 
 		float fresnel=fresnelR0 + (1-fresnelR0)*pow(1-waterCos,5); //Fresnel calculation

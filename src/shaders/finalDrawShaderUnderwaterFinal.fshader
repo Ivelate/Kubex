@@ -1,7 +1,5 @@
 #version 330 core
 
-/************************************ SKY PARAMETERS **********************************************/
-
 uniform sampler2D colorTex;
 uniform sampler2D brightnessNormalTex;
 uniform sampler2D baseFboDepthTex;

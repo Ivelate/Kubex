@@ -1,5 +1,6 @@
 #version 330 core
 
+uniform sampler2D nightTexture;
 uniform sampler2D colorTex;
 uniform sampler2D brightnessNormalTex;
 uniform sampler2D baseFboDepthTex;
@@ -35,6 +36,25 @@ in vec3 FarFaceCamViewLocation;
 
 layout(location = 0) out vec4 outcolor;
 
+vec4 getSkyColorApproximation(vec3 Location)
+{
+	vec4 nightColor;
+	
+	float zenith = acos(Location.y / sqrt(Location.x*Location.x + Location.y*Location.y + Location.z*Location.z));
+   	float len=zenith/3.1415926;
+	float azimuth = atan(Location.x, Location.z);
+	float xt=cos(azimuth)*len;
+   	float yt=sin(azimuth)*len;
+   	
+   	if(sqrt(xt*xt + yt*yt)>0.5f) {
+   		float normLight=((daylightAmount-0.35)*1.5384);
+   		return vec4(0.2*normLight,0.4*normLight,0.75*normLight,1);
+   	}
+   	 
+   	 //return vec4(1,0,0,1);	
+   	float attenuation=clamp((daylightAmount-0.5)*2,0,1);
+   	return mix(texture2D(nightTexture,vec2(xt+0.5f,yt+0.5f)),vec4(0.12,0.2,0.39,1),attenuation);
+}
 void main()
 {
 	float mnearfar=cnear*cfar;
@@ -62,6 +82,8 @@ void main()
 	float firstWaterDepth;
 	vec3 firstWaterNormal;
 	
+	bool underwater=false;
+	
 	for(int i=0;i<liquidLayersTexLength;i++)
 	{ 
 		float dw=texture(liquidLayersTex,vec3(pos.x,pos.y,floor(i+0.5))).x;
@@ -69,6 +91,7 @@ void main()
 		
 		if(begind<0) {
 			begind=-mnearfar / ((dw * snearfar) - cfar);
+			underwater=true;
 			if(i==0){
 				firstWaterDepth=begind;
 				firstWaterNormal=normalize(vec3(0,1,0));
@@ -82,6 +105,7 @@ void main()
 			
 			waterd+=(finald-begind);
 			begind=-1;
+			underwater=false;
 		}
 	}
 	if(begind>=0){
@@ -91,19 +115,14 @@ void main()
 	}
 		
 	bool water=waterd>0;
-	float outw=water?0.8:1.0;
 	
 	//START ILLUMINATION
 	
 	outcolor=texture2D(colorTex,vec2(pos.x,pos.y));
 	
-	if(z<1||water)
+	float shadowAttenuation=1;
+	if(z<1&&!underwater)
 	{
-		if(water) {
-			trueDepth=firstWaterDepth;
-			normal=firstWaterNormal;
-			worldPosition=FarFaceLocation*trueDepth/cfar;
-		}
 		//SHADOWS
 		int sindex=0;
 		if(trueDepth>splitDistances.x)
@@ -113,7 +132,6 @@ void main()
 			else sindex=3;
 		}
 	
-		float shadowAttenuation=1;
 		float dotsun=dot(sunNormal,normal);
 		float sunsetdot=dot(sunNormal,vec3(0,1,0));
 		if(dotsun>0 && sunsetdot>-0.2)
@@ -130,25 +148,53 @@ void main()
 				
 			shadowAttenuation=0.7f*shadow + 0.3f;
 		}
-		else shadowAttenuation=0.3f;
-	
-		float daylightBrightness=Brightness.x*daylightAmount*shadowAttenuation;
-		float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness;
-	
-		outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
-		if(water) {
-			outw=(shadowAttenuation-0.3f)*1.14;
-		}
-		
-		float fog = clamp(exp(-fogdensity * trueDepth * trueDepth), 0.2, 1);
-  		outcolor = mix(fogcolor*((daylightAmount-0.15)*1.17647), outcolor, fog);
+		else shadowAttenuation=0.3f;		
   	}
+  	float waterShadowAttenuation=1;
+  	if(water)
+  	{
+  		trueDepth=firstWaterDepth;
+		normal=firstWaterNormal;
+		worldPosition=FarFaceLocation*trueDepth/cfar;
+		int sindex=0;
+		if(trueDepth>splitDistances.x)
+		{
+			if(trueDepth<splitDistances.y) sindex=1;
+			else if(trueDepth<splitDistances.z) sindex=2;
+			else sindex=3;
+		}
 	
+		float dotsun=dot(sunNormal,normal);
+		float sunsetdot=dot(sunNormal,vec3(0,1,0));
+		if(dotsun>0 && sunsetdot>-0.2)
+		{
+			float sunsetAttenuation=sunsetdot>0?1.0:(sunsetdot+0.2)*5;
+			vec3 smallnormal=normal * length(worldPosition)*0.01;
+			vec4 sunLocation=shadowMatrixes[sindex]*vec4(worldPosition+smallnormal,1);
+			vec4 shadowLoc=vec4(sunLocation.x,sunLocation.y,float(floor(sindex+0.5f)),sunLocation.z);
+			if(texture(shadowMap,shadowLoc)<0.5){
+				waterShadowAttenuation=0.3;
+			}
+		}
+		else waterShadowAttenuation=0.3;
+  	}
+  	
+	shadowAttenuation=underwater?waterShadowAttenuation:shadowAttenuation;
+	float daylightBrightness=Brightness.x*daylightAmount*shadowAttenuation;
+	float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness;
+	
+	outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
+	float fog = clamp(exp(-fogdensity * trueDepth * trueDepth), 0.2, 1);
+  	outcolor = mix(fogcolor*((daylightAmount-0.15)*1.17647), outcolor, fog);
+  		
 	if(water)
 	{
+		if(z==1) outcolor=getSkyColorApproximation(lookVector); 
 		vec4 crefracted=vec4((outcolor.xyz*exp(-vec3(0.46,0.09,0.06)*(waterd/*+(1-Brightness.x)*16*/))).xyz,1);
 		outcolor=mix(vec4(0.05,0.05,0.1,1),crefracted,exp(-0.01*waterd));
 	}
 	
-	outcolor.w=outw;
+	outcolor.w=water? (waterShadowAttenuation>0.5?(0.8*(clamp((daylightAmount-0.55)*4,0,1))):0) : 1;/*water? ((z==1?0:0.4) + (waterShadowAttenuation>0.5?0.2:0)): 1*/;
+	//if(outcolor.w>0.89&&outcolor.w<0.91) outcolor=vec4(1,0,0,0.9);
+	//outcolor=getSkyColorApproximation(lookVector);
 }

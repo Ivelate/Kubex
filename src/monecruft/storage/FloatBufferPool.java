@@ -14,6 +14,9 @@ public class FloatBufferPool
 	private static float bufferNum=0;
 	
 	private static LinkedList<FloatBuffer> content=null;
+	
+	private static boolean ended=false;
+	
 	public static void init(int defaultSize,int maxCapacity){
 		if(defSize!=defaultSize){
 			content=new LinkedList<FloatBuffer>();
@@ -31,6 +34,7 @@ public class FloatBufferPool
 		}
 		while(content.size()==0){
 			try {
+				if(ended) return null;
 				content.wait();
 			} catch (InterruptedException e) {}
 		}
@@ -45,5 +49,12 @@ public class FloatBufferPool
 			content.notify();
 		}
 		//}
+	}
+	public static void fullClean(){
+		synchronized(content){
+			ended=true;
+			content.notifyAll();
+		}
+		
 	}
 }

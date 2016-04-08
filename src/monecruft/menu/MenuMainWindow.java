@@ -12,27 +12,52 @@ import monecruft.menu.MonecruftMenu.MenuState;
 
 import javax.swing.JComboBox;
 import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.io.File;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 
 import javax.swing.ImageIcon;
+import javax.swing.DefaultComboBoxModel;
 
 public class MenuMainWindow extends JPanel 
 {
 	/**
 	 * Create the panel.
 	 */
+	private static class Resolution
+	{
+		public final int x, y;
+		public Resolution(int x,int y){
+			this.x=x;
+			this.y=y;
+		}
+	}
+	private static final Resolution[] SUPPORTED_RESOLUTIONS={
+			new Resolution(800,600),
+			new Resolution(1024,768),
+			new Resolution(1280,1024),
+			new Resolution(1366,768),
+			new Resolution(1920,1080)
+	};
+	private static final String[] SUPPORTED_RESOLUTIONS_TEXT_TABLE=createSupportedResolutionsTable(SUPPORTED_RESOLUTIONS);
+	
+	
 	private JCheckBox chckbxFullScreen;
 	private JCheckBox chckbxDisableShadows;
 	private JCheckBox chckbxNewCheckBox;
 	private JComboBox<String> comboBox;
 	private File mapsFolder;
+	private JComboBox<String> windowResComboBox;
+	private JSpinner renderDistanceSpinner;
 	
 	public MenuMainWindow(MonecruftMenu monecruftMenu,MonecruftSettings settings,File mapsFolder,String[] maps) 
 	{
@@ -64,19 +89,52 @@ public class MenuMainWindow extends JPanel
 		if(matchIndex>=0) comboBox.setSelectedIndex(matchIndex);
 		add(comboBox);
 		
+		windowResComboBox = new JComboBox<String>();
+		windowResComboBox.setModel(new DefaultComboBoxModel(SUPPORTED_RESOLUTIONS_TEXT_TABLE));
+		//Lets see what resolution we have stored
+		int res=0;
+		for(int i=0;i<SUPPORTED_RESOLUTIONS.length;i++)
+		{
+			if(	SUPPORTED_RESOLUTIONS[i].x == settings.WINDOW_XRES && 
+				SUPPORTED_RESOLUTIONS[i].y == settings.WINDOW_YRES){
+				res=i;
+				break;
+			}
+		}
+		windowResComboBox.setSelectedIndex(res);
+		windowResComboBox.setBounds(135, 227, 98, 20);
+		add(windowResComboBox);
+		
 		chckbxFullScreen = new JCheckBox("Full Screen");
-		chckbxFullScreen.setBounds(6, 243, 153, 23);
+		chckbxFullScreen.setBounds(6, 283, 98, 23);
 		chckbxFullScreen.setSelected(settings.FULLSCREEN_ENABLED);
+		chckbxFullScreen.addItemListener(new ItemListener() {
+
+            @Override
+            public void itemStateChanged(ItemEvent e) {
+               if(e.getStateChange() == ItemEvent.SELECTED)
+               {
+            	   windowResComboBox.setEnabled(false);
+               }
+               else windowResComboBox.setEnabled(true);
+            }
+        });
 		add(chckbxFullScreen);
 		
-		chckbxDisableShadows = new JCheckBox("Disable shadows");
-		chckbxDisableShadows.setBounds(6, 275, 153, 23);
-		chckbxDisableShadows.setSelected(!settings.SHADOWS_ENABLED);
+		chckbxDisableShadows = new JCheckBox("Shadows");
+		chckbxDisableShadows.setBounds(135, 309, 153, 23);
+		chckbxDisableShadows.setSelected(settings.SHADOWS_ENABLED);
 		add(chckbxDisableShadows);
 		
-		chckbxNewCheckBox = new JCheckBox("Disable reflections");
-		chckbxNewCheckBox.setBounds(6, 309, 153, 23);
-		chckbxNewCheckBox.setSelected(!settings.REFLECTIONS_ENABLED);
+		SpinnerNumberModel model1=new SpinnerNumberModel(10,3,20,1);
+		renderDistanceSpinner = new JSpinner(model1);
+		renderDistanceSpinner.setBounds(194, 256, 39, 20);
+		renderDistanceSpinner.setValue(settings.RENDER_DISTANCE);
+		add(renderDistanceSpinner);
+		
+		chckbxNewCheckBox = new JCheckBox("Reflections");
+		chckbxNewCheckBox.setBounds(6, 309, 127, 23);
+		chckbxNewCheckBox.setSelected(settings.REFLECTIONS_ENABLED);
 		add(chckbxNewCheckBox);
 		
 		JLabel lblNewLabel = new JLabel("Kubex v1.0");
@@ -95,10 +153,10 @@ public class MenuMainWindow extends JPanel
 		    });
 		add(btnLoadSelectedMap);
 		
-		JButton btnNewButton = new JButton();
-		btnNewButton.setSelectedIcon(new ImageIcon(MenuMainWindow.class.getResource("/images/round_delete.png")));
-		btnNewButton.setForeground(Color.RED);
-		btnNewButton.setBackground(Color.BLACK);
+		JButton btnNewButton = new JButton(new ImageIcon(MenuMainWindow.class.getResource("/images/round_delete.png")));
+
+		//btnNewButton.setForeground(Color.RED);
+		//btnNewButton.setBackground(Color.BLACK);
 		btnNewButton.setBounds(278, 244, 20, 20);
 		btnNewButton.addActionListener(new ActionListener() {
 		       public void actionPerformed(ActionEvent ae){
@@ -119,19 +177,42 @@ public class MenuMainWindow extends JPanel
 		       }
 		    });
 		add(btnNewButton);
+		
+		JLabel lblRenderDistance = new JLabel("Render distance (Chunks): ");
+		lblRenderDistance.setBounds(10, 259, 181, 14);
+		add(lblRenderDistance);
+		
+		JLabel lblWindowResolution = new JLabel("Window resolution");
+		lblWindowResolution.setBounds(10, 230, 123, 14);
+		add(lblWindowResolution);
 		if(maps.length==0) btnLoadSelectedMap.setEnabled(false);
 		if(maps.length==0) btnNewButton.setEnabled(false);
 	}
-	
+
 	private void storeSettings(MonecruftSettings settings)
 	{
  	   settings.FULLSCREEN_ENABLED=chckbxFullScreen.isSelected();
- 	   settings.SHADOWS_ENABLED=!chckbxDisableShadows.isSelected();
- 	   settings.REFLECTIONS_ENABLED=!chckbxNewCheckBox.isSelected();
+ 	   settings.SHADOWS_ENABLED=chckbxDisableShadows.isSelected();
+ 	   settings.REFLECTIONS_ENABLED=chckbxNewCheckBox.isSelected();
+ 	   settings.WINDOW_XRES=SUPPORTED_RESOLUTIONS[windowResComboBox.getSelectedIndex()].x;
+ 	   settings.WINDOW_YRES=SUPPORTED_RESOLUTIONS[windowResComboBox.getSelectedIndex()].y;
+ 	   settings.RENDER_DISTANCE=(int)renderDistanceSpinner.getValue();
+ 	  
  	   try
  	   {
  		   settings.MAP_ROUTE=(new File(mapsFolder,(String)comboBox.getSelectedItem())).getPath();
  	   }
  	   catch(Exception e){} //If a exception is catched, there was some problem storing the map route... we ignore it
+	}
+	
+	private static String[] createSupportedResolutionsTable(Resolution[] supportedResolutions) {
+		String[] ret=new String[supportedResolutions.length];
+		
+		for(int i=0;i<ret.length;i++)
+		{
+			ret[i]=supportedResolutions[i].x+"x"+supportedResolutions[i].y;
+		}
+		
+		return ret;
 	}
 }

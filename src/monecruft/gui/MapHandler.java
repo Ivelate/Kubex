@@ -23,11 +23,11 @@ public class MapHandler
 	private MapGenerator mg;
 	private FileManager fm;
 	private WorldFacade wf;
-	private ChunkGenerator chunkGenerator;
+	private ChunkStorer chunkStorer;
 	
-	public MapHandler(int bbegin,int bend,int mapcode,long seed,WorldFacade wf,ChunkGenerator chunkGenerator,FileManager fm)
+	public MapHandler(int bbegin,int bend,int mapcode,long seed,WorldFacade wf,ChunkStorer chunkStorer,FileManager fm)
 	{
-		this.chunkGenerator=chunkGenerator;
+		this.chunkStorer=chunkStorer;
 		this.mg=new MapGenerator(bbegin,bend,mapcode,seed);
 		this.fm=fm;
 		this.wf=wf;
@@ -54,7 +54,7 @@ public class MapHandler
 	}
 	public void storeChunk(int x,int y,int z,CubeStorage c,boolean initcializedFlag)
 	{
-			this.chunkGenerator.addChunkStoreRequest(new ChunkStoreRequest(c, x, y, z,initcializedFlag));
+			this.chunkStorer.addChunkStoreRequest(new ChunkStoreRequest(c, x, y, z,initcializedFlag));
 	}
 	public void generateChunkObjects(Chunk c)
 	{
