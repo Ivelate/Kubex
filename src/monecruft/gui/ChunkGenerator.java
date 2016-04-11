@@ -5,6 +5,11 @@ import java.util.LinkedList;
 import monecruft.shaders.VoxelShaderProgram;
 import monecruft.storage.ByteArrayPool;
 
+/**
+ * @author Víctor Arellano Vicente (Ivelate)
+ * 
+ * Chunk Generator thread. Initcializes chunks in a different thread than the main one to prevent blocks
+ */
 public class ChunkGenerator extends Thread
 {
 	public static final int MAX_CHUNKS_LOADED=9;
@@ -26,7 +31,9 @@ public class ChunkGenerator extends Thread
 			synchronized(this){
 				while((requestList.size()==0||WF.getAddListSize()>=MAX_CHUNKS_LOADED)){
 					try {
-						if(ByteArrayPool.getUncleanedArraysCount()>0) ByteArrayPool.recycleCleanArray(ByteArrayPool.cleanArray(ByteArrayPool.getArrayUncleaned()));
+						if(ByteArrayPool.getUncleanedArraysCount()>0) ByteArrayPool.recycleCleanArray(ByteArrayPool.cleanArray(ByteArrayPool.getArrayUncleaned())); //This thread spends most of its time idle
+																																									//on 2D maps, so this free time cam be used to
+																																									//Reset at 0 some pooled dirty arrays.
 						else wait();
 						if(endRequested) break threadMainLoop;
 					} catch (InterruptedException e) {}
@@ -35,10 +42,12 @@ public class ChunkGenerator extends Thread
 			}
 			
 
+			//Creates a new chunk based on the data specified in the request. This will initcialize it with the values provided by the map generator or the data provided by the file manager.
 			Chunk c=new Chunk(request.getChunkx(),request.getChunky(),request.getChunkz(),this.WF);
-			//c.genUpdateBuffer()
+
 			boolean addPet=false;
 			synchronized(this){
+				//In the time spent creating the chunk, we may have received a request to delete it. If so, its simply doesn't added to the chunk add list of the world, and cleaned in the act.
 				if(this.requestList.size()==0||!request.equals(requestList.getFirst())) c.fullClean();
 				else{
 					this.requestList.removeFirst();
@@ -52,6 +61,10 @@ public class ChunkGenerator extends Thread
 		this.dispose();
 		
 	}
+	
+	/**
+	 * Adds a chunk generation request for the chunk x,y,z
+	 */
 	public synchronized void generateChunk(int x,int y,int z)
 	{
 		boolean exists=false;
@@ -67,6 +80,10 @@ public class ChunkGenerator extends Thread
 			notifyAll();
 		}
 	}
+	
+	/**
+	 * If the chunk x,y,z is in the request list, removes it so it never gets generated.
+	 */
 	public synchronized void removeChunk(int x,int y,int z)
 	{
 		int i=-1;
@@ -78,6 +95,10 @@ public class ChunkGenerator extends Thread
 			}
 		}
 	}
+	
+	/**
+	 * Disposes the thread, waits to its termination if <block> is true
+	 */
 	public synchronized void fullClean(boolean block)
 	{
 		this.endRequested=true;
@@ -88,6 +109,10 @@ public class ChunkGenerator extends Thread
 			} catch (InterruptedException e) {}
 		}
 	}
+	
+	/**
+	 * Frees all resources used by this thread
+	 */
 	private void dispose()
 	{
 		this.requestList.clear();

@@ -1,5 +1,12 @@
 package ivengine.gen;
 
+/**
+ * @author Víctor Arellano Vicente (Ivelate)
+ * 
+ * Perlin noise. Simplex noise is more efficient and better overall, so this class is considered deprecated. Anyways, is a completely valid and functional implementation,
+ * but simplex noise simply beats it on each field.
+ */
+@Deprecated
 public class PerlinNoise 
 {
 	private static final float PERSISTENCE=0.7f;

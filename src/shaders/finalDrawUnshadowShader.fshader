@@ -118,7 +118,7 @@ void main()
 	
 	outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
 	float fog = clamp(exp(-fogdensity * trueDepth * trueDepth), 0.2, 1);
-  	outcolor = mix(fogcolor*((daylightAmount-0.15)*1.17647), outcolor, fog);
+  	outcolor = mix(fogcolor*((daylightAmount-0.35)*1.5384), outcolor, fog);
   		
 	if(water)
 	{
@@ -127,5 +127,5 @@ void main()
 		outcolor=mix(vec4(0.05,0.05,0.1,1),crefracted,exp(-0.01*waterd));
 	}
 	
-	outcolor.w=water? (0.8*((daylightAmount-0.5)*2)) : 1;
+	outcolor.w=water? (0.8*((daylightAmount-0.5)*2)) : 1.0;
 }

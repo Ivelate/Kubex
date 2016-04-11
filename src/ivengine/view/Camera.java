@@ -7,10 +7,11 @@ import org.lwjgl.util.vector.Vector3f;
 
 /**
  * 
- * @author Ivelate
+ * @author Víctor Arellano Vicente (Ivelate)
  * @since 8-12-2013 17:00
  * 
  * Camera used to handle projection matrix and view matrix and simplify interactions with them
+ * Contains helper methods to handle rotation and movement, applying this changes directly to the view matrix.
  *
  */
 public class Camera
@@ -28,7 +29,7 @@ public class Camera
 	
 	protected boolean viewChanged=true;
 	
-	private LinkedList<CameraStateListener> stateChangeListeners=new LinkedList<CameraStateListener>();
+	private LinkedList<CameraStateListener> stateChangeListeners=new LinkedList<CameraStateListener>(); //List of objects notified if the projection matrix of this camera changes
 	
 	
 	public Camera(float znear,float zfar,float fov,float arat)
@@ -65,6 +66,7 @@ public class Camera
 		
 		this.viewChanged=false;
 	}
+	
 	/**
 	 * Updates projection matrix
 	 */
@@ -84,8 +86,9 @@ public class Camera
 		this.projViewMat=new Matrix4f();
 		Matrix4f.mul(this.projMat, this.viewMat, this.projViewMat);
 	}
+	
 	/**
-	 * Moves cam to position
+	 * Moves cam to position.
 	 */
 	public void moveTo(float x,float y,float z)
 	{

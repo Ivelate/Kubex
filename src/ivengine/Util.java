@@ -8,21 +8,36 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 
 import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL30;
+import org.lwjgl.opengl.GLContext;
+
 import de.matthiasmann.twl.utils.PNGDecoder;
 import de.matthiasmann.twl.utils.PNGDecoder.Format;
 
+/**
+ * @author Víctor Arellano Vicente (Ivelate)
+ * 
+ * Some useful methods, like reading files into strings, or loading textures
+ */
 public class Util 
 {
+	/**
+	 * Loads all text of the file with path <path> into a String, and returns it
+	 */
 	public static String readFile(String path)
 	{
 			InputStream is=Util.class.getResourceAsStream(path);
 			java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
 			return s.hasNext() ? s.next() : "";
 	}
+	
+	/**
+	 * Loads a texture from a URL <filename> into a texture unit <textureUnit>
+	 */
 	public static int loadPNGTexture(URL filename, int textureUnit) {
 		ByteBuffer buf = null;
 		int tWidth = 0;
@@ -76,12 +91,17 @@ public class Util
 		return texId;
 	}
 	
-	public static int loadTextureAtlasIntoTextureArray(URL[] filenames,int magfilter,int minfilter,boolean mipmap)
+	/**
+	 * Stores a variable amount of textures defined by URLS <filenames> into a texture array. Uses a magfilter <magfilter>, a minfilter <minfilter>.
+	 * If <mipmap> is true, mipmaps will be activated.
+	 * If <anisotropic> is true, anisotropic filtering will be activated, if supported.
+	 */
+	public static int loadTextureAtlasIntoTextureArray(URL[] filenames,int magfilter,int minfilter,boolean mipmap,boolean anisotropic)
 	{
 		int tex = GL11.glGenTextures();
 		GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, tex);
-		GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
-		GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST_MIPMAP_LINEAR);
+		GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_MAG_FILTER, magfilter);
+		GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_MIN_FILTER, minfilter);
 		GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);
 		GL11.glTexParameteri(GL30.GL_TEXTURE_2D_ARRAY, GL11.GL_TEXTURE_WRAP_T, GL11.GL_REPEAT);
 		
@@ -111,18 +131,26 @@ public class Util
 		for(int i=0;i<filenames.length;i++)
 		{
 			GL12.glTexSubImage3D(GL30.GL_TEXTURE_2D_ARRAY,0, /*tileWidth*x*/0, /*tileHeight*y*/0, i,  tileWidth, tileHeight, 1,GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buf);
-			
-			//System.out.println("ERRTEXT"+i+" "+GL11.glGetError());
-			
+						
 			buf.rewind();
 			if(i<filenames.length-1) loadTexture(filenames[i+1],buf);
 		}
-		//System.out.println("ERRTEXT"+GL11.glGetError());
 		if(mipmap) GL30.glGenerateMipmap(GL30.GL_TEXTURE_2D_ARRAY);
+		if(anisotropic)
+		{
+			if(GLContext.getCapabilities().GL_EXT_texture_filter_anisotropic) {
+				float maxanis=GL11.glGetFloat(EXTTextureFilterAnisotropic.GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+				System.out.println("Anisotropic filtering activated with a resolution of "+maxanis);
+				System.out.println(GL11.glGetError());
+				GL11.glTexParameterf(GL30.GL_TEXTURE_2D_ARRAY, EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT, maxanis);
+				System.out.println(GL11.glGetError());
+			}
+			else{
+				System.err.println("WARNING - Anisotropic filtering not supported by this graphics card. Setting it as disabled");
+			}
+		}
 		GL11.glBindTexture(GL30.GL_TEXTURE_2D_ARRAY, 0);
-		
-		//System.out.println("ERRTEXT"+GL11.glGetError());
-		
+				
 		return tex;
 	}
 	

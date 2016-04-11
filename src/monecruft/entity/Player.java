@@ -87,7 +87,7 @@ public class Player implements KeyToggleListener, KeyValueListener
 		if(!grounded&&!climbing) {
 			if(underwater){
 				this.yvel-=wf.getWorldGravity()*tEl/2;
-				if(this.yvel<-wf.getWorldGravity()/2) this.yvel=-wf.getWorldGravity()/2;
+				if(this.yvel<-wf.getWorldGravity()/3) this.yvel=-wf.getWorldGravity()/3;
 			}
 			else this.yvel-=wf.getWorldGravity()*tEl;
 		}

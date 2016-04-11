@@ -44,7 +44,7 @@ import monecruftProperties.DrawableUpdatable;
 public class World implements DrawableUpdatable, Cleanable, KeyToggleListener
 {
 	private static final int MAX_CHUNK_LOADS_PER_TICK=10;
-	private static final int[] DAY_TIME_SPEED={3600,200,50,20,10,5,1};
+	private static final float[] DAY_TIME_SPEED={3600,200,50,20,10,5,1,0.5f};
 	public int PLAYER_VIEW_FIELD=10;
 	public static final int HEIGHT=8;
 	private static final float WATER_ALPHA=0.5f;

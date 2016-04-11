@@ -2,6 +2,11 @@ package monecruft.gui;
 
 import java.util.LinkedList;
 
+/**
+ * @author Víctor Arellano Vicente (Ivelate)
+ * 
+ * Chunk Storer thread. Manages all I/O over the FileManager in a different thread than the main one, preventing blocks.
+ */
 public class ChunkStorer extends Thread
 {
 	private LinkedList<ChunkStoreRequest> cleanList=new LinkedList<ChunkStoreRequest>();
@@ -32,6 +37,7 @@ public class ChunkStorer extends Thread
 				cleanChunk=cleanList.poll();
 			}
 			
+			//Stores a chunk store request
 			performChunkStore(cleanChunk);
 		}
 		
@@ -46,6 +52,10 @@ public class ChunkStorer extends Thread
 			notifyAll();
 		}
 	}
+	
+	/**
+	 * Stores a chunk store request in a file, managing if it contains an array or just a uniform byte value, and acts accordingly.
+	 */
 	private void performChunkStore(ChunkStoreRequest cleanChunk)
 	{
 		if(cleanChunk.chunkCubes.isTrueStorage()){
@@ -55,11 +65,19 @@ public class ChunkStorer extends Thread
 		
 		cleanChunk.chunkCubes.dispose();
 	}
+	
+	/**
+	 * Adds a chunk store petition to the request list
+	 */
 	public synchronized void addChunkStoreRequest(ChunkStoreRequest req)
 	{
 		cleanList.add(req);
 		notifyAll();
 	}
+	
+	/**
+	 * Disposes this thread, waits until its termination if <block> is especified.
+	 */
 	public synchronized void fullClean(boolean block)
 	{
 		this.endRequested=true;

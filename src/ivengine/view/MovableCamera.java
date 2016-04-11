@@ -2,11 +2,15 @@ package ivengine.view;
 
 import org.lwjgl.util.vector.Matrix4f;
 
+/**
+ *  @author Víctor Arellano Vicente (Ivelate)
+ *  
+ *  Wrapper for DirectoMovementCamera implementation
+ */
 public abstract class MovableCamera extends Camera{
 
 	public MovableCamera(float znear, float zfar, float fov, float arat) {
 		super(znear, zfar, fov, arat);
-		// TODO Auto-generated constructor stub
 	}
 	public MovableCamera(Matrix4f mat)
 	{

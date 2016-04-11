@@ -2,6 +2,11 @@ package ivengine.view;
 
 import org.lwjgl.util.vector.Matrix4f;
 
+/**
+ *  @author Víctor Arellano Vicente (Ivelate)
+ *  
+ *  Inverts the projection matrix of a Camera, and stores it. If the projection matrix of the camera changes, the inverse will be recalculated *
+ */
 public class CameraInverseProjEnvelope implements CameraStateListener
 {
 	private Camera cam;

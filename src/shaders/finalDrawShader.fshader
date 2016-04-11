@@ -185,7 +185,7 @@ void main()
 	
 	outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
 	float fog = clamp(exp(-fogdensity * trueDepth * trueDepth), 0.2, 1);
-  	outcolor = mix(fogcolor*((daylightAmount-0.15)*1.17647), outcolor, fog);
+  	outcolor = mix(fogcolor*((daylightAmount-0.35)*1.5384), outcolor, fog);
   		
 	if(water)
 	{
@@ -194,7 +194,7 @@ void main()
 		outcolor=mix(vec4(0.05,0.05,0.1,1),crefracted,exp(-0.01*waterd));
 	}
 	
-	outcolor.w=water? (waterShadowAttenuation>0.5?(0.8*(clamp((daylightAmount-0.55)*4,0,1))):0) : 1;/*water? ((z==1?0:0.4) + (waterShadowAttenuation>0.5?0.2:0)): 1*/;
+	outcolor.w=water? (waterShadowAttenuation>0.5?(0.8*(clamp((daylightAmount-0.629)*4,0.0,1.0))):0.0) : 1.0;/*water? ((z==1?0:0.4) + (waterShadowAttenuation>0.5?0.2:0)): 1*/;
 	//if(outcolor.w>0.89&&outcolor.w<0.91) outcolor=vec4(1,0,0,0.9);
 	//outcolor=getSkyColorApproximation(lookVector);
 }

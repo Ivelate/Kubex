@@ -53,6 +53,7 @@ public class MenuMainWindow extends JPanel
 	
 	private JCheckBox chckbxFullScreen;
 	private JCheckBox chckbxDisableShadows;
+	private JCheckBox chckbxAnisotropic;
 	private JCheckBox chckbxNewCheckBox;
 	private JComboBox<String> comboBox;
 	private File mapsFolder;
@@ -91,6 +92,7 @@ public class MenuMainWindow extends JPanel
 		
 		windowResComboBox = new JComboBox<String>();
 		windowResComboBox.setModel(new DefaultComboBoxModel(SUPPORTED_RESOLUTIONS_TEXT_TABLE));
+		windowResComboBox.setEnabled(!settings.FULLSCREEN_ENABLED);
 		//Lets see what resolution we have stored
 		int res=0;
 		for(int i=0;i<SUPPORTED_RESOLUTIONS.length;i++)
@@ -105,6 +107,11 @@ public class MenuMainWindow extends JPanel
 		windowResComboBox.setBounds(135, 227, 98, 20);
 		add(windowResComboBox);
 		
+		JLabel lblWindowResolution = new JLabel("Window resolution");
+		lblWindowResolution.setBounds(10, 230, 123, 14);
+		lblWindowResolution.setEnabled(!settings.FULLSCREEN_ENABLED);
+		add(lblWindowResolution);
+		
 		chckbxFullScreen = new JCheckBox("Full Screen");
 		chckbxFullScreen.setBounds(6, 283, 98, 23);
 		chckbxFullScreen.setSelected(settings.FULLSCREEN_ENABLED);
@@ -115,8 +122,12 @@ public class MenuMainWindow extends JPanel
                if(e.getStateChange() == ItemEvent.SELECTED)
                {
             	   windowResComboBox.setEnabled(false);
+            	   lblWindowResolution.setEnabled(false);
                }
-               else windowResComboBox.setEnabled(true);
+               else {
+            	   windowResComboBox.setEnabled(true);
+            	   lblWindowResolution.setEnabled(true);
+               }
             }
         });
 		add(chckbxFullScreen);
@@ -136,6 +147,11 @@ public class MenuMainWindow extends JPanel
 		chckbxNewCheckBox.setBounds(6, 309, 127, 23);
 		chckbxNewCheckBox.setSelected(settings.REFLECTIONS_ENABLED);
 		add(chckbxNewCheckBox);
+		
+		chckbxAnisotropic = new JCheckBox("Anisotropic filtering");
+		chckbxAnisotropic.setBounds(135, 283, 153, 23);
+		chckbxAnisotropic.setSelected(settings.ANISOTROPIC_FILTERING_ENABLED);
+		add(chckbxAnisotropic);
 		
 		JLabel lblNewLabel = new JLabel("Kubex v1.0");
 		lblNewLabel.setFont(new Font("Tahoma", Font.PLAIN, 44));
@@ -182,15 +198,13 @@ public class MenuMainWindow extends JPanel
 		lblRenderDistance.setBounds(10, 259, 181, 14);
 		add(lblRenderDistance);
 		
-		JLabel lblWindowResolution = new JLabel("Window resolution");
-		lblWindowResolution.setBounds(10, 230, 123, 14);
-		add(lblWindowResolution);
 		if(maps.length==0) btnLoadSelectedMap.setEnabled(false);
 		if(maps.length==0) btnNewButton.setEnabled(false);
 	}
 
 	private void storeSettings(MonecruftSettings settings)
 	{
+	   settings.ANISOTROPIC_FILTERING_ENABLED=this.chckbxAnisotropic.isSelected();
  	   settings.FULLSCREEN_ENABLED=chckbxFullScreen.isSelected();
  	   settings.SHADOWS_ENABLED=chckbxDisableShadows.isSelected();
  	   settings.REFLECTIONS_ENABLED=chckbxNewCheckBox.isSelected();

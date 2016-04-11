@@ -25,7 +25,15 @@ import java.io.File;
 
 public class MenuCreateMapWindow extends JPanel 
 {
-	private static final String[] MAP_TYPES={"Islands","Snowy hills","Plains","Caves"};
+	private static final String[] MAP_TYPES={"Islands","Snowy hills","Plains","Buggy caves","Floating World","Underwater ruins","Deep Caves"};
+	private static final String[] MAP_DESCRIPTIONS={"Default map. Large islands with mountains and hills.<br><font color=\"green\">Load time: LOW</font>",
+													"High height map, more escarpate, with some lakes<br><font color=\"green\">Load time: LOW</font>",
+													"Plain map, sabanna-like<br><font color=\"green\">Load time: LOW</font>",
+													"Buggy 3D cave map, some terrain irregularities makes it unique.<br><font color=\"orange\">Load time: MEDIUM-HIGH</font>",
+													"World with floating islands.<br><font color=\"red\">Load time: HIGH</font>",
+													"Island map, with underwater caves, and lights.<br><font color=\"red\">Load time: HIGH</font>",
+													"Map full of intrincate caves. Light doesn't reach its end.<br><font color=\"red\">Load time: HIGH</font>"
+	};
 	private JTextField mapNameField;
 	private JTextField mapSeedField;
 	/**
@@ -45,8 +53,18 @@ public class MenuCreateMapWindow extends JPanel
 		      });
 		add(btnBack);
 		
+		JLabel mapDescriptionLabel = new JLabel("<html>"+MAP_DESCRIPTIONS[0]+"</html>");
+		mapDescriptionLabel.setBounds(285, 194, 205, 50);
+		mapDescriptionLabel.setVerticalAlignment(JLabel.TOP);
+		add(mapDescriptionLabel);
+		
 		JComboBox<String> mapTypeComboBox = new JComboBox<String>(MAP_TYPES);
 		mapTypeComboBox.setBounds(94, 194, 181, 20);
+		mapTypeComboBox.addActionListener(new ActionListener() {
+		       public void actionPerformed(ActionEvent ae){
+		    	   mapDescriptionLabel.setText("<html>"+MAP_DESCRIPTIONS[mapTypeComboBox.getSelectedIndex()]+"</html>");
+		       }
+		});
 		add(mapTypeComboBox);
 		
 		JLabel lblNewLabel = new JLabel("Kubex v1.0");
@@ -144,6 +162,7 @@ public class MenuCreateMapWindow extends JPanel
 		    		   settings.MAP_CODE=mapType;
 		    		   settings.MAP_SEED=seed;
 		    		   settings.MAP_ROUTE=mapName;
+		    		   if(settings.MAP_CODE>3) settings.PLAYER_Y=1000;
 		    		   monecruftMenu.setState(MenuState.START);
 		    	   }
 		    	   else JOptionPane.showMessageDialog(null, "Invalid map: \n"+errorMsg);

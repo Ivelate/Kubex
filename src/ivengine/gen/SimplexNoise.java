@@ -1,6 +1,11 @@
 package ivengine.gen;
 import java.util.Random;
 
+/**
+ * @author Víctor Arellano Vicente (Ivelate)
+ * 
+ * Simplex noise implementation. Uses as many octaves as desired and haves helper methods to get 2D or 3D noise
+ */
 public class SimplexNoise {
 
     SimplexNoise_octave[] octaves;
@@ -38,12 +43,9 @@ public class SimplexNoise {
         double result=0;
 
         for(int i=0;i<octaves.length;i++){
-          //double frequency = Math.pow(2,i);
-          //double amplitude = Math.pow(persistence,octaves.length-i);
 
           result=result+octaves[i].noise((x/zoom)/frequencys[i], (y/zoom)/frequencys[i])* amplitudes[i];
         }
-        //result=octaves[0].noise(x/(zoom*10), y/(zoom*10));
 
         return result;
 

@@ -8,6 +8,12 @@ import monecruft.storage.CubeStorage;
 import monecruft.storage.FileManager;
 import monecruft.storage.FileManager.ChunkLoadResult;
 
+/**
+ * @author Víctor Arellano Vicente (Ivelate)
+ * 
+ * Acts like a facade for chunk loading / store, decoupling it from the program logic.
+ * In practice, looks for the ckunks in the FileManager and, if they don't exist, generates them using the MapGenerator.
+ */
 public class MapHandler 
 {	
 	public class ChunkData
@@ -33,6 +39,9 @@ public class MapHandler
 		this.wf=wf;
 	}
 	
+	/**
+	 * Return the chunk cubes for the chunk pos x,y,z , loading them from a file, if they are already stored, or generating them.
+	 */
 	public ChunkData getChunk(int x,int y,int z,byte[][][] c)
 	{
 		ChunkLoadResult res=this.fm.loadChunk(c, x, y, z);
@@ -52,35 +61,38 @@ public class MapHandler
 		
 		return new ChunkData(ChunkGenerationResult.CHUNK_EMPTY,true); //Never reached
 	}
+	
+	/**
+	 * Stores a chunk c in a file (Only sends the request to the ChunkStorer thread)
+	 */
 	public void storeChunk(int x,int y,int z,CubeStorage c,boolean initcializedFlag)
 	{
 			this.chunkStorer.addChunkStoreRequest(new ChunkStoreRequest(c, x, y, z,initcializedFlag));
 	}
+	
+	/**
+	 * Performs the second pass chunk generation over chunk <c>
+	 */
 	public void generateChunkObjects(Chunk c)
 	{
 		this.mg.generateChunkObjects(c);
 	}
+	
 	public FileManager getFileManager()
 	{
 		return this.fm;
 	}
+	
+	/**
+	 * Returns true if and only if a face of <blockCode>, collindant with a <neighbourBlockCode>, needs to be drawn. (If a block has no air collindant to it it can't be seen, so its not needed to draw it).
+	 * On liquid blocks, with <liquidTag> true, the algorithm is a little different.
+	 */
 	public boolean shouldDraw(byte blockCode,byte neighbourBlockCode,boolean liquidTag,Direction d){
 		if(liquidTag)
 			if(BlockLibrary.isSolid(blockCode)){
 				return BlockLibrary.canSeeTrough(blockCode);
 			}
 			else if(BlockLibrary.isLiquid(blockCode)){
-				/*if(BlockLibrary.isSameBlock(blockCode, neighbourBlockCode)){
-					int maxh=BlockLibrary.getLiquidMaxLevel(blockCode);
-					if(d==Direction.YP){
-						if(BlockLibrary.getLiquidLevel(neighbourBlockCode)<maxh) return true;
-						else return false;
-					}
-					else if(d==Direction.YM){
-						if(BlockLibrary.getLiquidLevel(blockCode)<maxh) return true;
-						else return false;
-					}
-				}*/
 				return false;
 			}
 			else return true;

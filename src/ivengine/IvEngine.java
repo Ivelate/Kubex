@@ -4,6 +4,11 @@ import org.lwjgl.LWJGLException;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 
+/**
+ * @author Víctor Arellano Vicente (Ivelate)
+ * 
+ * Wraps the needed opperations to create and configure a OpenGL display
+ */
 public class IvEngine 
 {
 	public static void configDisplay(int screenWidth,int screenHeight,String title,boolean VSYNC,boolean resizable,boolean fullscreen) throws LWJGLException

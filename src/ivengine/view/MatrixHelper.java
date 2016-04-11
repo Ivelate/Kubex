@@ -14,6 +14,11 @@ import org.lwjgl.util.vector.Vector4f;
 import monecruft.gui.Chunk;
 import monecruft.utils.Vector3d;
 
+/**
+ *  @author Víctor Arellano Vicente (Ivelate)
+ *  
+ *  Contains multiple helper methods to work with matrixes
+ */
 public class MatrixHelper 
 {
 	public static final Vector3f zAxis=new Vector3f(0,0,1);
@@ -26,6 +31,9 @@ public class MatrixHelper
 	
 	private static FloatBuffer matrix44Buffer=BufferUtils.createFloatBuffer(16);
 	
+	/**
+	 * Creates a perspective projection matrix with a z near point <znear> , z far point <zfar> , field of view <fov> and resolution ratio <arat>
+	 */
 	public static Matrix4f createProjectionMatrix(float znear,float zfar,float fov,float arat)
 	{
 		// Setup projection matrix
@@ -44,6 +52,10 @@ public class MatrixHelper
 		
 		return projectionMatrix;
 	}
+	
+	/**
+	 * Creates a orthographic projection matrix going from x <xm> to <xp> , from y <ym> to <yp> and from z <zm> to <zp>
+	 */
 	public static Matrix4f createOrthoMatix(float xp,float xm,float yp,float ym,float zp,float zm)
 	{
 		Matrix4f res=new Matrix4f();
@@ -64,22 +76,16 @@ public class MatrixHelper
 
 		res.m30 = -(xp+xm)/(xp-xm);
 		res.m31 = -(yp+ym)/(yp-ym);
-		res.m32 = (zp+zm)/(zp-zm); //|TODO wtf
+		res.m32 = (zp+zm)/(zp-zm); // With the - at the beginning, it doesn't work properly. Its confusing, because all written scientific literature makes clear that this - is 
+								   // neccesary, but my tests give wrong results if it's there. Anyways : It works.
 		res.m33 = 1.0f;
 		
 		return res;
 	}
-	/*static
-	{
-
-		/*Matrix4f or=createOrthoMatix(114.68283f, -122.138916f,
-129.2872f, -107.17637f,
--223.08084f, -294.14893f);
-		System.out.println(Matrix4f.transform(or, new Vector4f(0,-26.04f,-259.6099f,1),null));System.exit(0);*/
-		/*Matrix4f or=createOrthoMatix(10,-10,10,-10,10,-10);
-		System.out.println(Matrix4f.transform(or, new Vector4f(0,0,-7,1),null));System.exit(0);
-		
-	}*/
+	
+	/**
+	 * Creates both a scale and a translation matrix on the same call. Scale will be equal to <scale> (On all axis), and the translation will be <xt> , <yt> , <zt>
+	 */
 	public static Matrix4f createScaleTranslationMatrix(float scale,float xt,float yt,float zt)
 	{
 		Matrix4f res=new Matrix4f();
@@ -105,6 +111,10 @@ public class MatrixHelper
 		
 		return res;
 	}
+	
+	/**
+	 * Multiplies a matrix by a vector
+	 */
 	public static Vector4f multiply(Matrix4f op1,Vector4f op2)
 	{
 		return new Vector4f((op1.m00*op2.x)+(op1.m10*op2.y)+(op1.m20*op2.z)+(op1.m30*op2.w),
@@ -112,11 +122,23 @@ public class MatrixHelper
 				(op1.m02*op2.x)+(op1.m12*op2.y)+(op1.m22*op2.z)+(op1.m32*op2.w),
 				(op1.m03*op2.x)+(op1.m13*op2.y)+(op1.m23*op2.z)+(op1.m33*op2.w));
 	}
+	
+	/**
+	 * Uploads a matrix <mat> to the graphics card, to the uniform with location <dest>
+	 */
 	public static void uploadMatrix(Matrix4f mat,int dest)
 	{
 		matrix44Buffer.rewind();mat.store(matrix44Buffer); matrix44Buffer.flip();
 	    glUniformMatrix4(dest, false, matrix44Buffer);
 	}
+	
+	/**
+	 * Perfomance method. Reuses a matrix <mat>, so memory cost is 0: Translates that matrix <mat> using the vector - <trans>, uploads it to the graphics card
+	 * and retranslates it back to its initial position.
+	 * Due to some floating point operation errors, this operation can return a matrix not exactly equal to the original one. This method is fast but pottentially inaccurate, so
+	 * its marked as deprecate
+	 */
+	@Deprecated
 	public static void uploadTranslatedMatrix(Matrix4f mat,Vector3f trans,int dest)
 	{
 		mat.m30-=trans.x; mat.m31-=trans.y; mat.m32-=trans.z;
@@ -124,6 +146,10 @@ public class MatrixHelper
 		mat.m30+=trans.x; mat.m31+=trans.y; mat.m32+=trans.z;
 	}
 
+	/**
+	 * Perfomance method. Reuses a matrix <mat>, so memory cost is 0: Translates that matrix <mat> using the vector - <trans>, uploads it to the graphics card
+	 * and retranslates it back to its initial position.
+	 */
 	public static void uploadTranslatedMatrix(Matrix4f mat,Vector3d trans,int dest)
 	{
 		float m30=mat.m30; float m31=mat.m31; float m32=mat.m32; 
@@ -131,6 +157,13 @@ public class MatrixHelper
 		uploadMatrix(mat,dest);
 		mat.m30=m30; mat.m31=m31; mat.m32=m32;
 	}
+	
+	/**
+	 * Creates a translation matrix on-the-fly over the matrix <mat> and uploads it.
+	 * This method when centering the perspective in the player, so the translation will be equal to the
+	 * distance to the center point, being that <ix> , <iy> , <iz> , and the objective point being
+	 * described by the vector <trans>
+	 */
 	public static void uploadTranslationMatrix(Matrix4f mat,double ix,double iy,double iz,Vector3d trans,int dest)
 	{
 		mat.m30=(float)(ix-trans.x);
@@ -139,10 +172,17 @@ public class MatrixHelper
 		uploadMatrix(mat,dest);
 	}
 
+	/**
+	 * Uploads a vector <vec> to the graphics card (Into the uniform location <dest> ) 
+	 */
 	public static void uploadVector(Vector3f vec,int dest)
 	{
 	    GL20.glUniform3f(dest, vec.x, vec.y, vec.z);
 	}
+	
+	/**
+	 * Returns the inverted matrix of the rotation matrix contained in <mat>
+	 */
 	public static Matrix4f getRotationAndInvert(Matrix4f mat)
 	{
 		Matrix4f toRet=new Matrix4f(mat);
@@ -152,6 +192,8 @@ public class MatrixHelper
 		Matrix4f.invert(toRet, toRet);
 		return toRet;
 	}
+	
+	
 	private static float coTangent(float angle) {
 		return (float)(1f / Math.tan(angle));
 	}
@@ -160,7 +202,9 @@ public class MatrixHelper
 		return degrees * (float)(Math.PI / 180d);
 	}
 	
-	//Well, this uses a static buffer, so synchronized
+	/**
+	 * Fast affine inverse. Uses a static buffer, so this method is synchronized
+	 */
 	public static synchronized Matrix4f getAffineInverse(Matrix4f m,Matrix4f dest)
 	{
 		m3buf.m00=m.m00; m3buf.m01=m.m01; m3buf.m02=m.m02;

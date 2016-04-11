@@ -8,11 +8,9 @@ import static org.lwjgl.opengl.GL15.glBufferData;
 import static org.lwjgl.opengl.GL15.glBufferSubData;
 import static org.lwjgl.opengl.GL15.glDeleteBuffers;
 import ivengine.properties.Cleanable;
-import ivengine.shaders.SimpleShaderProgram;
 import ivengine.view.Camera;
 import ivengine.view.MatrixHelper;
 
-import java.io.File;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -23,30 +21,31 @@ import java.util.concurrent.Semaphore;
 import monecruft.blocks.BlockLibrary;
 import monecruft.gui.MapGenerator.ChunkGenerationResult;
 import monecruft.gui.MapHandler.ChunkData;
-import monecruft.shaders.DepthVoxelShaderProgram;
 import monecruft.shaders.VoxelShaderProgram;
 import monecruft.storage.ArrayCubeStorage;
 import monecruft.storage.ByteArrayPool;
 import monecruft.storage.ConstantValueCubeStorage;
 import monecruft.storage.CubeStorage;
-import monecruft.storage.FileManager;
 import monecruft.storage.FloatBufferPool;
 import monecruft.utils.BoundaryChecker;
-import monecruft.utils.BoundingBoxBoundaryChecker;
-
-import monecruft.utils.Vector3d;
 
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.util.vector.Matrix4f;
 import org.lwjgl.util.vector.Vector3f;
 import org.lwjgl.util.vector.Vector4f;
 
+/**
+ * @author Víctor Arellano Vicente (Ivelate)
+ * 
+ * Chunk class. Stores all data contained into a chunk of cubes (32x32x32 cubes), including the cubes per-se, light (Artificial and natural), drawing utilities (FloatBuffers, vbo's), etc.
+ * Contans several methods used for drawing, updating and managing chunks.
+ */
 public class Chunk implements Cleanable
 {
 	public enum Direction{YP,YM,XP,XM,ZP,ZM};
 	public enum CubeStorageType{CUBES_STORAGE,LIGHT_STORAGE};
 	
-	public static final int CHUNK_DIMENSION=32;
+	public static final int CHUNK_DIMENSION=32; //Chunks are 32x32x32, but it isn't hardcoded: If the value is changed here, it should work too.
 	public static final float MAX_LIGHT_LEVEL=15;
 	private static final double CHUNK_RADIUS=CHUNK_DIMENSION*Math.sqrt(3);
 	private static final Vector4f CENTER_VECTOR=new Vector4f(CHUNK_DIMENSION/2,CHUNK_DIMENSION/2,CHUNK_DIMENSION/2,1.0f);
@@ -54,30 +53,39 @@ public class Chunk implements Cleanable
 	private static final int SAN=6;
 	private static final int NORMALIZE_WATER_EACH=4;
 	
-	private static final byte NATURAL_LIGHT_FULL_VAL=(byte)((15 << 4)&0xF0);
+	private static final byte NATURAL_LIGHT_FULL_VAL=(byte)((15 << 4)&0xF0); //Natural light is stored on the first 4 bits of the light byte
 	
 	private int vbo=-1;
 	private WorldFacade WF;
-	private int triangleNum=0;
-	private int triangleLiquidNum=0;
-	private CubeStorage chunkCubes=null; 
+	private int triangleNum=0; //Number of triangles in the chunk
+	private int triangleLiquidNum=0; //Number of triangles forming water in the chunk
+	private CubeStorage chunkCubes=null; //Cubes in the chunk, abstracted. See CubeStorage class for more info
 	private CubeStorage chunkCubesLight=new ConstantValueCubeStorage((byte)0,this,CubeStorageType.LIGHT_STORAGE){
 		@Override public void set(int x, int y, int z, byte val) {}
 	};
-	private class CubePosition{public int x;public int y;public int z; public CubePosition(int x,int y,int z){this.x=x;this.y=y;this.z=z;}}
-	private List<CubePosition> updateCubes=new LinkedList<CubePosition>();
-	private int neighborsAdded=0;
-	private FloatBuffer toUpload=null;
-	private FloatBuffer toUploadLiquid=null;
-	private boolean lightCalculated=false;
-	private boolean drawed=false;
-	private boolean changed=true;
-	private boolean updateFlag=false;
-	private boolean initcializedFlag=false;
-	private boolean solidEmpty=true;
-	private boolean liquidEmpty=true;
-	private boolean deleted=false;
-	private Semaphore updateAccessSemaphore=new Semaphore(1);
+	private List<CubePosition> updateCubes=new LinkedList<CubePosition>(); //Particular cubes inside this chunk that needs to be updated each tick (Flowing water, TNT, etc)
+		private class CubePosition{public int x;public int y;public int z; public CubePosition(int x,int y,int z){this.x=x;this.y=y;this.z=z;}}
+		
+	private int neighborsAdded=0; //Stores, in an int, which chunk neighbors had been added to the scene. Drawing will be only possible when all neighbors are added.
+								  //For each bit, the value 1 will be equal to neighbor added and the value 0 will be equal to neighbor not added.
+								  //There is a total of 26 neighbors (Counting diagonals), and each one of them will have a index in this int, represented by the opperation
+								  //(x+1)*9 + (z+1)*3 + (y+1) , being x={-1,0,1}, y={-1,0,1}, z={-1,0,1}, representing the direction of the neighbor.
+								  //Considering that, this chunk will not be drawed until this value isnt equal to 00000111111111111101111111111111
+								  //Chunk neighbors are neccesary because second pass generation of them can change values in this chunk, and the illumination on the edges
+								  //can only be calculated if we know the illumination of the edges of the neighbors.
+	
+	private FloatBuffer toUpload=null; //Buffer containing all vertex info to be uploaded to the graphics card
+	private FloatBuffer toUploadLiquid=null;//Buffer containing all water vertex info to be uploaded to the graphics card
+	
+	private boolean lightCalculated=false; //Has the light map been created?
+	private boolean drawed=false; //Has the chunk been drawed this frame?
+	private boolean changed=true; //Has the chunk data changed since the last redraw? (If so, the data in the graphics card is not congruent with reality, and we need to redraw the chunk)
+	private boolean updateFlag=false; //Marks if the chunk is already set for update. If so, changes in it will now set changed to true
+	private boolean initcializedFlag=false; //Marks if the second step of the generation (Adding trees) has already been performed in this chunk
+	private boolean solidEmpty=true; //Marks if this chunk has no non-liquid triangles to draw
+	private boolean liquidEmpty=true; //Marks if this chunk has no iquid triangles to draw
+	private boolean deleted=false; //Marks if this chunk has been marked to deletion
+	private Semaphore updateAccessSemaphore=new Semaphore(1); //Prevent this chunk to be updated twice at the same time.
 	private int liquidCounter=NORMALIZE_WATER_EACH;
 	
 	private int chunkx;
@@ -92,7 +100,7 @@ public class Chunk implements Cleanable
 		this.chunky=chunkypos;
 		this.chunkz=chunkzpos;
 		this.chunkModelMatrix=new Matrix4f();
-		//Matrix4f.translate(new Vector3f(chunkx*Chunk.CHUNK_DIMENSION,chunky*Chunk.CHUNK_DIMENSION,chunkz*Chunk.CHUNK_DIMENSION), this.chunkModelMatrix, this.chunkModelMatrix);
+		
 		byte[][][] cubes=ByteArrayPool.getArrayUncleaned();
 		ChunkData chunkGenerationData=WF.getMapHandler().getChunk(chunkxpos, chunkypos,chunkzpos,cubes);
 		
@@ -104,49 +112,42 @@ public class Chunk implements Cleanable
 		else this.chunkCubes=new ArrayCubeStorage(cubes,false);
 		
 		this.initcializedFlag=chunkGenerationData.initcializedFlag;
-		
-		/*for(int i=0;i<4;i++)
-		{
-			int x=(int)(Math.random()*CHUNK_DIMENSION);
-			int y=(int)(Math.random()*((chunkypos==World.HEIGHT-1)?CHUNK_DIMENSION-1:CHUNK_DIMENSION));
-			int z=(int)(Math.random()*CHUNK_DIMENSION);
-			//if(x>20) x-=10; if(y>30) y--; if(z>30) z--;
-			//if(x<1) x++; if(y<1) y++; if(z<1) z++; 
-			this.chunkCubes[x][y][z]=5;
-			/*this.chunkCubes[x+1][y][z]=5;
-			this.chunkCubes[x-1][y][z]=5;
-			this.chunkCubes[x][y+1][z]=5;
-			this.chunkCubes[x][y-1][z]=5;
-			this.chunkCubes[x][y][z+1]=5;
-			this.chunkCubes[x][y][z-1]=5;*/
-			//this.chunkCubes[x][y][z]=5;
-			//this.chunkCubes[x+10][y][z]=5;
-		//}
-		//Neighbours
-		//this.neighborsAdded=WF.getNeighboursAdded(this);
 	}
+	
+	/**
+	 * Inits the chunk, creating its vbo and filling it with data
+	 */
 	public void initChunk()
 	{
 		this.vbo=glGenBuffers();
-		/*glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
-	
-		VSP.enable();
-		VSP.setupAttributes();*/
-
+		
 		update();
+	}
 	
-		//glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
-	}
-	public void genUpdateBuffer(){
-		this.genUpdateBuffer(true);
-	}
 	/**
-	 * Helper method
+	 * Returns the maximum between two values
 	 */
 	private float max(float v1,float v2)
 	{
 		if(v1>v2) return v1;
 		return v2;
+	}
+	
+	/**
+	 * Stores all vertex data to be uploaded to the graphic card into the FloatBuffers toUpload and toUploadLiquid
+	 * Only does so if the chunk is already surrounded by neighbours (Because, in its limits, it needs to know the adjacent
+	 * cube data to perform light calculation or culling, and this cube would be in a neighbour chunk)
+	 * 
+	 * Buffer format (For each vertex):
+	 * 				1st float: x pos
+	 * 				2nd float: y pos
+	 * 				3rd float: z pos
+	 *				4th float: No water -> Texture to be used + normal of the cube (Compressed) | water -> X normal
+	 *				5th float: No water -> Natural Brightness of the face 						| water -> Y normal
+	 *				6th float: No water -> Artificial Brightness of the face 					| water -> Z normal
+	 */
+	public void genUpdateBuffer(){
+		this.genUpdateBuffer(true);
 	}
 	public void genUpdateBuffer(boolean safeAccess)
 	{
@@ -159,9 +160,8 @@ public class Chunk implements Cleanable
 		int bufferCont=0;
 		int liquidCont=0;
 		
-		//byte[][][] bounds=this.WF.getMapHandler().getBounds(this.chunkx,this.chunky,this.chunkz)
 		//ONLY DRAWS IF ALL NEIGHBORS IN ALL DIRECTIONS (DIAGONALS INCLUDED) HAS BEEN ADDED
-		if(this.neighborsAdded==134209535) //00000111111111111101111111111111 (I hope)
+		if(this.neighborsAdded==134209535) //00000111111111111101111111111111
 		{
 		
 		Chunk[] neighbours=this.WF.getNeighbours(this);
@@ -188,8 +188,9 @@ public class Chunk implements Cleanable
 			
 		FloatBuffer toUpload=FloatBufferPool.getBuffer();
 		FloatBuffer toUploadLiquid=FloatBufferPool.getBuffer();
-		if(toUpload==null||toUploadLiquid==null) return; //Close
+		if(toUpload==null||toUploadLiquid==null) return; //If the FloatBuffer returned by the pool is null, we are closing the program, so we return
 		
+		//If the chunk is full of air, it doesn't draw anything
 		if(!(!this.chunkCubes.isTrueStorage()&&this.chunkCubes.get(0, 0, 0)==0)){
 		
 		//Get map generator
@@ -197,6 +198,7 @@ public class Chunk implements Cleanable
 		boolean overrideDrawTop=false;
 		boolean overrideDrawBot=false;
 		
+		//Water normal in a point will be equal to the average of all normals of the cubes surrounding this point.
 		Vector3f waternormalxmzm=new Vector3f(0.5f,1,0.5f);
 		Vector3f waternormalxpzp=new Vector3f(0.5f,1,0.5f);
 		Vector3f waternormalxpzm=new Vector3f(0.5f,1,0.5f);
@@ -206,8 +208,9 @@ public class Chunk implements Cleanable
 		{
 			for(byte x=0;x<CHUNK_DIMENSION;x++)
 			{
-				overrideDrawTop=false;
-				overrideDrawBot=false;
+				overrideDrawTop=false; //Only used for water. If the water isn't full height, we will draw the top water cube, if it is full height, the cube will be merged with the top one and
+				overrideDrawBot=false; //we will not draw that face
+				
 				if(neighbours[Direction.YM.ordinal()]!=null){
 					byte cod=neighbours[Direction.YM.ordinal()].getCubeAt(x, CHUNK_DIMENSION-1, z);
 					if(BlockLibrary.isLiquid(cod)&&(neighbours[Direction.YM.ordinal()].getCubeHeight(x,CHUNK_DIMENSION-1,z,cod)<0.99f
@@ -234,7 +237,7 @@ public class Chunk implements Cleanable
 						
 						float lp=BlockLibrary.getLightProduced(cubeC)/MAX_LIGHT_LEVEL;
 						
-						if(BlockLibrary.isCrossSectional(cubeC))
+						if(BlockLibrary.isCrossSectional(cubeC)) //For grass
 						{
 							float crossLength=0.707106f;
 							float rem=(1-crossLength)/2;
@@ -306,7 +309,7 @@ public class Chunk implements Cleanable
 							waternormalxpzp=new Vector3f(0.5f,1,0.5f);
 							waternormalxpzm=new Vector3f(0.5f,1,0.5f);
 							waternormalxmzp=new Vector3f(0.5f,1,0.5f);
-							if(!(heightxpzp>0.99f&&heightxmzm>0.99f&&heightxpzm>0.99f&&heightxmzp>0.99f)) {
+							if(!(heightxpzp>0.99f&&heightxmzm>0.99f&&heightxpzm>0.99f&&heightxmzp>0.99f)) { //Get the normal of each point of the cube
 								overrideDrawTop=true;
 								Vector3f centralVec=new Vector3f(1,heightxpzm-heightxmzp,-1);
 								Vector3f.cross(new Vector3f(1,heightxpzm-heightxmzm,0), centralVec,waternormalxmzm);
@@ -418,7 +421,7 @@ public class Chunk implements Cleanable
 							writeTarget.put(cube);c+=SAN*6;} 
 							
 						}
-						else
+						else //Normal blocks
 						{
 							// X axis faces
 							if((x==0&&mg.shouldDraw(neighbours[Direction.XM.ordinal()].getCubeAt(CHUNK_DIMENSION-1, y, z),this.chunkCubes.get(x,y,z),liquidTag,Direction.XM))
@@ -550,42 +553,54 @@ public class Chunk implements Cleanable
 		this.triangleLiquidNum=liquidCont/SAN;
 		this.triangleNum=bufferCont/SAN;
 	}
+	
+	/**
+	 * Updates this chunk graphics card data, for it to match the current chunk data. Normally called when some part of the chunk has changed
+	 */
 	public void update()
 	{
 		if(this.changed) {
 			if(this.updateFlag) this.changed=false;
 			else{
-				/*if(this.lightCalculatedFlag)*/ this.WF.requestChunkUpdatePrioritary(this);
-				//else this.WF.requestChunkUpdate(this);
+				this.WF.requestChunkUpdatePrioritary(this); //If the cube has changed we request an update
 			}
 		}
-		if(this.toUpload!=null) //|TODO Graphic card overload
+		//If the buffer of triangles isn't null, we have new data to upload
+		if(this.toUpload!=null) 
 		{
-			if(this.getUpdateAccessSemaphore().tryAcquire()){
-				if(this.triangleNum==0&&this.triangleLiquidNum==0){
+			if(this.getUpdateAccessSemaphore().tryAcquire()){ //Prevents us to upload data to the graphic card and create a new triangle buffer at the same time
+				if(this.triangleNum==0&&this.triangleLiquidNum==0){ //If there are no triangles to draw
 					//Bye array!
-					if(this.chunkCubes.isTrueStorage()){
-						byte defval=this.chunkCubes.get(0, 0, 0);
-						this.WF.getMapHandler().storeChunk(getX(), getY(), getZ(), this.chunkCubes,this.initcializedFlag);
-						//this.chunkCubes.dispose();
-						this.chunkCubes=new ConstantValueCubeStorage(defval,this,CubeStorageType.CUBES_STORAGE);
+					if(this.chunkCubes.isTrueStorage()){ //If there was triangles to draw before, but now there aren't, we can substitute the array of chunk cubes over a constant value, saving memory
+						byte defval=this.chunkCubes.get(0, 0, 0); //Not only the air chunks arent draw: Underground ones can be fully culled too
+						this.WF.getMapHandler().storeChunk(getX(), getY(), getZ(), this.chunkCubes,this.initcializedFlag); //IF the chunk was all air it wouldn't matter, but if it isnt drawed
+																														   //Because its culled, it contains different cubes inside it, they just cant be seen
+																														   //We dispose the chunk per now, until some of this cubes can be seen, and then we will load it again. Saving memory!
+						
+						this.chunkCubes=new ConstantValueCubeStorage(defval,this,CubeStorageType.CUBES_STORAGE); //If it is air, it will always return 0. If it is solid, any solid value will do.
 					}
+					//We are disposing the chunk till some part of it can be seen, so we delete the vbo per now too
 					if(this.vbo!=-1) {
 						glDeleteBuffers(this.vbo);
 						this.vbo=-1;
 					}
 				}
 				else{
+					//If the chunk was disposed, we reload it. Finally some part of it is visible!
 					if(this.vbo==-1) this.vbo=glGenBuffers();
 					if(!this.chunkCubes.isTrueStorage()){
-						this.notifyCubeStorageUpdate(this.chunkCubes.get(0, 0, 0), CubeStorageType.CUBES_STORAGE);
+						this.notifyCubeStorageUpdate(this.chunkCubes.get(0, 0, 0), CubeStorageType.CUBES_STORAGE); //Reload the original values into chunkCubes
 					}
+					
+					//Upload the buffer data to the graphics card
 					glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
 					glBufferData(GL15.GL_ARRAY_BUFFER,(this.triangleNum+this.triangleLiquidNum)*SAN*4,GL15.GL_STATIC_DRAW);
 					glBufferSubData(GL15.GL_ARRAY_BUFFER,0,this.toUpload);
 					glBufferSubData(GL15.GL_ARRAY_BUFFER,this.triangleNum*SAN*4,this.toUploadLiquid);
 					glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
 				}
+				
+				//Recycle buffers and dispose resources used
 				FloatBufferPool.recycleBuffer(this.toUpload);
 				FloatBufferPool.recycleBuffer(this.toUploadLiquid);
 				this.toUpload=null;
@@ -598,27 +613,32 @@ public class Chunk implements Cleanable
 			}
 		}
 	}
+	
+	/**
+	 * Draws this chunk into the screen, used the data already uploaded to the graphics card, using a shader <VSP> and a camera <c>
+	 * 
+	 * If no boundary checker is especified, the check will use the camera view frustrum, and no draw will happen if the entire chunk is outside of it.
+	 * If a boundary checker is especified (Used normally for shadows), the check will use the boundary checker, and no draw will happen if the entire chunk is outside the bounds specified by <bc>
+	 */
 	public void draw(Camera c,VoxelShaderProgram VSP,BoundaryChecker bc)
 	{
-		if(changed||this.toUpload!=null) update();
-		if(this.solidEmpty&&this.liquidEmpty) return;
+		if(changed||this.toUpload!=null) update(); //We update this chunk before drawing if some part of it has changed
+		
+		if(this.solidEmpty&&this.liquidEmpty) return; //If it is empty, we dont bother drawing
+		
 		this.drawed=true;
-		if(bc==null){
+		if(bc==null){ //If no boundary check is especified, we check over the standard view frustrum boundary
 			Matrix4f mvp=new Matrix4f();
-			//Matrix4f.translate(this.WF.getWorldCenterVector(), this.chunkModelMatrix, mvp); System.out.println(this.WF.getWorldCenterVector());System.out.println(this.chunkModelMatrix); System.out.println(mvp); System.out.println("_-_-_-_");
-			//mvp.m30=-this.WF.getCameraCenter().x;mvp.m31=-this.WF.getCameraCenter().y;mvp.m32=-this.WF.getCameraCenter().z;
-			//Matrix4f.sub(this.chunkModelMatrix, mvp, mvp);
-			//float m30=this.chunkModelMatrix.m30; float m31=this.chunkModelMatrix.m31; float m32=this.chunkModelMatrix.m32; 
+
 			this.chunkModelMatrix.m30=(float)(chunkx*Chunk.CHUNK_DIMENSION-this.WF.getCameraCenter().x); this.chunkModelMatrix.m31=(float)(chunky*Chunk.CHUNK_DIMENSION-this.WF.getCameraCenter().y); this.chunkModelMatrix.m32=(float)(chunkz*Chunk.CHUNK_DIMENSION-this.WF.getCameraCenter().z);
 			Matrix4f.mul(c.getProjectionViewMatrix(), this.chunkModelMatrix, mvp);
-			//this.chunkModelMatrix.m30=m30; this.chunkModelMatrix.m31=m31; this.chunkModelMatrix.m32=m32;
 		
 			Vector4f coords=MatrixHelper.multiply(mvp, CENTER_VECTOR);
 			float xc=coords.x/(coords.w);
 			float yc=coords.y/(coords.w);
 			double normDiam=CHUNK_RADIUS/Math.abs(coords.w);
 			if(Math.abs(xc)>1+normDiam || Math.abs(yc)>1+normDiam || coords.z<-CHUNK_RADIUS){
-				this.drawed=false;
+				this.drawed=false; //If the sphere envolving the chunk is outside the view frustrum, we dont draw it (It cant be seen, anyways)
 			}
 		}
 		else{
@@ -632,24 +652,31 @@ public class Chunk implements Cleanable
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
 			VSP.setupAttributes();
 			MatrixHelper.uploadTranslationMatrix(this.chunkModelMatrix,chunkx*Chunk.CHUNK_DIMENSION,chunky*Chunk.CHUNK_DIMENSION,chunkz*Chunk.CHUNK_DIMENSION,this.WF.getCameraCenter(),VSP.getModelMatrixLoc());
+			
 			glDrawArrays(GL_TRIANGLES, 0, this.triangleNum);
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
 		}
 	}
+	
+	/**
+	 * Draws the chunk liquid triangles into the screen. They will be only drawed if the chunk is on the boundary check, checked before in draw(), which setted a flag this.drawed if so.
+	 */
 	public void drawLiquids(Camera c,VoxelShaderProgram VSP)
 	{
 		if(this.liquidEmpty) return;
 		if(this.drawed){
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,this.vbo);
 			VSP.setupAttributes();
-			//this.chunkModelMatrix=Matrix4f.translate(new Vector3f(0f,-0.3f,0f), this.chunkModelMatrix, this.chunkModelMatrix);
 			MatrixHelper.uploadTranslationMatrix(this.chunkModelMatrix,chunkx*Chunk.CHUNK_DIMENSION,chunky*Chunk.CHUNK_DIMENSION,chunkz*Chunk.CHUNK_DIMENSION,this.WF.getCameraCenter(),VSP.getModelMatrixLoc());
-			//this.chunkModelMatrix=Matrix4f.translate(new Vector3f(0f,0.3f,0f), this.chunkModelMatrix, this.chunkModelMatrix);
+
 			glDrawArrays(GL_TRIANGLES, this.triangleNum,this.triangleLiquidNum);
 			glBindBuffer(GL15.GL_ARRAY_BUFFER,0);
 		}
 	}
 	
+	/**
+	 * Updates all cubes marked for update in this chunk
+	 */
 	public boolean updateChunkCubes(float tEl)
 	{
 		if(this.updateCubes.size()>0)
@@ -662,34 +689,25 @@ public class Chunk implements Cleanable
 			for(CubePosition cp:updateCubesLocal)
 			{
 				byte cube=this.getCubeAt(cp.x, cp.y, cp.z);
-				if(BlockLibrary.isLiquid(cube))
+				if(BlockLibrary.isLiquid(cube)) //If the cube is a water cube, flows.
 				{
 					int liquidLevel= BlockLibrary.getLiquidLevel(cube);
 					byte baseCube=BlockLibrary.getLiquidBaseCube(cube);
-					//if(1==2/2)continue; //|TODO DEBUG
+
 					byte belowCube=getCubeAt(cp.x,cp.y-1,cp.z);
-					if(!BlockLibrary.isDrawable(belowCube)){
-						//setCubeAt(cp.x,cp.y,cp.z,cube);
+					if(!BlockLibrary.isDrawable(belowCube) || BlockLibrary.isCrossSectional(belowCube)){ //Water removes vegetation too
+
 						setCubeAt(cp.x,cp.y-1,cp.z,BlockLibrary.getLiquidBlockWithLevel(baseCube, BlockLibrary.getLiquidMaxLevel(baseCube)));
 					}
 					else if(BlockLibrary.isSameBlock(cube, belowCube)){
 						if(BlockLibrary.getLiquidLevel(belowCube)<BlockLibrary.getLiquidMaxLevel(belowCube))
 						{
-							/*int liqlev=BlockLibrary.getLiquidLevel(belowCube)+BlockLibrary.getLiquidLevel(cube) + 1;
-							if(liqlev>BlockLibrary.getLiquidMaxLevel(cube)){
-								setCubeAt(cp.x,cp.y-1,cp.z,(byte)(cube+BlockLibrary.getLiquidLevel(cube)-BlockLibrary.getLiquidMaxLevel(cube)));
-								setCubeAt(cp.x,cp.y,cp.z,(byte)(cube+BlockLibrary.getLiquidLevel(cube)-(liqlev-BlockLibrary.getLiquidMaxLevel(cube))));
-							}
-							else{
-								setCubeAt(cp.x,cp.y-1,cp.z,BlockLibrary.getLiquidBlockWithLevel(baseBlock, liqlev));
-								setCubeAt(cp.x,cp.y,cp.z,(byte)0);
-							}*/
 							setCubeAt(cp.x,cp.y-1,cp.z,BlockLibrary.getLiquidBlockWithLevel(baseCube, BlockLibrary.getLiquidMaxLevel(baseCube)));
 						}
 					}
 					else if(liquidLevel>0)
 					{
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x+1,cp.y,cp.z))){
+						if(!BlockLibrary.isDrawable(getCubeAt(cp.x+1,cp.y,cp.z))|| BlockLibrary.isCrossSectional(getCubeAt(cp.x+1,cp.y,cp.z))){
 							setCubeAt(cp.x+1,cp.y,cp.z,BlockLibrary.getLiquidBlockWithLevel(baseCube, liquidLevel-1));
 						}
 						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x+1,cp.y,cp.z))){
@@ -702,7 +720,7 @@ public class Chunk implements Cleanable
 							}
 						}
 						
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x-1,cp.y,cp.z))){
+						if(!BlockLibrary.isDrawable(getCubeAt(cp.x-1,cp.y,cp.z)) || BlockLibrary.isCrossSectional(getCubeAt(cp.x-1,cp.y,cp.z))){
 							setCubeAt(cp.x-1,cp.y,cp.z,BlockLibrary.getLiquidBlockWithLevel(baseCube, liquidLevel-1));
 						}
 						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x-1,cp.y,cp.z))){
@@ -715,7 +733,7 @@ public class Chunk implements Cleanable
 							}
 						}
 						
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z+1))){
+						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z+1)) || BlockLibrary.isCrossSectional(getCubeAt(cp.x,cp.y,cp.z+1))){
 							setCubeAt(cp.x,cp.y,cp.z+1,BlockLibrary.getLiquidBlockWithLevel(baseCube, liquidLevel-1));
 						}
 						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z+1))){
@@ -728,7 +746,7 @@ public class Chunk implements Cleanable
 							}
 						}
 						
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z-1))){
+						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z-1)) || BlockLibrary.isCrossSectional(getCubeAt(cp.x,cp.y,cp.z-1))){
 							setCubeAt(cp.x,cp.y,cp.z-1,BlockLibrary.getLiquidBlockWithLevel(baseCube, liquidLevel-1));
 						}
 						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z-1))){
@@ -875,8 +893,8 @@ public class Chunk implements Cleanable
 						}
 					}
 				}
-				else if(!BlockLibrary.isDrawable(cube)){
-					if(BlockLibrary.isLiquid(getCubeAt(cp.x,cp.y+1,cp.z))){
+				else if(!BlockLibrary.isDrawable(cube)){ //If the cube is an air cube, marks all water cubes collindant to it (And to grass if its on top) to update.
+					if(BlockLibrary.isLiquid(getCubeAt(cp.x,cp.y+1,cp.z))||BlockLibrary.isCrossSectional(getCubeAt(cp.x,cp.y+1,cp.z))){
 						markCubeToUpdate(cp.x,cp.y+1,cp.z);
 					}
 					else if(BlockLibrary.isLiquid(getCubeAt(cp.x+1,cp.y,cp.z))){
@@ -892,7 +910,7 @@ public class Chunk implements Cleanable
 						markCubeToUpdate(cp.x,cp.y,cp.z-1);
 					}
 				}
-				else if(cube==14){ //|TODO please change me
+				else if(cube==14){ //TNT
 					int expPower=5;
 					int expPower2=expPower*expPower;
 					for(int x=-expPower;x<expPower;x++){
@@ -907,7 +925,7 @@ public class Chunk implements Cleanable
 						}
 					}
 				}
-				else if(cube==15){ //|TODO please change me
+				else if(cube==15){ //WATER TOWER
 					setCubeAt(cp.x,cp.y,cp.z,(byte)0);
 					
 					int cloudvol=3;
@@ -923,7 +941,7 @@ public class Chunk implements Cleanable
 						}
 					}
 				}
-				else if(cube==16){
+				else if(cube==16){ //HIGH TOWER
 					setCubeAt(cp.x,cp.y,cp.z,(byte)1);
 					for(int i=1;i<Chunk.CHUNK_DIMENSION*(World.HEIGHT-this.chunky)-cp.y;i++)
 					{
@@ -958,6 +976,9 @@ public class Chunk implements Cleanable
 					performFun(this.getCubeAt(cp.x, cp.y, cp.z-1),cp.x,cp.y,cp.z-1);
 					
 					this.setCubeAt(cp.x, cp.y, cp.z,(byte)0);
+				}
+				else if(BlockLibrary.isCrossSectional(cube)){
+					if(this.getCubeAt(cp.x, cp.y-1, cp.z)!=1) this.setCubeAt(cp.x, cp.y, cp.z, (byte)0); //Grass without grass on down of it cant exist
 				}
 				else if(cube==17&&2==1){
 					setCubeAt(cp.x,cp.y,cp.z,(byte)0);
@@ -1123,6 +1144,9 @@ public class Chunk implements Cleanable
 		}
 	}
 	
+	/**
+	 * Returns the cube at x,y,z . If this coordinates are outside the chunk, gets the cube in that chunk instead. If that outside chunk doesn't exist, returns 0 (Air block)
+	 */
 	public byte getCubeAt(int x,int y,int z)
 	{
 		if( x<CHUNK_DIMENSION&&x>=0&&
@@ -1144,6 +1168,10 @@ public class Chunk implements Cleanable
 			else return c.getCubeAt(x, y, z);
 		}
 	}
+	
+	/** 
+	 * Marks the cube x,y,z to be updated. If the cube is outside the chunk, marks the cube in that chunk instead.
+	 */
 	public void markCubeToUpdate(int x,int y,int z)
 	{
 		if( x<CHUNK_DIMENSION&&x>=0&&
@@ -1175,6 +1203,10 @@ public class Chunk implements Cleanable
 			if(c!=null) c.markCubeToUpdate(x, y, z);
 		}
 	}
+	
+	/**
+	 * Used for water cubes, height of the cube in one point is equal to the average of heights of all the blocks collindant to the point
+	 */
 	public float getCubeHeight(int x,int y,int z,byte cube)
 	{
 		if(!BlockLibrary.isLiquid(cube)) return 1f;
@@ -1204,6 +1236,13 @@ public class Chunk implements Cleanable
 		
 		return (accumHeight+(neigh/3))/(neigh*(BlockLibrary.getLiquidMaxLevel(cube)+0.33f));
 	}
+	
+	/**
+	 * Sets the cube in x,y,z to the val <val>. If the cube is outside the chunk, sets the cube in the corresponding chunk instead.
+	 * Check how much chunks had changed with this cube change and sets the changed flag accordingly.
+	 * Recalculates the light in the area, considering this new cube can let light pass or occlude it.
+	 * Marks the cube to update.
+	 */
 	public void setCubeAt(int x,int y,int z,byte val)
 	{
 		if( x<CHUNK_DIMENSION&&x>=0&&
@@ -1255,7 +1294,7 @@ public class Chunk implements Cleanable
 					removeArtificialBrightnessAt(x,y,z);
 				}
 			
-				if(BlockLibrary.isOpaque(val)) //|TODO MEEEC WHAT ABOUT LEAVES?
+				if(BlockLibrary.isOpaque(val))
 				{
 					removeArtificialBrightnessAt(x,y,z);
 					byte exNaturalBright=getNaturalLightLevelAt(x,y,z);
@@ -1302,22 +1341,38 @@ public class Chunk implements Cleanable
 		}
 	}
 	
+	/**
+	 * Returns true if the lightmap of this chunk has already been calculated
+	 */
 	public boolean isLightCalculated()
 	{
 		return this.lightCalculated;
 	}
+	
+	/**
+	 * Returns true if all the light in the chunk is equal to a value <val>.
+	 * Consider that the light value is compacted, so in one byte it is stored both natural light (First 4 bits) and artificial light (Last 4 bits).
+	 * This method compares the raw light value, so this consideration has to be taken in account.
+	 */
 	public boolean isAllLightEqualTo(byte val)
 	{
 		if(!this.isLightCalculated() || this.chunkCubesLight.isTrueStorage() || this.chunkCubesLight.get(0, 0, 0)!=val) return false;
 		return true;
 	}
+	
+	/**
+	 * Returns true if all cubes in the chunk are equal to <val>
+	 */
 	public boolean isAllCubesEqualTo(byte val)
 	{
 		if(this.chunkCubes.isTrueStorage() || this.chunkCubes.get(0, 0, 0)!=val) return false;
 		return true;
 	}
+	
 	/**
-	 * Returns true if there was no artifcial light to begin with.
+	 * Fills all natural light in this chunk with the value <val>
+	 * 
+	 * If the artificial light in the chunk was all 0, returns true
 	 */
 	public boolean fillNaturalLightWith(byte val)
 	{
@@ -1337,15 +1392,25 @@ public class Chunk implements Cleanable
 		
 		return noArt;
 	}
+	
+	/**
+	 * Initcializes the light values of the chunk, taking into consideration:
+	 * 			- Natural light propagated top to bot, in form of natural rays (If unoccluded)
+	 * 			- Indirect natural light propagated from neightbour chunks.
+	 * 			- Artificial light propagated from neighbour chunks.
+	 * 			- Artificial light propagated from light blocks located in this chunk
+	 * 
+	 * Also, upon calculating the lightmap, notifies that chunk as a new added neighbour and,
+	 * if all the neighbours had been added, performs the second pass generation for the chunk
+	 */
 	public void createLightMap()
 	{
-		//System.out.println("GEN "+getX()+" "+getY()+" "+getZ());
+		
 		if(this.chunkCubesLight!=null) this.chunkCubesLight.dispose();
 		this.chunkCubesLight=new ArrayCubeStorage(ByteArrayPool.getArray(),true);
-		boolean noNaturalLight=true;
-		boolean fullNaturalLight=true;
-
-		//boolean 
+		boolean noNaturalLight=true; //If there isnt natural light in the chunk, we can optimize some calculations / memory usage
+		boolean fullNaturalLight=true; //If the chunk is full of natural light, we can optimize some calculations / memory usage
+ 
 		
 		//NATURAL LIGHT
 		
@@ -1357,8 +1422,8 @@ public class Chunk implements Cleanable
 		boolean zmFullNL=(neighbours[Direction.ZM.ordinal()]!=null&&neighbours[Direction.ZM.ordinal()].isAllLightEqualTo(NATURAL_LIGHT_FULL_VAL));
 		
 		boolean currentFullNL=false;
-		//if(this.getX()==0&&this.getZ()==0&&this.getY()<5) System.out.println(this.getY()+" "+topFullNL+" "+neighbours[Direction.YP.ordinal()].chunkCubesLight.isTrueStorage()+" "+neighbours[Direction.YP.ordinal()].chunkCubesLight.get(0, 0, 0)+" "+this.NATURAL_LIGHT_FULL_VAL);
-		if(topFullNL)
+
+		if(topFullNL) //If the top neightbour is full of natural light, we are receiving a full chunk size light rays, unoccluded.
 		{
 			//GETTING ALL CHUNKS WITH LIGHT CALCULATED IN DOWN OF THIS ONE
 			List<Chunk> downChunks=new ArrayList<Chunk>();
@@ -1371,7 +1436,7 @@ public class Chunk implements Cleanable
 				downChunks.add(chu);
 			}
 			
-			//ASSUME ALL CHUNKS WITH NO CUBES IN DOWN OF THIS ONE AS CHUNKS WITH FULL NATURAL LIGHT
+			//ASSUME ALL CHUNKS WITH NO CUBES IN DOWN OF THIS ONE AS CHUNKS WITH FULL NATURAL LIGHT (Basically, increments current till a chunk not full of natural light is found)
 			Chunk current=this;
 			Iterator<Chunk> it=downChunks.iterator();
 			while(current!=null&&current.isAllCubesEqualTo((byte)0))
@@ -1381,8 +1446,8 @@ public class Chunk implements Cleanable
 			}
 			
 			//For the remaining chunks, light rays needs to be computed separatelly
-			int maxstopy=current==null?miny-1:-1;
-			int minstopy=this.getY();
+			int maxstopy=current==null?miny-1:-1; //The max dist in which some natural light ray collides first
+			int minstopy=this.getY(); //The min y dist some natural light reach
 			if(current!=null)
 			{
 				for(int x=0;x<CHUNK_DIMENSION;x++)
@@ -1403,20 +1468,20 @@ public class Chunk implements Cleanable
 			//Check how many chunks are now full of natural light
 			if(maxstopy>=this.getY()) fullNaturalLight=false;
 			else{
-				this.chunkCubesLight.dispose();
+				this.chunkCubesLight.dispose(); //If we have reached this line, this chunk is full of natural light. Disposing the light array and changing it for a constant value storage
 				this.chunkCubesLight=new ConstantValueCubeStorage(NATURAL_LIGHT_FULL_VAL,this,CubeStorageType.LIGHT_STORAGE);
 				currentFullNL=true;
 				for(Chunk c:downChunks){
-					if(maxstopy<c.getY()) {
+					if(maxstopy<c.getY()) { //If this current down chunk is entirely covered with light rays
+						
 						//If there was no light here, all light is natural
 						if(c.isAllLightEqualTo((byte)0)){
 							c.chunkCubesLight.dispose();
 							c.chunkCubesLight=new ConstantValueCubeStorage(NATURAL_LIGHT_FULL_VAL,c,CubeStorageType.LIGHT_STORAGE);
 						}
-						//If there was any light, manually update the light. If this light was not artificial, all light checked as natural too.
+						//IF the light was already all natural, we do nothing. If it wasnt, we fill the chunk with natural light and, if there wasnt any artificial light in it, we change its array of light for a constant value storage
 						else if(!c.isAllLightEqualTo(NATURAL_LIGHT_FULL_VAL)){
-							//System.out.println(c.getX()+" "+c.getY()+" "+c.getZ());
-							//System.out.println(getX()+" "+getY()+" "+getZ());
+
 							if(c.fillNaturalLightWith(NATURAL_LIGHT_FULL_VAL)){
 								c.chunkCubesLight.dispose();
 								c.chunkCubesLight=new ConstantValueCubeStorage(NATURAL_LIGHT_FULL_VAL,c,CubeStorageType.LIGHT_STORAGE);
@@ -1427,13 +1492,14 @@ public class Chunk implements Cleanable
 				}
 			}
 			
-			//Extend natural light naturally with flood algorithm
+			//Extend natural light naturally with flood algorithm (This one extends indirect natural light to other chunks, from occluded cubes, etc. Since now, all light was direct light, pure rays
+			//Unoccluded, or darkness.
 			Chunk dc=this;
 			Chunk topChunk=null;
 			it=downChunks.iterator();
 			while(dc!=null){
 				if(dc.getY()<minstopy) break; //All chunks from here have no max value natural light
-				if(xpFullNL&&xmFullNL&&zpFullNL&&zmFullNL) break;
+				if(xpFullNL&&xmFullNL&&zpFullNL&&zmFullNL) break; //|TODO BS
 				for(int x=0;x<CHUNK_DIMENSION;x++)
 				{
 					for(int z=0;z<CHUNK_DIMENSION;z++)
@@ -1456,6 +1522,7 @@ public class Chunk implements Cleanable
 				dc=it.hasNext()?it.next():null;
 			}
 		}
+		//Same calculations as above but with a not full of light topo chunk. Some calculations are more expensive.
 		else if(neighbours[Direction.YP.ordinal()]!=null && !neighbours[Direction.YP.ordinal()].isAllLightEqualTo((byte)0)){
 			Chunk top=neighbours[Direction.YP.ordinal()];
 			if(top!=null&&top.lightCalculated)
@@ -1523,43 +1590,15 @@ public class Chunk implements Cleanable
 					dc=it.hasNext()?it.next():null;
 				}
 			}
+			
+			//If either the top chunk neighbour isnt loaded yet, or its light havent been calculated, or it doesnt have any natural light to propagate, 
+			//its obvious that this chunk will have a 0 natural light, so it is not full of natural light
 			else fullNaturalLight=false;
-			/*c=this.WF.getChunkByIndexStrict(this.chunkx,this.chunky+1,this.chunkz);
-			if(c!=null)
-			{
-				ArrayList<Chunk> downChunks=new ArrayList<Chunk>();
-				for(int y=this.chunky-1;y>=0;y--){
-					downChunks.add(this.WF.getChunkByIndexStrict(this.chunkx, y, this.chunkz));
-				}
-				for(int x=0;x<CHUNK_DIMENSION;x++)
-				{
-					for(int z=0;z<CHUNK_DIMENSION;z++)
-					{
-						byte ll=c.getNaturalLightLevelAt(x, 0, z);
-						if(ll==15)
-						{
-							propagateNaturalLightRay(x,z,downChunks,0);
-						}
-					}
-				}
-			}*/
 		}
 		else fullNaturalLight=false;
-		//Propagate indirect natural light
-		/*for(int x=0;x<CHUNK_DIMENSION;x++)
-		{
-			for(int y=0;y<CHUNK_DIMENSION;y++)
-			{
-				for(int z=0;z<CHUNK_DIMENSION;z++)
-				{
-					byte lp=getNaturalLightIn(x,y,z);
-					if(lp==15)
-					{
-						setNaturalBrightnessAt(x,y,z,(byte)15);
-					}
-				}
-			}
-		}*/
+		
+		
+		//We have already propagated the natural light coming from this chunk. We propagate now the light coming from other chunks to us
 		
 		//NEIGHBORS
 		
@@ -1672,34 +1711,7 @@ public class Chunk implements Cleanable
 					ll=c.getNaturalLightLevelAt(x, 0, z);
 					if(ll>1)
 					{
-						/*if(ll==15) {
-							//HOLYF ITS LIGHT
-							LinkedList<Chunk> downChunks=new LinkedList<Chunk>();
-							for(int y=this.chunky-1;y>=0;y--){
-								Chunk chu=this.WF.getChunkByIndex(this.chunkx, y, this.chunkz);
-								downChunks.add(chu);
-							}
-
-							propagateNaturalLightRay(x,z,downChunks,0);
-							if(getNaturalLightIn(x,CHUNK_DIMENSION-1,z)!=15) setNaturalBrightnessAt(x,CHUNK_DIMENSION-1,z,(byte)(14));
-							else
-							{
-								downChunks.addFirst(this);
-								for(Chunk dc:downChunks)
-								{
-									if(dc==null ||(dc!=this && !dc.lightCalculated)) break;
-									for(int y=CHUNK_DIMENSION-1;y>=0;y--)
-									{
-										byte lp=dc.getNaturalLightIn(x,y,z);
-										if(lp==15)
-										{
-											dc.setNaturalBrightnessAt(x,y,z,(byte)15);
-										}
-										else break;
-									}
-								}
-							}
-						}*/
+						//If the light value is equal to 15, the ray has already been propagated, so no need for doing that again
 						if(ll!=15 || getNaturalBrightnessAt(x,CHUNK_DIMENSION-1,z)!=15) {
 							noNaturalLight=false;
 							setNaturalBrightnessAt(x,CHUNK_DIMENSION-1,z,(byte)(ll-1));
@@ -1732,7 +1744,7 @@ public class Chunk implements Cleanable
 			}
 		}
 		
-		//Artificial light inside chunk
+		//Propagate artificial light from light cubes inside the chunk
 		if(!(!this.chunkCubes.isTrueStorage() && !BlockLibrary.isLightSource(this.chunkCubes.get(0, 0, 0))))
 		{
 			for(int x=0;x<CHUNK_DIMENSION;x++)
@@ -1752,13 +1764,11 @@ public class Chunk implements Cleanable
 			}
 		}
 		
-		if(noNaturalLight) {
-			//System.out.println("No nat at "+getX()+" "+getY()+" "+getZ());
+		if(noNaturalLight) { //If there is no natural light, we change the light array for a constant value storage with no light
 			this.chunkCubesLight.dispose();
 			this.chunkCubesLight=new ConstantValueCubeStorage((byte)0,this,CubeStorageType.LIGHT_STORAGE);
 		}
-		else if(fullNaturalLight){
-			//System.out.println("FULL nat at "+getX()+" "+getY()+" "+getZ());
+		else if(fullNaturalLight){ //If the chunk is full with natural light, we change the light array for a constant value storage with full natural light
 			this.chunkCubesLight.dispose();
 			this.chunkCubesLight=new ConstantValueCubeStorage(NATURAL_LIGHT_FULL_VAL,this,CubeStorageType.LIGHT_STORAGE);
 		}
@@ -1771,7 +1781,10 @@ public class Chunk implements Cleanable
 		this.WF.notifyNeighbours(this);
 		this.lightCalculated=true;
 	}
-	//|TODO BUG INCOMING (Prop to down pls)
+	
+	/**
+	 * Propagates a natural light ray, in the -y direction, until it collides with a opaque block
+	 */
 	private int propagateNaturalLightRay(int x,int z,List<Chunk> downChunk,int stage)
 	{
 		return this.propagateNaturalLightRay(x, z, CHUNK_DIMENSION-1,downChunk, stage);
@@ -1790,6 +1803,10 @@ public class Chunk implements Cleanable
 		}
 		return getY()-1;
 	}
+	
+	/**
+	 * Destroy a natural light ray from a certain position, and going all the way down. The result is inconsistent: recalculateLightInRay needs to be called when destroyNaturalLightInRay finishes
+	 */
 	private void destroyNaturalLightInRay(int x,int yi,int z,List<Chunk> downChunk,int stage)
 	{
 		if(yi>=0){
@@ -1805,6 +1822,10 @@ public class Chunk implements Cleanable
 			downChunk.get(stage).destroyNaturalLightInRay(x, CHUNK_DIMENSION-1,z,downChunk,stage+1);
 		}
 	}
+	
+	/**
+	 * After destroying a light ray, recalculates the indirect light resulting of that action.
+	 */
 	private void recalculateLightInRay(int x,int yi,int z,List<Chunk> downChunk,int stage)
 	{
 		if(yi>=0){
@@ -1819,6 +1840,10 @@ public class Chunk implements Cleanable
 			downChunk.get(stage).recalculateLightInRay(x, CHUNK_DIMENSION-1,z,downChunk,stage+1);
 		}
 	}
+	
+	/**
+	 * Gets the artificial light in the position x,y,z . If those positions lies outside the chunk, it gets the light from the corresponding chunk instead.
+	 */
 	public byte getArtificialLightLevelAt(int x,int y,int z)
 	{
 		if( x<CHUNK_DIMENSION&&x>=0&&
@@ -1840,6 +1865,10 @@ public class Chunk implements Cleanable
 			else return c.getArtificialLightLevelAt(x, y, z);
 		}
 	}
+	
+	/**
+	 * Gets the natural light in the position x,y,z . If those positions lies outside the chunk, it gets the light from the corresponding chunk instead.
+	 */
 	public byte getNaturalLightLevelAt(int x,int y,int z)
 	{
 		if( x<CHUNK_DIMENSION&&x>=0&&
@@ -1862,15 +1891,28 @@ public class Chunk implements Cleanable
 			else return c.getNaturalLightLevelAt(x, y, z);
 		}
 	}
-	//|TODO Limit luminosity bug if chunk not loaded
+	
+	/**
+	 * Gets the artificial light of a point, normalized in range [0,1]
+	 */
 	public float getArtificialBrightnessAt(int x,int y,int z)
 	{
 		return getArtificialLightLevelAt(x,y,z)/MAX_LIGHT_LEVEL;
 	}
+	
+	/**
+	 * Gets the natural light of a point, normalized in range [0,1]
+	 */
 	public float getNaturalBrightnessAt(int x,int y,int z)
 	{
 		return getNaturalLightLevelAt(x,y,z)/MAX_LIGHT_LEVEL;
 	}
+	
+	/**
+	 * Gets the average artificial brightness of a point x,y,z in space, resulting from the average of all the lights of all cubes collindant to that point
+	 * The method is now unused, as it doesn't take into consideration the cube face being examined
+	 */
+	@Deprecated
 	public float getArtificialBrightnessAverageAt(int x,int y,int z)
 	{
 		return  (getArtificialBrightnessAt(x,y,z)+getArtificialBrightnessAt(x-1,y,z)+
@@ -1878,39 +1920,66 @@ public class Chunk implements Cleanable
 				getArtificialBrightnessAt(x-1,y-1,z)+getArtificialBrightnessAt(x,y-1,z-1)+
 				getArtificialBrightnessAt(x-1,y,z-1)+getArtificialBrightnessAt(x-1,y-1,z-1))/4;
 	}
+	
+	/**
+	 * Gets the average artificial brightness of a point x,y,z in space, resulting from the average of all the lights of all cubes collindant to that point, and considering a Y plane
+	 */
 	public float getArtificialBrightnessFaceYAverageAt(int x,int y,int z)
 	{
 		return  (getArtificialBrightnessAt(x,y,z)+getArtificialBrightnessAt(x-1,y,z)+
 				getArtificialBrightnessAt(x,y,z-1)+getArtificialBrightnessAt(x-1,y,z-1))/4;
 	}
+	
+	/**
+	 * Gets the average artificial brightness of a point x,y,z in space, resulting from the average of all the lights of all cubes collindant to that point, and considering a Z plane
+	 */
 	public float getArtificialBrightnessFaceZAverageAt(int x,int y,int z)
 	{
 		return  (getArtificialBrightnessAt(x,y,z)+getArtificialBrightnessAt(x-1,y,z)+
 				getArtificialBrightnessAt(x,y-1,z)+getArtificialBrightnessAt(x-1,y-1,z))/4;
 	}
+	
+	/**
+	 * Gets the average artificial brightness of a point x,y,z in space, resulting from the average of all the lights of all cubes collindant to that point, and considering a X plane
+	 */
 	public float getArtificialBrightnessFaceXAverageAt(int x,int y,int z)
 	{
 		return  (getArtificialBrightnessAt(x,y,z)+getArtificialBrightnessAt(x,y-1,z)+
 				getArtificialBrightnessAt(x,y,z-1)+getArtificialBrightnessAt(x,y-1,z-1))/4;
 	}
+	
+	/**
+	 * Gets the average natural brightness of a point x,y,z in space, resulting from the average of all the lights of all cubes collindant to that point, and considering a Y plane
+	 */
 	public float getNaturalBrightnessFaceYAverageAt(int x,int y,int z)
 	{
-		//if (true) return getNaturalBrightnessAverageAt(x,y,z);
 		return  (getNaturalBrightnessAt(x,y,z)+getNaturalBrightnessAt(x-1,y,z)+
 				getNaturalBrightnessAt(x,y,z-1)+getNaturalBrightnessAt(x-1,y,z-1))/4;
 	}
+	
+	/**
+	 * Gets the average natural brightness of a point x,y,z in space, resulting from the average of all the lights of all cubes collindant to that point, and considering a Z plane
+	 */
 	public float getNaturalBrightnessFaceZAverageAt(int x,int y,int z)
 	{
-		//if (true) return getNaturalBrightnessAverageAt(x,y,z);
 		return  (getNaturalBrightnessAt(x,y,z)+getNaturalBrightnessAt(x-1,y,z)+
 				getNaturalBrightnessAt(x,y-1,z)+getNaturalBrightnessAt(x-1,y-1,z))/4;
 	}
+	
+	/**
+	 * Gets the average natural brightness of a point x,y,z in space, resulting from the average of all the lights of all cubes collindant to that point, and considering a X plane
+	 */
 	public float getNaturalBrightnessFaceXAverageAt(int x,int y,int z)
 	{
-		//if (true) return getNaturalBrightnessAverageAt(x,y,z);
 		return  (getNaturalBrightnessAt(x,y,z)+getNaturalBrightnessAt(x,y-1,z)+
 				getNaturalBrightnessAt(x,y,z-1)+getNaturalBrightnessAt(x,y-1,z-1))/4;
 	}
+	
+	/**
+	 * Gets the average natural brightness of a point x,y,z in space, resulting from the average of all the lights of all cubes collindant to that point
+	 * The method is now unused, as it doesn't take into consideration the cube face being examined
+	 */
+	@Deprecated
 	public float getNaturalBrightnessAverageAt(int x,int y,int z)
 	{
 		return  (getNaturalBrightnessAt(x,y,z)+getNaturalBrightnessAt(x-1,y,z)+
@@ -1918,6 +1987,13 @@ public class Chunk implements Cleanable
 				getNaturalBrightnessAt(x-1,y-1,z)+getNaturalBrightnessAt(x,y-1,z-1)+
 				getNaturalBrightnessAt(x-1,y,z-1)+getNaturalBrightnessAt(x-1,y-1,z-1))/4;
 	}
+	
+	/**
+	 * Sets the artificial brightness at pos x,y,z to the value <val> and performs a flood algorithm filling the nearest cubes with decrements of this value based on the light distance.
+	 * Considering a val of 3, the neighbour cubes will be set at 2, and the neighbors of the neighbors, to 1. This is an ADDING LIGHT method: It will not remove existing light, and it will be
+	 * only set to the especified value if the current light is less than the <val> specified.
+	 * If x,y,z is outside the current chunk, the changes will be applied in the corresponding chunk.
+	 */
 	public void setArtificialBrightnessAt(int x,int y,int z,byte val)
 	{
 		if(val<0) return;
@@ -1941,6 +2017,7 @@ public class Chunk implements Cleanable
 					BlockLibrary.isOpaque(this.chunkCubes.get(x,y,z))) return;
 			setArtificialLightIn(x,y,z,val);
 			this.changed=true;
+			//Decrementing val by 1 unit per block travelled.
 			setArtificialBrightnessAt(x+1,y,z,(byte)(val-1));
 			setArtificialBrightnessAt(x-1,y,z,(byte)(val-1));
 			setArtificialBrightnessAt(x,y+1,z,(byte)(val-1));
@@ -1957,6 +2034,13 @@ public class Chunk implements Cleanable
 			}
 		}
 	}
+	
+	/**
+	 * Sets the natural brightness at pos x,y,z to the value <val> and performs a flood algorithm filling the nearest cubes with decrements of this value based on the light distance.
+	 * Considering a val of 3, the neighbour cubes will be set at 2, and the neighbors of the neighbors, to 1. This is an ADDING LIGHT method: It will not remove existing light, and it will be
+	 * only set to the especified value if the current light is less than the <val> specified.
+	 * If x,y,z is outside the current chunk, the changes will be applied in the corresponding chunk.
+	 */
 	public void setNaturalBrightnessAt(int x,int y,int z,byte val)
 	{
 		if(val<0) return;
@@ -1982,6 +2066,7 @@ public class Chunk implements Cleanable
 			setNaturalLightIn(x,y,z,val);
 			}
 			this.changed=true;
+			//Decrementing val by 1 unit per block travelled.
 			setNaturalBrightnessAt(x+1,y,z,(byte)(val-1));
 			setNaturalBrightnessAt(x-1,y,z,(byte)(val-1));
 			setNaturalBrightnessAt(x,y+1,z,(byte)(val-1));
@@ -1998,6 +2083,12 @@ public class Chunk implements Cleanable
 			}
 		}
 	}
+	
+	/**
+	 * Sets the artificial brightness at pos x,y,z to 0, and perform a recursive flood removing algorithm, removing not only the light value at this position,
+	 * but every light contribution this light could have apported to other near blocks.
+	 * If x,y,z is outside the current chunk, the changes will be applied in the corresponding chunk.
+	 */
 	public void removeArtificialBrightnessAt(int x,int y,int z)
 	{
 		int cx=this.chunkx;
@@ -2016,6 +2107,7 @@ public class Chunk implements Cleanable
 		
 		if(!changedChunk)
 		{
+			//Remembers light value before starting to remove it
 			byte lastval=getArtificialLightIn(x,y,z);
 			if(lastval==0) return;
 			
@@ -2037,6 +2129,7 @@ public class Chunk implements Cleanable
 			}
 		}
 	}
+	
 	private void removeArtificialBrightnessAtRec(int x,int y,int z,byte lastval)
 	{
 		int cx=this.chunkx;
@@ -2059,9 +2152,12 @@ public class Chunk implements Cleanable
 			{
 				int maxadjbright=getMaxArtificialAdjacentLight(x,y,z);
 				this.changed=true;
+				//Light will be removed if we had successfully removed all light collindant to it (If that happens, it was the light we removed which was apporting the light to this cube)
 				if(maxadjbright==0){
 					setArtificialLightIn(x,y,z,(byte)0);
 				}
+				//If the light value was more than what it should be if the light we removed was the one apporting most light to the cube, we dont remove any light.
+				//If it is less, we set the new light value performing flood (Adjacent light - 1), and continue removing light.
 				else if(maxadjbright<lastval){
 					setArtificialLightIn(x,y,z,(byte)(maxadjbright-1));
 					removeArtificialBrightnessAtRec(x+1,y,z,(byte)(lastval-1));
@@ -2083,6 +2179,12 @@ public class Chunk implements Cleanable
 			}
 		}
 	}
+	
+	/**
+	 * Sets the artificial brightness at pos x,y,z to 0, and perform a recursive flood removing algorithm, removing not only the light value at this position,
+	 * but every light contribution this light could have apported to other near blocks.
+	 * If x,y,z is outside the current chunk, the changes will be applied in the corresponding chunk.
+	 */
 	public void removeNaturalBrightnessAt(int x,int y,int z)
 	{
 		int cx=this.chunkx;
@@ -2101,6 +2203,7 @@ public class Chunk implements Cleanable
 		
 		if(!changedChunk)
 		{
+			//Remembers light value before starting to remove it
 			byte lastval=getNaturalLightIn(x,y,z);
 			if(lastval==0) return;
 			
@@ -2143,9 +2246,12 @@ public class Chunk implements Cleanable
 			if(getNaturalLightIn(x,y,z)==lastval-1)
 			{
 				int maxadjbright=getMaxNaturalAdjacentLight(x,y,z);
+				//Light will be removed if we had successfully removed all light collindant to it (If that happens, it was the light we removed which was apporting the light to this cube)
 				if(maxadjbright==0){
 					setNaturalLightIn(x,y,z,(byte)0);
 				}
+				//If the light value was more than what it should be if the light we removed was the one apporting most light to the cube, we dont remove any light.
+				//If it is less, we set the new light value performing flood (Adjacent light - 1), and continue removing light.
 				else if(maxadjbright<lastval){
 					setNaturalLightIn(x,y,z,(byte)(maxadjbright-1));
 					this.changed=true;
@@ -2168,6 +2274,13 @@ public class Chunk implements Cleanable
 			}
 		}
 	}
+	
+	/**
+	 * Recalculates light for the cube x,y,z and its surroudings (Called when a cube is inserted or deleted)
+	 * If the cube inserted was opaque, it will occlude light, and some flood light removing will be performed
+	 * If the cube inserted was transparent, it will let light pass and some flood light adding will be performed
+	 * 
+	 */
 	private void recalculateBrightnessOfCube(int x,int y,int z)
 	{
 		byte max=getMaxArtificialAdjacentLight(x,y,z);
@@ -2205,6 +2318,10 @@ public class Chunk implements Cleanable
 		}
 		
 	}
+	
+	/**
+	 * Extends natural light in a vertical column of the chunk. Calculates all indirect natural light caused by a light ray passing down in the pos x,z
+	 */
 	private boolean extendNaturalLightFrom(int x,int z,int iy,Chunk c)
 	{
 		for(int y=iy;y>=0;y--)
@@ -2220,6 +2337,10 @@ public class Chunk implements Cleanable
 		}
 		return true;
 	}
+	
+	/**
+	 * Returns the max artificial adjacent light of the cube at pos x,y,z for all its 6 neighbours
+	 */
 	private byte getMaxArtificialAdjacentLight(int x,int y,int z)
 	{
 		byte max=getArtificialLightLevelAt(x+1,y,z);
@@ -2235,6 +2356,10 @@ public class Chunk implements Cleanable
 		max=aux>max? aux : max;
 		return (byte)max;
 	}
+	
+	/**
+	 * Returns the max natural adjacent light of the cube at pos x,y,z for all its 6 neighbours
+	 */
 	private byte getMaxNaturalAdjacentLight(int x,int y,int z)
 	{
 		byte max=getNaturalLightLevelAt(x+1,y,z);
@@ -2250,47 +2375,41 @@ public class Chunk implements Cleanable
 		max=aux>max? aux : max;
 		return (byte)max;
 	}
-	public byte getArtificialLightIn(int x,int y,int z)
+	
+	/**
+	 * Gets the artificial light value in the position x,y,z. It is encoded on the last 4 bits of the light byte, so a bitwise will be automatically performed to extract it
+	 */
+	private byte getArtificialLightIn(int x,int y,int z)
 	{
 		return (byte)(this.chunkCubesLight.get(x,y,z) & 0xF);
 	}
-	public void setArtificialLightIn(int x,int y,int z,byte val)
+	
+	/**
+	 * Sets the artificial light value in the position x,y,z. It is encoded on the last 4 bits of the light byte, so a bitwise will be automatically performed to insert it
+	 */
+	private void setArtificialLightIn(int x,int y,int z,byte val)
 	{
-		//System.out.println(val);
 		if(val!=getArtificialLightIn(x,y,z)) this.changed=true;
 		this.chunkCubesLight.set(x,y,z,(byte)((this.chunkCubesLight.get(x,y,z) & 0xF0 ) | (val & 0xF)));
 	}
-	public byte getNaturalLightIn(int x,int y,int z)
+	
+	/**
+	 * Gets the natural light value in the position x,y,z. It is encoded on the first 4 bits of the light byte, so a bitwise will be automatically performed to extract it
+	 */
+	private byte getNaturalLightIn(int x,int y,int z)
 	{
-		//System.out.println("GET!!! "+(byte)((this.chunkCubesLight.get(x,y,z) >> 4) & 0xF)+" "+Integer.toBinaryString((chunkCubesLight[x][y][z] >> 4) &0xF));
 		return (byte)((this.chunkCubesLight.get(x,y,z) >> 4) &0xF);
-	}
-	public void setNaturalLightIn(int x,int y,int z,byte val)
-	{
-		//System.out.println(val);
-		if(val!=getNaturalLightIn(x,y,z)) this.changed=true;
-		//System.out.println("SET "+val+" ORI "+this.chunkCubesLight.get(x,y,z)+" SETTED "+(byte)((this.chunkCubesLight.get(x,y,z) &0xF) | (val << 4))+" ORD "+((this.chunkCubesLight.get(x,y,z) &0xF) | (val << 4)));
-		this.chunkCubesLight.set(x,y,z,(byte)((this.chunkCubesLight.get(x,y,z) &0xF) | ((val << 4)&0xF0)));
-		//System.out.println("SET "+Integer.toBinaryString(chunkCubesLight[x][y][z] &0xFF));
 	}
 	
 	/**
-	 * FULLY UNROLLED FOR  * * * P E R F O M A N C E * * * 
+	 * Sets the natural light value in the position x,y,z. It is encoded on the first 4 bits of the light byte, so a bitwise will be automatically performed to insert it
 	 */
-	/*private void getNormalInPoint(int x,int y,int z,Vector3f ret)
+	private void setNaturalLightIn(int x,int y,int z,byte val)
 	{
-		
-		int ncubes=0;
-		
-		byte cube=this.getCubeAt(x-1, y, z-1);
-		if(!BlockLibrary.isLiquid(cube)){
-			ncubes++;
-			
-			int getCubeHeight()
-		}
-		
-		if(ncubes==0) {ret.x=0.5f; ret.y=1; ret.z=0.5f;}
-	}*/
+		if(val!=getNaturalLightIn(x,y,z)) this.changed=true;
+		this.chunkCubesLight.set(x,y,z,(byte)((this.chunkCubesLight.get(x,y,z) &0xF) | ((val << 4)&0xF0)));
+	}
+	
 	
 	/**
 	 * Notifies to this chunk that neighbour at direction x,y,z has been added. Performs bitwise calculations to include this information on neighborsAdded int
@@ -2331,25 +2450,8 @@ public class Chunk implements Cleanable
 			
 			if(this.chunkCubes.isTrueStorage()||this.chunkCubes.get(0, 0, 0)==0||BlockLibrary.isLiquid(this.chunkCubes.get(0, 0, 0))) {
 				this.WF.getMapHandler().storeChunk(getX(), getY(), getZ(), this.chunkCubes,this.initcializedFlag);
-				
-				/*if(this.chunkCubes.isTrueStorage()){
-				byte[][][] test=new byte[32][32][32];
-				this.WF.getMapHandler().getChunk(getX(), getY(), getZ(), test);
-				for(int x=0;x<32;x++)
-				{
-					for(int y=0;y<32;y++)
-					{
-						for(int z=0;z<32;z++)
-						{
-							if(this.chunkCubes.getArray()[x][y][z]!=test[x][y][z]){
-								System.out.println("MEEEEEEEEEEEEEEEEEEEEEEECCC "+getX()+" "+getY()+" "+getZ()+" "+x+" "+y+" "+z);
-							}
-						}
-					}
-				}
-				}*/
 			}
-			//this.chunkCubes.dispose();
+
 			if(this.lightCalculated) this.chunkCubesLight.dispose();
 			
 			this.updateCubes.clear();

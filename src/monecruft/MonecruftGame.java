@@ -375,13 +375,11 @@ public class MonecruftGame implements Cleanable
 	{
 		FloatBufferPool.init(Chunk.CHUNK_DIMENSION*Chunk.CHUNK_DIMENSION*Chunk.CHUNK_DIMENSION*2*6*6,20);
 		ByteArrayPool.init(Chunk.CHUNK_DIMENSION,(settings.RENDER_DISTANCE*2 +1)*World.HEIGHT*(settings.RENDER_DISTANCE*2 +1)*2);
-		//glEnable(GL_DEPTH_TEST);
 		glEnable(GL11.GL_CULL_FACE);
 		GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 		glEnable( GL11.GL_BLEND );
-		//(0.6, 0.8, 1.0, 1.0);
 		glClearColor(0.6f, 0.8f, 1.0f, 0f);
-		//glClearColor(0.5f, 0.7f, 1.0f, 0f);
+		
 		//Set-up shader program
 		GL20.glUseProgram(0);
 		textManager=new GlobalTextManager();
@@ -427,7 +425,9 @@ public class MonecruftGame implements Cleanable
 				return name0.compareTo(name1);
 			}	
 		});*/
-		tilesTexture = Util.loadTextureAtlasIntoTextureArray(FileLoader.loadTileImages(), GL11.GL_LINEAR, GL11.GL_NEAREST_MIPMAP_LINEAR, true);//TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("images/imagenes2.png"));
+		
+		//GL_NEAREST for that blocky look
+		tilesTexture = Util.loadTextureAtlasIntoTextureArray(FileLoader.loadTileImages(), GL11.GL_NEAREST, GL11.GL_NEAREST_MIPMAP_LINEAR, true,settings.ANISOTROPIC_FILTERING_ENABLED);//TextureLoader.getTexture("PNG", ResourceLoader.getResourceAsStream("images/imagenes2.png"));
 		
 		Util.loadPNGTexture(FileLoader.loadWaterNormalImage(), TEXTURE_FETCH[WATER_NORMAL_TEXTURE_LOCATION]);
 		
@@ -760,6 +760,9 @@ public class MonecruftGame implements Cleanable
 					else if(content[0].equals("RENDER_DISTANCE")){
 						settings.RENDER_DISTANCE=Integer.parseInt(content[1]);
 					}
+					else if(content[0].equals("ANISOTROPIC_FILTERING_ENABLED")){
+						settings.ANISOTROPIC_FILTERING_ENABLED=Boolean.parseBoolean(content[1]);
+					}
 				}
 				s.close();
 			} 
@@ -783,6 +786,7 @@ public class MonecruftGame implements Cleanable
 			f.println("WINDOW_XRES:"+settings.WINDOW_XRES);
 			f.println("WINDOW_YRES:"+settings.WINDOW_YRES);
 			f.println("RENDER_DISTANCE:"+settings.RENDER_DISTANCE);
+			f.println("ANISOTROPIC_FILTERING_ENABLED:"+settings.ANISOTROPIC_FILTERING_ENABLED);
 			f.close();
 		} 
 		catch (IOException e) {

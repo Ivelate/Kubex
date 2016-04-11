@@ -2,11 +2,15 @@ package ivengine.view;
 
 import org.lwjgl.util.vector.Matrix4f;
 
+/**
+ *  @author Víctor Arellano Vicente (Ivelate)
+ *  
+ *  Camera that automatically handles moving forward / Laterally based on the angle it's looking.
+ */
 public class DirectMovementCamera extends MovableCamera{
 
 	public DirectMovementCamera(float znear, float zfar, float fov, float arat) {
 		super(znear, zfar, fov, arat);
-		// TODO Auto-generated constructor stub
 	}
 	public DirectMovementCamera(Matrix4f mat)
 	{

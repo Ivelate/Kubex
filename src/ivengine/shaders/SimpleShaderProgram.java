@@ -18,10 +18,11 @@ import static org.lwjgl.opengl.GL20.glUseProgram;
 import ivengine.Util;
 import ivengine.properties.Cleanable;
 /**
- * @author Ivelate
+ * @author Víctor Arellano Vicente (Ivelate)
  * @since 7-12-2013 17:20
  *
- * Shader program for IvEngine
+ * Wrapper class for a OpenGL shader. Makes shaders way less verbose if used this way.
+ * It uses a fragment and a vertex shader, nothing less, nothing more. 
  */
 public abstract class SimpleShaderProgram implements Cleanable
 {

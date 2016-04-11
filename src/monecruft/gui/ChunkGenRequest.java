@@ -1,5 +1,11 @@
 package monecruft.gui;
 
+/**
+ * @author Víctor Arellano Vicente (Ivelate)
+ * 
+ * Chunk Gen Request, containing the position of a chunk. 
+ * Used as a wrapper class, to use later to generate a chunk.
+ */
 public class ChunkGenRequest 
 {
 	private int chunkx;
