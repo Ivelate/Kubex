@@ -1,6 +1,12 @@
+//This work is licensed under the Creative Commons Attribution 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/. 
+//
+//Author: Víctor Arellano Vicente (Ivelate)
+//
+//Third deferred pass shader with no reflections. Equal to the third deferred pass shader , excepting the missing reflections part. Automatically reflects the sky.
+
 #version 330 core
 
-/************************************ SKY PARAMETERS **********************************************/
+
 struct YyxColor
 {
 	float y;
@@ -203,7 +209,7 @@ void main()
 		vec3 refractionNormal=normalize(vec3(dot(refractionNormalTexNormal,v),dot(refractionNormalTexNormal,firstWaterNormal),dot(refractionNormalTexNormal,u)));
 		
 		vec2 refractionTexVec=vec2(pos.x+refractionNormalTexNormal.x,pos.y+refractionNormalTexNormal.z);
-		vec4 refOutColor=texture2D(colorTex,refractionTexVec); //<---------------- HERE IS THE SALSA
+		vec4 refOutColor=texture2D(colorTex,refractionTexVec);
 		
 		outcolor=refOutColor.w<0.9&&refractionTexVec.x>=0&&refractionTexVec.x<=1&&refractionTexVec.y>=0&&refractionTexVec.y<=1?refOutColor:outcolor;
 
@@ -226,8 +232,9 @@ void main()
 		vec2 hitPixel=vec2(0,0);
 											
 		vec4 reflected;
-
-		if(reflectVec.y>=0) reflected=getSkyColor(reflectVec);
+		
+		//AUTOMATICALLY REFLECTS THE SKY
+		if(reflectVec.y>=0) reflected=getSkyColor(reflectVec); 
 		else fresnel=0;
 	
 		outcolor=mix(outcolor,reflected,fresnel);

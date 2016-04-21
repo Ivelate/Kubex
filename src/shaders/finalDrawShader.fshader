@@ -1,3 +1,9 @@
+//This work is licensed under the Creative Commons Attribution 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/. 
+//
+//Author: Víctor Arellano Vicente (Ivelate)
+//
+//Second deferred pass shader. Applies shadows, lighting, fog and water absorption / scattering to the scene
+
 #version 330 core
 
 uniform sampler2D nightTexture;
@@ -14,7 +20,7 @@ uniform float cheight;
 
 uniform float time;
 
-const float fogdensity = .00001;
+const float fogdensity = .000003;
 const vec4 fogcolor = vec4(0.6, 0.74, 0.8, 1.0);
 uniform float daylightAmount;
 
@@ -36,6 +42,9 @@ in vec3 FarFaceCamViewLocation;
 
 layout(location = 0) out vec4 outcolor;
 
+//The shader didn't allowed to upload to it the sky rendering method too, as it was too memory expensive
+//and those shaders have limitations. For light refracted inside a water block, we needed to see the sky moving at the other side
+//and that only could be done rendering the sky in this pass. This method approximates the sky color cheaply, and its used only behind water blocks, to be refracted
 vec4 getSkyColorApproximation(vec3 Location)
 {
 	vec4 nightColor;
@@ -50,8 +59,7 @@ vec4 getSkyColorApproximation(vec3 Location)
    		float normLight=((daylightAmount-0.35)*1.5384);
    		return vec4(0.2*normLight,0.4*normLight,0.75*normLight,1);
    	}
-   	 
-   	 //return vec4(1,0,0,1);	
+   	 	
    	float attenuation=clamp((daylightAmount-0.5)*2,0,1);
    	return mix(texture2D(nightTexture,vec2(xt+0.5f,yt+0.5f)),vec4(0.12,0.2,0.39,1),attenuation);
 }
@@ -60,15 +68,24 @@ void main()
 	float mnearfar=cnear*cfar;
 	float snearfar=cfar-cnear;
 	float z=texture(baseFboDepthTex,vec2(pos.x,pos.y)).x;
-	float trueDepth=-mnearfar / ((z * snearfar) - cfar);
+	float trueDepth=-mnearfar / ((z * snearfar) - cfar); //Gets the true depth from the z value, the far plane and the near plane
 	
 	vec3 lookVector=normalize(FarFaceLocation);
 	
+	//Gets the normal and decompresses it
 	vec3 normal=vec3(texture(brightnessNormalTex,vec2(pos.x,pos.y)).xy * 2 -vec2(1,1),0);
 	float zsq=1-(normal.x*normal.x + normal.y*normal.y);
+	bool shiftill=false;
+	//Reconstruct the z coordinate of the compressed normal
 	if(zsq>0){
 		normal.z=sqrt(zsq);
 		if(dot(normal,lookVector)>0) normal.z=-normal.z;	
+	}
+	//We have purposely made the vegetation normal to have an abnormally large modulus, to distinguish it from other normals.
+	//For the vegetation we apply some extra shadowing rules to prevent self shadowing and shadow acne
+	else if(zsq<-0.7){
+		normal=vec3(0,1,0);
+		shiftill=true;
 	}
 	
 	vec2 Brightness=texture(brightnessNormalTex,vec2(pos.x,pos.y)).zw;
@@ -101,8 +118,6 @@ void main()
 		{
 			float finald=-mnearfar / ((dw * snearfar) - cfar);
 			
-			//REMINDER OF THE PAST: 1/(invProjZ.x*pos.x + invProjZ.y*pos.y + invProjZ.z*dw + invProjZ.w); //Badbadbad, getting w, assuming 1=z , normalizing z based upon w, so 1/...
-			
 			waterd+=(finald-begind);
 			begind=-1;
 			underwater=false;
@@ -113,6 +128,8 @@ void main()
 		waterd+=(finald-begind);
 		begind=-1;
 	}
+	//All water dist travelled accumulated in waterd.	
+		
 		
 	bool water=waterd>0;
 	
@@ -121,9 +138,10 @@ void main()
 	outcolor=texture2D(colorTex,vec2(pos.x,pos.y));
 	
 	float shadowAttenuation=1;
-	if(z<1&&!underwater)
+	if(z<1&&!underwater) //Sky will not be shadowed, neither will be the blocks inside the water
 	{
 		//SHADOWS
+		//Gets the right shadow cascade to check to for this point
 		int sindex=0;
 		if(trueDepth>splitDistances.x)
 		{
@@ -134,24 +152,30 @@ void main()
 	
 		float dotsun=dot(sunNormal,normal);
 		float sunsetdot=dot(sunNormal,vec3(0,1,0));
+		//If the sun is inciding from the backface of this polygon, its shadowed automatically. If the sunset had long passed, its shadowed automatically.
 		if(dotsun>0 && sunsetdot>-0.2)
 		{
 			float sunsetAttenuation=sunsetdot>0?1.0:(sunsetdot+0.2)*5;
-			vec3 smallnormal=normal * length(worldPosition)*0.01;
+
+			vec3 smallnormal=shiftill? vec3(0,0.4,0) : (normal * max((length(worldPosition)*0.01),0.015)); //Shift the position to check for shadows a variable amount
+																										   //based on the distance and the normal of the polygon to prevent shadow acne.
+																										   //for vegetation, the shadow will be shifted upwards to diminish self shadowing
 			vec4 sunLocation=shadowMatrixes[sindex]*vec4(worldPosition+smallnormal,1);
 			float shadow=0;
+			//4 shadows samples using PCF and poisson sampling
 			for(int i=0;i<4;i++) {
 				vec4 shadowLoc=vec4(sunLocation.x+poissonDisk[i].x/2500,sunLocation.y+poissonDisk[i].y/2500,float(floor(sindex+0.5f)),sunLocation.z);
 				shadow+=texture(shadowMap,shadowLoc)/4;
 			}
-			shadow=shadow*sqrt(sqrt(dotsun*dotsun*dotsun))*sunsetAttenuation;
+			if(shiftill&&shadow>0.3) shadow=1; //To prevent self shadowing in vegetation, we only shade it if the shadows are very strong
+			shadow=shadow*sqrt(sqrt(dotsun*dotsun*dotsun))*sunsetAttenuation; //Darkens a polygon if the sun angle of incision is very oblique to prevent shadow errors on extreme angles.
 				
 			shadowAttenuation=0.7f*shadow + 0.3f;
 		}
 		else shadowAttenuation=0.3f;		
   	}
   	float waterShadowAttenuation=1;
-  	if(water)
+  	if(water) //Applies shadows to the water, but only to its surface
   	{
   		trueDepth=firstWaterDepth;
 		normal=firstWaterNormal;
@@ -169,7 +193,7 @@ void main()
 		if(dotsun>0 && sunsetdot>-0.2)
 		{
 			float sunsetAttenuation=sunsetdot>0?1.0:(sunsetdot+0.2)*5;
-			vec3 smallnormal=normal * length(worldPosition)*0.01;
+			vec3 smallnormal=normal * (length(worldPosition)*0.01);
 			vec4 sunLocation=shadowMatrixes[sindex]*vec4(worldPosition+smallnormal,1);
 			vec4 shadowLoc=vec4(sunLocation.x,sunLocation.y,float(floor(sindex+0.5f)),sunLocation.z);
 			if(texture(shadowMap,shadowLoc)<0.5){
@@ -179,14 +203,16 @@ void main()
 		else waterShadowAttenuation=0.3;
   	}
   	
+  	//if underwater, the shadow used will be the underwater one
 	shadowAttenuation=underwater?waterShadowAttenuation:shadowAttenuation;
-	float daylightBrightness=Brightness.x*daylightAmount*shadowAttenuation;
-	float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness;
+	float daylightBrightness=Brightness.x*daylightAmount*shadowAttenuation; //Natural light after shadow and daylightAmount diminishing.
+	float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness; //Final brightness is the max between natural and artificial light
 	
-	outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0);
-	float fog = clamp(exp(-fogdensity * trueDepth * trueDepth), 0.2, 1);
-  	outcolor = mix(fogcolor*((daylightAmount-0.35)*1.5384), outcolor, fog);
+	outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0); //out color multiplied by light
+	float fog = clamp(exp(-fogdensity * trueDepth * trueDepth), 0.2, 1); //Aplying fog
+  	outcolor = mix(fogcolor*((daylightAmount-0.35)*1.5384), outcolor, fog); //Mixing final color with fog
   		
+  	//Applies scattering and absorbtion to the water
 	if(water)
 	{
 		if(z==1) outcolor=getSkyColorApproximation(lookVector); 
@@ -194,7 +220,6 @@ void main()
 		outcolor=mix(vec4(0.05,0.05,0.1,1),crefracted,exp(-0.01*waterd));
 	}
 	
-	outcolor.w=water? (waterShadowAttenuation>0.5?(0.8*(clamp((daylightAmount-0.629)*4,0.0,1.0))):0.0) : 1.0;/*water? ((z==1?0:0.4) + (waterShadowAttenuation>0.5?0.2:0)): 1*/;
-	//if(outcolor.w>0.89&&outcolor.w<0.91) outcolor=vec4(1,0,0,0.9);
-	//outcolor=getSkyColorApproximation(lookVector);
+	outcolor.w=water? (waterShadowAttenuation>0.5?(0.8*(clamp((daylightAmount-0.629)*4,0.0,1.0))):0.0) : 1.0; //The w coord marks if specular reflects are possible in water. Diminish them
+																										      //in function of the day hour and if the water is shadowed or not
 }

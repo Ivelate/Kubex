@@ -1,0 +1,21 @@
+Those are the licenses for each image:
+	-nightdome.jpg: It was extracted from http://www.spiralforums.biz/index.php?showtopic=5397&page=4 , a beautiful photo shoot of the milky way by the user "Alien Genius". 
+					He was sharing this creations freely for everyone interested in using them but he did not specified any license. So, even if its implied he actually wanted
+					people to use his textures, he didnt specified if commercial uses of them were allowed. Hence, don't use this texture in commercial projects, unless he tells you otherwise.
+	
+	-round_delete.png: Standard cross icon, availlable all over the web. Again, license is not specified, so don't use it in commercial projects.
+	
+	-water_normal.png: 	Obtained from https://www.youtube.com/watch?v=7T5o4vZXAvI . He was sharing this texture with everyone interested, no restrictions. Again, he didn't specified if
+						commercial uses of it were allowed, so don't use it on commercial projects unless he tells you otherwise.
+	
+	-tiles/006_madera.png: Extracted from http://webtreats.mysitemyway.com/tileable-light-wood-textures/ . Free of use in personal and commercial projects. Don't give me attribution for it, it is not mine!
+	
+	-tiles/018_wood.png , tiles/019_leaves.png , tiles/020_wood_top.png , tiles/015_clearbrick.png , tiles/016_flower_dandelion.png , tiles/017_stone_rusty , tiles/010_brick.png, tiles/011_sand.png,
+	 tiles/021_tnt.png, tiles/022_bedrock.png: 
+			
+	Extracted from the texture pack for minecraft LB Photo Realism, http://www.minecraftforum.net/topic/127377-16x-32x-64x-128x-256x13-lb-photo-realism-146-update-12272012-rpg-realism-131-updated-10122012/
+	version modified by the user 1LotS. Under the Common Development and Distribution License. You CAN'T monetize projects using those textures.
+	
+	-tiles/013_lightblock.png: Extracted from the texture pack for minecraft LIFE-HD http://www.planetminecraft.com/texture_pack/life---hd-texture-pack/ licensed under Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported
+	
+	All the rest of images not mentioned before uses the license Attribution 4.0 International, like the rest of the project.

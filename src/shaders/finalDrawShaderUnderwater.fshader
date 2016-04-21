@@ -1,3 +1,9 @@
+//This work is licensed under the Creative Commons Attribution 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/. 
+//
+//Author: Víctor Arellano Vicente (Ivelate)
+//
+//Second deferred pass shader underwater. Calculates the sky and the shadows outside the water, along with the lighting on each point
+
 #version 330 core
 
 struct YyxColor
@@ -156,6 +162,7 @@ void main()
 	
 	float firstWaterDepth;
 	vec3 firstWaterNormal;
+	bool underwater=true;
 	
 	for(int i=0;i<liquidLayersTexLength;i++)
 	{ 
@@ -163,6 +170,7 @@ void main()
 		if(dw==1) break;
 		
 		if(begind<0) {
+			underwater=false;
 			begind=-mnearfar / ((dw * snearfar) - cfar);
 			if(i==0){
 				firstWaterDepth=begind;
@@ -171,6 +179,7 @@ void main()
 		}
 		else
 		{
+			underwater=true;
 			float finald=-mnearfar / ((dw * snearfar) - cfar);
 			
 			//REMINDER OF THE PAST: 1/(invProjZ.x*pos.x + invProjZ.y*pos.y + invProjZ.z*dw + invProjZ.w); //Badbadbad, getting w, assuming 1=z , normalizing z based upon w, so 1/...
@@ -194,11 +203,6 @@ void main()
 
 	if(z<1)
 	{
-		/*if(water) {
-			trueDepth=firstWaterDepth;
-			normal=firstWaterNormal;
-			worldPosition=FarFaceLocation*trueDepth/cfar;
-		}*/
 		//SHADOWS
 		int sindex=0;
 		if(trueDepth>splitDistances.x)
@@ -209,7 +213,9 @@ void main()
 		}
 	
 		float shadowAttenuation=1;
-		if(water)
+		
+		//The shadows will only be applied if the point isnt underwater. There are no shadows on underwater objects, to smooth the sea bed
+		if(!underwater&&waterd>0.01)
 		{
 		float dotsun=dot(sunNormal,normal);
 		float sunsetdot=dot(sunNormal,vec3(0,1,0));
@@ -230,6 +236,7 @@ void main()
 		else shadowAttenuation=0.3f;
 		}
 	
+		//Calculates the brightness for each point
 		float daylightBrightness=Brightness.x*daylightAmount*shadowAttenuation;
 		float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness;
 	
@@ -240,8 +247,9 @@ void main()
   	}
 	if(z==1&&!water) outcolor=waterFogColor*(0.3+currentLight*0.7);
 
-		vec4 crefracted=vec4((outcolor.xyz*exp(-vec3(0.3,0.06,0.04)*(trueDepth-waterd))).xyz,1);
-		outcolor=mix(waterFogColor*(0.3+currentLight*0.7),crefracted,exp(-0.04*(trueDepth-waterd)));
+	//Applying water scattering fog and absorption
+	vec4 crefracted=vec4((outcolor.xyz*exp(-vec3(0.3,0.06,0.04)*(trueDepth-waterd))).xyz,1);
+	outcolor=mix(waterFogColor*(0.3+currentLight*0.7),crefracted,exp(-0.04*(trueDepth-waterd)));
 	
 	outcolor.w=outw;
 }

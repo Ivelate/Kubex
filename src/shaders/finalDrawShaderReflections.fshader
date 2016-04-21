@@ -1,6 +1,11 @@
+//This work is licensed under the Creative Commons Attribution 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/. 
+//
+//Author: Víctor Arellano Vicente (Ivelate)
+//
+//Third deferred pass shades. Calculates the sky color and the reflections, refractions and specular highlights in the water
+
 #version 330 core
 
-/************************************ SKY PARAMETERS **********************************************/
 struct YyxColor
 {
 	float y;
@@ -95,10 +100,13 @@ vec4 getSkyColor(vec3 Location)
    	float xt=cos(azimuth)*len;
    	float yt=sin(azimuth)*len;
    	 	
+   	//float am=clamp(sqrt(xt*xt + yt*yt)-0.5,0.0,0.02)*200;
+  	float am=0; float normLight=((daylightAmount-0.35)*1.5384);
    	if(sqrt(xt*xt + yt*yt)>0.5f) {
-   		float normLight=((daylightAmount-0.35)*1.5384);
+   		//float normLight=((daylightAmount-0.35)*1.5384);
    		return vec4(0.2*normLight,0.4*normLight,0.75*normLight,1);
-   		nightcolor=vec4(0,0,0,1.0f);
+   		am=clamp((sqrt(xt*xt + yt*yt)-0.5)*2,0,1);
+   		//zenith=3.1416/2;
    	}
 	else nightcolor = texture2D(nightTexture,vec2(xt+0.5f,yt+0.5f));
 	
@@ -120,7 +128,8 @@ vec4 getSkyColor(vec3 Location)
    		daycolor = RGB(Yp, xp, yp);
     }
     
-    return daycolor + nightcolor;
+    return mix(daycolor + nightcolor,vec4(0.2*normLight,0.4*normLight,0.75*normLight,1),am);
+    //return daycolor + nightcolor;
 }
 
 
@@ -133,13 +142,14 @@ void main()
 {
 	float mnearfar=cnear*cfar;
 	float snearfar=cfar-cnear;
-	float z=texture(baseFboDepthTex,vec2(pos.x,pos.y)).x;
+	float z=texture(baseFboDepthTex,vec2(pos.x,pos.y)).x; 
 	vec3 lookVector=normalize(FarFaceLocation);
 	
-	if(z==1) outcolor=getSkyColor(lookVector);
+	//If the depth of the scene in this point is 1, no terrain have been drawn. Hence, the sky is visible
+	if(z==1) outcolor=getSkyColor(lookVector); 
 	
 	
-	float trueDepth=-mnearfar / ((z * snearfar) - cfar);
+	float trueDepth=-mnearfar / ((z * snearfar) - cfar); //Reconstructs the true depth from z, near plane and far plane
 	
 	vec3 normal=vec3(texture(brightnessNormalTex,vec2(pos.x,pos.y)).xy * 2 -vec2(1,1),0);
 	float zsq=1-(normal.x*normal.x + normal.y*normal.y);
@@ -158,6 +168,7 @@ void main()
 	float firstWaterDepth;
 	vec3 firstWaterNormal;
 	
+	//Gets only the first water layer position and normal
 	if(liquidLayersTexLength>0){
 		float dw=texture(liquidLayersTex,vec3(pos.x,pos.y,floor(0.5))).x;
 		if(dw<1){
@@ -174,6 +185,8 @@ void main()
 	outcolor=texture2D(colorTex,vec2(pos.x,pos.y));
 	
 	float inw=outcolor.w;
+	
+	//Water things inside
 	if(water)
 	{
 		
@@ -183,59 +196,63 @@ void main()
 		vec3 v=normalize(abs(firstWaterNormal.z) >0.99? cross(firstWaterNormal,vec3(0,1,0)) : cross(firstWaterNormal,vec3(0,0,1)));
 		vec3 u=normalize(cross(v,firstWaterNormal));
 		
-		vec3 flowVector=/*firstWaterNormal.y>0.99?vec3(1,0,0) :*/ cross(firstWaterNormal,cross(firstWaterNormal,vec3(0,-1,0)));
+		vec3 flowVector=cross(firstWaterNormal,cross(firstWaterNormal,vec3(0,-1,0)));
 		float flowLength=sqrt(length(flowVector));
-		if(flowLength<0.01) flowVector=v;
+		if(flowLength<0.01) flowVector=v; //If the flowLength is almost 0, the water plane is perpendicular to gravity. Sets it to flow over a default direction
 		else flowVector=normalize(flowVector);
-		float flowx=dot(flowVector,v)*(flowLength+0.2);
-		float flowy=dot(flowVector,u)*(flowLength+0.2);
+		float flowx=dot(flowVector,v)*(flowLength+0.2); //Flow over the v unitary vector coord
+		float flowy=dot(flowVector,u)*(flowLength+0.2); //Flow over the u unitary vector coord
 		
-		float texx=dot(v,(waterWorldPos.xyz + WorldPosition.xyz));
-		float texy=dot(u,(waterWorldPos.xyz + WorldPosition.xyz));
+		float texx=dot(v,(waterWorldPos.xyz + WorldPosition.xyz)); //Finds the textures x fetching pos, given the projection of the world pos into the unitary v vector of the water
+		float texy=dot(u,(waterWorldPos.xyz + WorldPosition.xyz)); //Finds the textures y fetching pos, given the projection of the world pos into the unitary u vector of the water
 		
-		vec3 texNormal=texture(miscTex,vec2((texx + time*flowx )/5,(texy + time*flowy)/5)).xyz;			//texture(miscTex,vec2((waterWorldPos.x+WorldPosition.x+time/3)/5,(waterWorldPos.z+WorldPosition.z)/5)).xyz;
-		texNormal=(texNormal - vec3(0.5,0.5,0)).xzy;
-		vec3 realNormalTexNormal=vec3(texNormal.x*0.07,texNormal.y,texNormal.z*0.07);
-		vec3 specularNormalTexNormal=vec3(texNormal.x*(0.3+flowLength/2),texNormal.y,texNormal.z*(0.3+flowLength/2));
-		vec3 refractionNormalTexNormal=vec3(texNormal.x*0.02,texNormal.y,texNormal.z*0.02);
+		vec3 texNormal=texture(miscTex,vec2((texx + time*flowx )/5,(texy + time*flowy)/5)).xyz; //Shifts the position of the water normal fetch in function of the flow vel / time passed
+		texNormal=(texNormal - vec3(0.5,0.5,0)).xzy; //Transforms the normal to homogeneous coordinates
+		vec3 realNormalTexNormal=vec3(texNormal.x*0.07,texNormal.y,texNormal.z*0.07); //Normal used for reflections
+		vec3 specularNormalTexNormal=vec3(texNormal.x*(0.3+flowLength/2),texNormal.y,texNormal.z*(0.3+flowLength/2)); //Normal used for specular highlights
+		vec3 refractionNormalTexNormal=vec3(texNormal.x*0.02,texNormal.y,texNormal.z*0.02); //Normal used for refraction
 
-		vec3 realNormal=normalize(vec3(dot(realNormalTexNormal,v),dot(realNormalTexNormal,firstWaterNormal),dot(realNormalTexNormal,u)));
+		//Reflections upwards look so much better. If water normal points almost upwards (In case of low down currents) set it to point upwards for maximum reflection aesthetics.
+		vec3 realNormal=firstWaterNormal.y>0.7?normalize(vec3(realNormalTexNormal.x,realNormalTexNormal.y,realNormalTexNormal.z)) : normalize(vec3(dot(realNormalTexNormal,v),dot(realNormalTexNormal,firstWaterNormal),dot(realNormalTexNormal,u)));
 
+		//normals from texture space to world space
 		vec3 specularNormal=normalize(vec3(dot(specularNormalTexNormal,v),dot(specularNormalTexNormal,firstWaterNormal),dot(specularNormalTexNormal,u)));
 		vec3 refractionNormal=normalize(vec3(dot(refractionNormalTexNormal,v),dot(refractionNormalTexNormal,firstWaterNormal),dot(refractionNormalTexNormal,u)));
 		
-		vec2 refractionTexVec=vec2(pos.x+refractionNormalTexNormal.x,pos.y+refractionNormalTexNormal.z);
-		vec4 refOutColor=texture2D(colorTex,refractionTexVec); //<---------------- HERE IS THE SALSA
+		//REFRACTION
+		vec2 refractionTexVec=vec2(pos.x+refractionNormalTexNormal.x,pos.y+refractionNormalTexNormal.z); //Shifts the fetch in function of the normal
+		vec4 refOutColor=texture2D(colorTex,refractionTexVec);
 		
-		outcolor=refOutColor.w<0.9&&refractionTexVec.x>=0&&refractionTexVec.x<=1&&refractionTexVec.y>=0&&refractionTexVec.y<=1?refOutColor:outcolor;
+		outcolor=refOutColor.w<0.9&&refractionTexVec.x>=0&&refractionTexVec.x<=1&&refractionTexVec.y>=0&&refractionTexVec.y<=1?refOutColor:outcolor; //If the position refracted fetched was outside the water, we remain with the original
 
-		float waterCos=abs(dot(lookVector,specularNormal)); 
+		float waterCos=abs(dot(lookVector,specularNormal)); //cos(normal,lookvector). For fresnel
 		float fresnel=fresnelR0 + (1-fresnelR0)*pow(1-waterCos,5); //Fresnel calculation
 		
 		//Caculating reflected color.
 		vec3 reflectVec=reflect(lookVector,realNormal).xyz;
 		
 		vec3 viewNormal;
+		//If the reflected vector is pointing down and the normal had the format (0,1,0), the result will not be aesthetic (A black dot in the distance). Shift its y dir to point up.
 		if(reflectVec.y<0&&firstWaterNormal.y>0.99){
 			reflectVec.y=-reflectVec.y;
 			viewNormal=(viewMatrix*vec4(firstWaterNormal,0)).xyz;
 		}
 		else viewNormal=(viewMatrix*vec4(realNormal.xyz,0)).xyz; //Normal vector, view space
-		vec3 viewDir=normalize(FarFaceCamViewLocation);
+		vec3 viewDir=normalize(FarFaceCamViewLocation); //All to view space
 		vec3 halfvec=normalize(normalize(-FarFaceLocation)+sunNormal);
 		float especular=clamp(dot(halfvec,specularNormal),0,1); //Blinn-phong
 		especular=pow(especular,60);
-		vec3 viewPos=FarFaceCamViewLocation*firstWaterDepth/cfar;
-		//vec3 viewPosP=(viewMatrix*vec4(FarFaceLocation*firstWaterDepth/cfar,1)).xyz;
+		vec3 viewPos=FarFaceCamViewLocation*firstWaterDepth/cfar; //View space coordinates of the point
+
+		//Performs raytracing with view space components
 		vec2 hitPixel=vec2(0,0);
 		bool collision=traceScreenSpaceRay(viewPos,reflect(viewDir,viewNormal).xyz,projectionMatrix,baseFboDepthTex,
 											cwidth,cheight,cnear,cfar,mnearfar,snearfar,25,2000,hitPixel);
 											
 		vec4 reflected;
-		if(collision) reflected=texture(colorTex,vec2(hitPixel.x/cwidth,hitPixel.y/cheight));
-
-		else if(reflectVec.y>=0) reflected=getSkyColor(reflectVec);
-		else fresnel=0;
+		if(collision) reflected=texture(colorTex,vec2(hitPixel.x/cwidth,hitPixel.y/cheight)); //If there was a collision, the color is the collision color
+		else if(reflectVec.y>=0) reflected=getSkyColor(reflectVec); //If not, the reflection is the sky color in that vector
+		else fresnel=0; //The sky is up, not down. If the reflection vector goes down, turning the fresnel down and letting light refract is the best option in this case
 	
 		outcolor=mix(outcolor,reflected,fresnel);
 		
@@ -243,9 +260,8 @@ void main()
 		if(especular>0.005)
 		{
 			float shadowed=inw*1.25;
-			if(shadowed>0.1) outcolor=clamp(outcolor + /*vec4(sindex==0?1:0,sindex==1?1:0,sindex==2?1:0,0)*/vec4(especular,especular,especular,0)*shadowed,vec4(0,0,0,0),vec4(1,1,1,1));
+			if(shadowed>0.1) outcolor=clamp(outcolor + vec4(especular,especular,especular,0)*shadowed,vec4(0,0,0,0),vec4(1,1,1,1)); //Applies especular
 		}
-		//outcolor=vec4(inw,inw,inw,1);
 	}
 	}
 }
@@ -254,6 +270,8 @@ float distanceSquared(vec2 P0, vec2 P1)
 	vec2 diff=P1-P0;
 	return dot(diff,diff);
 }
+
+//McGuire, M., & Mara, M. (2014). Efficient GPU screen-space ray tracing. Journal of Computer Graphics Techniques.
 bool traceScreenSpaceRay(vec3 csOrig,vec3 csDir,mat4 proj,sampler2D csZBuffer,float width,float height,float cnear,float cfar,float mnearfar,float snearfar,float zThickness,float maxDistance,out vec2 hitPixel)
 {
 

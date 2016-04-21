@@ -1,3 +1,9 @@
+//This work is licensed under the Creative Commons Attribution 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/. 
+//
+//Author: Víctor Arellano Vicente (Ivelate)
+//
+//Terrain voxel vertex shader.
+
 #version 330 core
 
 uniform mat4 vpMatrix;
@@ -14,7 +20,6 @@ out vec2 Properties;
 out vec2 Brightness;
 
 void main(){
-	//Properties=modelMatrix*vec4(properties.xyz,1.0);
 	float normal=round(properties/1000);
 	Properties=vec2(properties-normal*1000,normal);
 	Location=location;
@@ -22,5 +27,4 @@ void main(){
 	vec4 modelLocation=modelMatrix * vec4(location.xyz,1.0);
 	gl_Position=vpMatrix * modelLocation;
 	ModelLocation=vec3(modelLocation.xyz);
-	//ModelLocation=vec3(modelLocation.x/modelLocation.w,modelLocation.y/modelLocation.w,modelLocation.z/modelLocation.w);
 }

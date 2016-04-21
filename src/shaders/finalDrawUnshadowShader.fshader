@@ -1,3 +1,9 @@
+//This work is licensed under the Creative Commons Attribution 4.0 International License. To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/. 
+//
+//Author: Víctor Arellano Vicente (Ivelate)
+//
+//Second deferred pass shader without shadows. Equal to the second pass deferred shader, except for the shadows missing part.
+
 #version 330 core
 
 uniform sampler2D nightTexture;
@@ -43,7 +49,6 @@ vec4 getSkyColorApproximation(vec3 Location)
    		return vec4(0.2*normLight,0.4*normLight,0.75*normLight,1);
    	}
    	 
-   	 //return vec4(1,0,0,1);	
    	float attenuation=clamp((daylightAmount-0.5)*2,0,1);
    	return mix(texture2D(nightTexture,vec2(xt+0.5f,yt+0.5f)),vec4(0.12,0.2,0.39,1),attenuation);
 }
@@ -75,7 +80,7 @@ void main()
 	vec3 firstWaterNormal;
 	
 	bool underwater=false;
-	
+	//Water light distance raytracing
 	for(int i=0;i<liquidLayersTexLength;i++)
 	{ 
 		float dw=texture(liquidLayersTex,vec3(pos.x,pos.y,floor(i+0.5))).x;
@@ -112,7 +117,7 @@ void main()
 	
 	outcolor=texture2D(colorTex,vec2(pos.x,pos.y));
   	
-  	float daylightAmountAdjusted=(daylightAmount-0.35) * 1.538;
+  	float daylightAmountAdjusted=(daylightAmount-0.35) * 1.538; //Daylight depends now only in the hour of the day
 	float daylightBrightness=Brightness.x*daylightAmountAdjusted;
 	float finalBrightness=Brightness.y>daylightBrightness?Brightness.y:daylightBrightness;
 	
