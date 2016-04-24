@@ -697,19 +697,23 @@ public class Chunk implements Cleanable
 					int liquidLevel= BlockLibrary.getLiquidLevel(cube);
 					byte baseCube=BlockLibrary.getLiquidBaseCube(cube);
 
+					//Tries to flow to the bottom
 					byte belowCube=getCubeAt(cp.x,cp.y-1,cp.z);
 					if(!BlockLibrary.isDrawable(belowCube) || BlockLibrary.isCrossSectional(belowCube)){ //Water removes vegetation too
 
 						setCubeAt(cp.x,cp.y-1,cp.z,BlockLibrary.getLiquidBlockWithLevel(baseCube, BlockLibrary.getLiquidMaxLevel(baseCube)));
 					}
+					//If the bottom block is water with less level than 8, sets it as a water cube with maximum level
 					else if(BlockLibrary.isSameBlock(cube, belowCube)){
 						if(BlockLibrary.getLiquidLevel(belowCube)<BlockLibrary.getLiquidMaxLevel(belowCube))
 						{
 							setCubeAt(cp.x,cp.y-1,cp.z,BlockLibrary.getLiquidBlockWithLevel(baseCube, BlockLibrary.getLiquidMaxLevel(baseCube)));
 						}
 					}
+					//If the level of the water is more than 0, it can flow
 					else if(liquidLevel>0)
 					{
+						//Side X+. If it is an empry cube or vegetations, flows to it
 						if(!BlockLibrary.isDrawable(getCubeAt(cp.x+1,cp.y,cp.z))|| BlockLibrary.isCrossSectional(getCubeAt(cp.x+1,cp.y,cp.z))){
 							setCubeAt(cp.x+1,cp.y,cp.z,BlockLibrary.getLiquidBlockWithLevel(baseCube, liquidLevel-1));
 						}
@@ -723,6 +727,7 @@ public class Chunk implements Cleanable
 							}
 						}
 						
+						//Side X-. If it is an empry cube or vegetations, flows to it
 						if(!BlockLibrary.isDrawable(getCubeAt(cp.x-1,cp.y,cp.z)) || BlockLibrary.isCrossSectional(getCubeAt(cp.x-1,cp.y,cp.z))){
 							setCubeAt(cp.x-1,cp.y,cp.z,BlockLibrary.getLiquidBlockWithLevel(baseCube, liquidLevel-1));
 						}
@@ -736,6 +741,7 @@ public class Chunk implements Cleanable
 							}
 						}
 						
+						//Side Z+. If it is an empry cube or vegetations, flows to it
 						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z+1)) || BlockLibrary.isCrossSectional(getCubeAt(cp.x,cp.y,cp.z+1))){
 							setCubeAt(cp.x,cp.y,cp.z+1,BlockLibrary.getLiquidBlockWithLevel(baseCube, liquidLevel-1));
 						}
@@ -749,6 +755,7 @@ public class Chunk implements Cleanable
 							}
 						}
 						
+						//Side Z-. If it is an empry cube or vegetations, flows to it
 						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z-1)) || BlockLibrary.isCrossSectional(getCubeAt(cp.x,cp.y,cp.z-1))){
 							setCubeAt(cp.x,cp.y,cp.z-1,BlockLibrary.getLiquidBlockWithLevel(baseCube, liquidLevel-1));
 						}
@@ -762,141 +769,10 @@ public class Chunk implements Cleanable
 							}
 						}
 					}
-					if(1==2/2)continue;
-					else if(BlockLibrary.isSameBlock(cube, belowCube) && BlockLibrary.getLiquidLevel(belowCube)<BlockLibrary.getLiquidMaxLevel(belowCube)){
-						int liqlev=BlockLibrary.getLiquidLevel(belowCube)+BlockLibrary.getLiquidLevel(cube) + 1;
-						if(liqlev>BlockLibrary.getLiquidMaxLevel(cube)){
-							setCubeAt(cp.x,cp.y-1,cp.z,(byte)(cube+BlockLibrary.getLiquidLevel(cube)-BlockLibrary.getLiquidMaxLevel(cube)));
-							setCubeAt(cp.x,cp.y,cp.z,(byte)(cube+BlockLibrary.getLiquidLevel(cube)-(liqlev-BlockLibrary.getLiquidMaxLevel(cube))));
-						}
-						else{
-							setCubeAt(cp.x,cp.y-1,cp.z,(byte)(cube+BlockLibrary.getLiquidLevel(cube)-liqlev));
-							setCubeAt(cp.x,cp.y,cp.z,(byte)0);
-						}
-					}
-					else{
-						//byte baseCube=(byte)(cube+BlockLibrary.getLiquidLevel(cube)-BlockLibrary.getLiquidMaxLevel(cube));
-						int adj=0;
-						int xp=-1;int xm=-1;int zp=-1; int zm=-1;
-						int liquidlevel=BlockLibrary.getLiquidLevel(cube);
-						
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x+1,cp.y,cp.z))){
-							adj++; xp=0;
-						}
-						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x+1,cp.y,cp.z))){
-							adj++; xp=1; liquidlevel+=BlockLibrary.getLiquidLevel(getCubeAt(cp.x+1,cp.y,cp.z));
-						}
-						
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x-1,cp.y,cp.z))){
-							adj++;xm=0;
-						}
-						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x-1,cp.y,cp.z))){
-							adj++;xm=1;liquidlevel+=BlockLibrary.getLiquidLevel(getCubeAt(cp.x-1,cp.y,cp.z));
-						}
-						
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z+1))){
-							adj++;zp=0;
-						}
-						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z+1))){
-							adj++;zp=1;liquidlevel+=BlockLibrary.getLiquidLevel(getCubeAt(cp.x,cp.y,cp.z+1));
-						}
-						
-						if(!BlockLibrary.isDrawable(getCubeAt(cp.x,cp.y,cp.z-1))){
-							adj++;zm=0;
-						}
-						else if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y,cp.z-1))){
-							adj++;zm=1;liquidlevel+=BlockLibrary.getLiquidLevel(getCubeAt(cp.x,cp.y,cp.z-1));
-						}
-						
-						int divlevel=liquidlevel/(adj+1); 
-						int extra=liquidlevel%(adj+1); 
-						boolean del=false;
-						
-						if(xp==0 ){
-							if(extra==0&&divlevel>0) {divlevel--;extra=adj;}
-							if(extra>0){
-								extra--;
-								setCubeAt(cp.x+1,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube))));
-								xp=1;
-							}
-							else del=true;
-						}
-						if(xm==0 ){ 
-							if(extra==0&&divlevel>0) {divlevel--;extra=adj;}
-							if(extra>0){
-								extra--;
-								setCubeAt(cp.x-1,cp.y,cp.z,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube))));
-								xm=1;
-							}
-							else del=true;
-						}
-						if(zp==0 ){ 
-							if(extra==0&&divlevel>0) {divlevel--;extra=adj;}
-							if(extra>0){
-								extra--;
-								setCubeAt(cp.x,cp.y,cp.z+1,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube))));
-								zp=1;
-							}
-							else del=true;
-						}
-						if(zm==0 ){ 
-							if(extra==0&&divlevel>0) {divlevel--;extra=adj;}
-							if(extra>0){
-								extra--;
-								setCubeAt(cp.x,cp.y,cp.z-1,(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube))));
-								zm=1;
-							}
-							else del=true;
-						}
-						
-						if(extra==1||extra==adj){
-							this.liquidCounter--;
-							if(liquidCounter<=0){
-								liquidCounter=NORMALIZE_WATER_EACH;
-								if(extra==1) extra=0; //|TODO MEECCC
-								else if(extra==adj){extra=0; divlevel++;}
-							}
-						}
-						/*if(del) setCubeAt(cp.x,cp.y,cp.z,(byte)0);
-						else*/ if(adj!=0){
-							int specificLiqLevel=divlevel;
-							if(extra>0) {specificLiqLevel++; extra--;}
-							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)-specificLiqLevel));
-							if(getCubeAt(cp.x,cp.y,cp.z)!=cubeCode) setCubeAt(cp.x,cp.y,cp.z,cubeCode);
-							
-							if(BlockLibrary.isSameBlock(cube, getCubeAt(cp.x,cp.y+1,cp.z))&&BlockLibrary.getLiquidLevel(cubeCode)<BlockLibrary.getLiquidMaxLevel(cubeCode)) this.markCubeToUpdate(cp.x, cp.y+1, cp.z);
-						}
-						if(xp>=0){
-							int specificLiqLevel=divlevel+xp;
-							if(extra>0) {specificLiqLevel++; extra--;}
-							if(specificLiqLevel>0){
-							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)+1-specificLiqLevel));
-							if(getCubeAt(cp.x+1,cp.y,cp.z)!=cubeCode) setCubeAt(cp.x+1,cp.y,cp.z,cubeCode);}
-						}
-						if(xm>=0){
-							int specificLiqLevel=divlevel+xm;
-							if(extra>0) {specificLiqLevel++; extra--;}
-							if(specificLiqLevel>0){
-							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)+1-specificLiqLevel));
-							if(getCubeAt(cp.x-1,cp.y,cp.z)!=cubeCode) setCubeAt(cp.x-1,cp.y,cp.z,cubeCode);}
-						}
-						if(zp>=0){
-							int specificLiqLevel=divlevel+zp;
-							if(extra>0) {specificLiqLevel++; extra--;}
-							if(specificLiqLevel>0){
-							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)+1-specificLiqLevel));
-							if(getCubeAt(cp.x,cp.y,cp.z+1)!=cubeCode) setCubeAt(cp.x,cp.y,cp.z+1,cubeCode);}
-						}
-						if(zm>=0){
-							int specificLiqLevel=divlevel+zm;
-							if(extra>0) {specificLiqLevel++; extra--;}
-							if(specificLiqLevel>0){
-							byte cubeCode=(byte)(baseCube+(BlockLibrary.getLiquidMaxLevel(cube)+1-specificLiqLevel));
-							if(getCubeAt(cp.x,cp.y,cp.z-1)!=cubeCode) setCubeAt(cp.x,cp.y,cp.z-1,cubeCode);}
-						}
-					}
 				}
-				else if(!BlockLibrary.isDrawable(cube)){ //If the cube is an air cube, marks all water cubes collindant to it (And to grass if its on top) to update.
+				
+				//If the cube is an air cube, marks all water cubes collindant to it (And to grass if its on top) to update.
+				else if(!BlockLibrary.isDrawable(cube)){ 
 					if(BlockLibrary.isLiquid(getCubeAt(cp.x,cp.y+1,cp.z))||BlockLibrary.isCrossSectional(getCubeAt(cp.x,cp.y+1,cp.z))){
 						markCubeToUpdate(cp.x,cp.y+1,cp.z);
 					}
@@ -913,8 +789,10 @@ public class Chunk implements Cleanable
 						markCubeToUpdate(cp.x,cp.y,cp.z-1);
 					}
 				}
-				else if(cube==14){ //TNT
-					int expPower=5;
+				
+				 //TNT
+				else if(cube==14){
+					int expPower=5; //TNT explodes in a radius of 5 cubes
 					int expPower2=expPower*expPower;
 					for(int x=-expPower;x<expPower;x++){
 						
@@ -928,161 +806,14 @@ public class Chunk implements Cleanable
 						}
 					}
 				}
-				else if(cube==15){ //WATER TOWER
-					/*setCubeAt(cp.x,cp.y,cp.z,(byte)0);
-					
-					int cloudvol=3;
-					int cloudheight=40;
-					for(int x=-cloudvol;x<cloudvol;x++)
-					{
-						for(int y=-cloudvol;y<cloudvol;y++)
-						{
-							for(int z=-cloudvol;z<cloudvol;z++)
-							{
-								setCubeAt(cp.x+x,cp.y+cloudheight+y,cp.z+z,(byte)4);
-							}
-						}
-					}*/
-				}
-				/*else if(cube==16){ //HIGH TOWER
-					setCubeAt(cp.x,cp.y,cp.z,(byte)1);
-					for(int i=1;i<Chunk.CHUNK_DIMENSION*(World.HEIGHT-this.chunky)-cp.y;i++)
-					{
-						if(getCubeAt(cp.x,cp.y+i,cp.z)==0)setCubeAt(cp.x,cp.y+i,cp.z,(byte)1);
-						else break;
-					}
-				}*/
-				else if(cube==24){
-					//Antagonize water bb
-					/*byte wcube=this.getCubeAt(cp.x+1, cp.y, cp.z);
-					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x+1, cp.y, cp.z,(byte)24);
-					wcube=this.getCubeAt(cp.x-1, cp.y, cp.z);
-					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x-1, cp.y, cp.z,(byte)24);
-					wcube=this.getCubeAt(cp.x, cp.y+1, cp.z);
-					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x, cp.y+1, cp.z,(byte)24);
-					wcube=this.getCubeAt(cp.x, cp.y-1, cp.z);
-					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x, cp.y-1, cp.z,(byte)24);
-					wcube=this.getCubeAt(cp.x, cp.y, cp.z+1);
-					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x, cp.y, cp.z+1,(byte)24);
-					wcube=this.getCubeAt(cp.x+1, cp.y, cp.z-1);
-					if(BlockLibrary.isLiquid(wcube)) this.setCubeAt(cp.x, cp.y, cp.z-1,(byte)24);
-					
-					this.setCubeAt(cp.x, cp.y, cp.z,(byte)0);*/
-				}
-				else if(cube==25){
-					//Antagonize water bb
-					/*performFun(this.getCubeAt(cp.x+1, cp.y, cp.z),cp.x+1,cp.y,cp.z);
-					performFun(this.getCubeAt(cp.x-1, cp.y, cp.z),cp.x-1,cp.y,cp.z);
-					performFun(this.getCubeAt(cp.x, cp.y+1, cp.z),cp.x,cp.y+1,cp.z);
-					performFun(this.getCubeAt(cp.x, cp.y-1, cp.z),cp.x,cp.y-1,cp.z);
-					performFun(this.getCubeAt(cp.x, cp.y, cp.z+1),cp.x,cp.y,cp.z+1);
-					performFun(this.getCubeAt(cp.x, cp.y, cp.z-1),cp.x,cp.y,cp.z-1);
-					
-					this.setCubeAt(cp.x, cp.y, cp.z,(byte)0);*/
-					
-					/*for(int x=cp.x;x<cp.x+30;x++)
-					{
-						for(int y=cp.y;y>cp.y-20;y--)
-						{
-							for(int z=cp.z;z<30+cp.z;z++)
-							{
-								this.setCubeAt(x, y, z, (byte)0);
-							}
-						}
-					}*/
-				}
 				else if(BlockLibrary.isCrossSectional(cube)){
 					if(this.getCubeAt(cp.x, cp.y-1, cp.z)!=1) this.setCubeAt(cp.x, cp.y, cp.z, (byte)0); //Grass without grass on down of it cant exist
-				}
-				else if(cube==17&&2==1){
-					setCubeAt(cp.x,cp.y,cp.z,(byte)0);
-					int radius=5;
-					int expPower2=radius*radius;
-					int offsetx=5;
-					int ppx=cp.x;
-					int ppy=cp.y;
-					int ppz=cp.z+10;
-					for(int x=-radius;x<radius;x++){
-						
-						int posy=(int)Math.sqrt(expPower2 - x*x);
-						for(int y=-posy;y<posy;y++){
-							int posz=(int)Math.sqrt(expPower2 - x*x - y*y);
-							for(int z=-posz;z<posz;z++){
-								setCubeAt(ppx+x+offsetx,ppy+y,ppz+z,(byte)3);
-							}
-						}
-					}
-					offsetx=-5;
-					for(int x=-radius;x<radius;x++){
-						
-						int posy=(int)Math.sqrt(expPower2 - x*x);
-						for(int y=-posy;y<posy;y++){
-							int posz=(int)Math.sqrt(expPower2 - x*x - y*y);
-							for(int z=-posz;z<posz;z++){
-								setCubeAt(ppx+x+offsetx,ppy+y,ppz+z,(byte)3);
-							}
-						}
-					}
-					radius=3;
-					for(int x=-radius;x<radius;x++){
-						
-						int posy=(int)Math.sqrt(radius*radius - x*x);
-						for(int z=-posy;z<posy;z++){
-							for(int y=0;y<40;y++) setCubeAt(ppx+x,ppy+y,ppz+z+3,(byte)3);
-						}
-					}
-					radius=4;
-					for(int x=-radius;x<radius;x++){
-						
-						int posy=(int)Math.sqrt(radius*radius - x*x);
-						for(int z=-posy;z<posy;z++){
-							for(int y=30;y<37;y++) setCubeAt(ppx+x,ppy+y,ppz+z+3,(byte)3);
-						}
-					}
-					radius=2;
-					for(int x=-radius;x<radius;x++){
-						
-						int posy=(int)Math.sqrt(radius*radius - x*x);
-						for(int z=-posy;z<posy;z++){
-							setCubeAt(ppx+x,ppy+40,ppz+z+3,(byte)3);
-						}
-					}
-					
-					for(int y=41;y<300;y++)
-					{
-						int offset=y-41;
-						for(int x=-offset;x<offset;x++){
-							for(int z=-offset;z<offset;z++){
-								if(Math.random()<0.2/offset) setCubeAt(ppx+x,ppy+y,ppz+z+3,(byte)12);
-							}
-						}
-					}
 				}
 			}
 			
 			return this.updateCubes.size()>0;
 		}
 		return false;
-	}
-	
-	/**
-	 * Stupid debug. Delete pls
-	 */
-	private void performFun(byte b,int x,int y,int z)
-	{
-		double r=Math.random();
-		if(r<0.2){
-			this.setCubeAt(x, y, z, (byte)(25));
-		}
-		else if(r<0.4){
-			if(b==0) this.setCubeAt(x, y, z, (byte)(1));
-		}
-		else if(r<0.6){
-			if(BlockLibrary.isOpaque(b)) this.setCubeAt(x, y, z, (byte)(0));
-		}
-		else if(r<0.7){
-			if(BlockLibrary.isOpaque(b)) this.setCubeAt(x, y, z, (byte)(7));
-		}
 	}
 	
 	/**
