@@ -65,7 +65,17 @@ public class Chunk implements Cleanable
 		@Override public void set(int x, int y, int z, byte val) {}
 	};
 	private List<CubePosition> updateCubes=new LinkedList<CubePosition>(); //Particular cubes inside this chunk that needs to be updated each tick (Flowing water, TNT, etc)
-		private class CubePosition{public int x;public int y;public int z; public CubePosition(int x,int y,int z){this.x=x;this.y=y;this.z=z;}}
+		private class CubePosition{
+			public int x;public int y;public int z; public CubePhisicsModule cpm;
+			public CubePosition(int x,int y,int z){this(x,y,z,null);}
+			public CubePosition(int x,int y,int z,CubePhisicsModule cpm){this.x=x;this.y=y;this.z=z;this.cpm=cpm;}
+			}
+		private class CubePhisicsModule{
+			public final float dx,dy,dz,vx,vy,vz;
+			public CubePhisicsModule(float dx,float dy,float dz,float vx,float vy,float vz){
+				this.dx=dx;this.dy=dy;this.dz=dz;this.vx=vx;this.vy=vy;this.vz=vz;
+			}
+		}
 		
 	private int neighborsAdded=0; //Stores, in an int, which chunk neighbors had been added to the scene. Drawing will be only possible when all neighbors are added.
 								  //For each bit, the value 1 will be equal to neighbor added and the value 0 will be equal to neighbor not added.
@@ -789,9 +799,67 @@ public class Chunk implements Cleanable
 						markCubeToUpdate(cp.x,cp.y,cp.z-1);
 					}
 				}
-				
+				else if(cp.cpm!=null){
+					this.setCubeAt(cp.x, cp.y, cp.z, (byte)0);
+					//WOAH PHISICS
+					float newdx=cp.cpm.vx*World.CHUNK_UPDATE_TICK + cp.cpm.dx + cp.x;
+					float newdy=cp.cpm.vy*World.CHUNK_UPDATE_TICK + cp.cpm.dy + cp.y;
+					float newdz=cp.cpm.vz*World.CHUNK_UPDATE_TICK + cp.cpm.dz + cp.z;
+					int newx=(int)Math.floor(newdx);
+					int newy=(int)Math.floor(newdy);
+					int newz=(int)Math.floor(newdz);
+					float vx=cp.cpm.vx*0.95f; float vy=cp.cpm.vy*0.95f-2; float vz=cp.cpm.vz*0.95f;
+					boolean collision=false;
+					for(int x=cp.x;newx>cp.x?x<=newx:x>=newx;x+=(newx>cp.x?1:-1)){
+						if(getCubeAt(x,cp.y,cp.z)!=0) {
+							collision=true; 
+							newx=x-(newx>cp.x?1:-1); newy=cp.y; newz=cp.z;
+							newdx=newx; newdy=newy+cp.cpm.dy; newdz=newz+cp.cpm.dz;
+							vx*=-0.3f; vy*=0.8f; vz*=0.8f;
+						}
+					}
+					if(!collision)
+					{
+						for(int y=cp.y;newy>cp.y?y<=newy:y>=newy;y+=(newy>cp.y?1:-1)){
+							if(getCubeAt(newx,y,cp.z)!=0) {
+								collision=true; 
+								newy=y-(newy>cp.y?1:-1); newz=cp.z;
+								newdy=newy; newdz=newz+cp.cpm.dz;
+								vy*=-0.3f; vx*=0.8f; vz*=0.8f;
+							}
+						}
+					}
+					if(!collision)
+					{
+						for(int z=cp.z;newz>cp.z?z<=newz:z>=newz;z+=(newz>cp.z?1:-1)){
+							if(getCubeAt(newx,newy,z)!=0) {
+								collision=true; 
+								newz=z-(newz>cp.z?1:-1);
+								newdz=newz;
+								vz*=-0.3f; vy*=0.8f; vx*=0.8f;
+							}
+						}
+					}
+
+					if(!collision || vx*vx + vy*vy + vz*vz > 2){
+						CubePhisicsModule newModule=new CubePhisicsModule(newdx-newx,newdy-newy,newdz-newz,vx,vy,vz);
+						this.setPhisicsAffectedCubeAt(newx, newy, newz, cube, newModule);
+					}
+					else setCubeAt(newx, newy, newz, cube);
+				}
+				else if(cube==15){
+					setCubeAt(cp.x,cp.y,cp.z,(byte)0);
+					int dist=2; int end=dist;
+					for(int i=1;i<=dist;i++)
+					{
+						if(getCubeAt(cp.x+i,cp.y,cp.z)!=0){end=i-1;break;}
+					}
+					setCubeAt(cp.x+end,cp.y,cp.z,(byte)15);
+				}
 				 //TNT
 				else if(cube==14){
+					setCubeAt(cp.x,cp.y,cp.z,(byte)0);
+					//this.setPhisicsAffectedCubeAt(cp.x, cp.y, cp.z, (byte)1, new CubePhisicsModule(0,0,0,0,8,0));
 					int expPower=5; //TNT explodes in a radius of 5 cubes
 					int expPower2=expPower*expPower;
 					for(int x=-expPower;x<expPower;x++){
@@ -801,7 +869,11 @@ public class Chunk implements Cleanable
 							int posz=(int)Math.sqrt(expPower2 - x*x - y*y);
 							for(int z=-posz;z<posz;z++){
 								if(!(x==0&&y==0&&z==0)&&getCubeAt(cp.x+x,cp.y+y,cp.z+z)==7) setCubeAt(cp.x+x,cp.y+y,cp.z+z,(byte)7);
-								else if(getCubeAt(cp.x+x,cp.y+y,cp.z+z)!=27) setCubeAt(cp.x+x,cp.y+y,cp.z+z,(byte)0); //If the block isn't indestructible, blow it up
+								else if(getCubeAt(cp.x+x,cp.y+y,cp.z+z)!=27) {
+									byte lastCube=getCubeAt(cp.x+x,cp.y+y,cp.z+z);
+									setCubeAt(cp.x+x,cp.y+y,cp.z+z,(byte)0); //If the block isn't indestructible, blow it up
+									this.setPhisicsAffectedCubeAt(cp.x+x, cp.y+y, cp.z+z, lastCube, new CubePhisicsModule(0,0,0,x,Math.abs(y)+10,z));
+								}
 							}
 						}
 					}
@@ -1083,6 +1155,71 @@ public class Chunk implements Cleanable
 			if(z>=CHUNK_DIMENSION) {cz++;z=z-CHUNK_DIMENSION;} else if(z<0) {cz--;z=z+CHUNK_DIMENSION;}
 			Chunk c=this.WF.getChunkByIndex(cx, cy, cz);
 			if(c!=null) c.setCubeAt(x, y, z,val);
+		}
+	}
+	
+	private boolean setPhisicsAffectedCubeAt(int x,int y,int z,byte val,CubePhisicsModule cpm)
+	{
+		if( x<CHUNK_DIMENSION&&x>=0&&
+				y<CHUNK_DIMENSION&&y>=0&&
+				z<CHUNK_DIMENSION&&z>=0	) 
+		{
+			if(this.chunky==World.HEIGHT-1 && y==CHUNK_DIMENSION-1) return true;
+			
+			if(x==0) 
+			{
+				Chunk c=this.WF.getChunkByIndex(this.chunkx-1, this.chunky, this.chunkz);
+				if(c!=null) c.changed=true;
+			}
+			else if(x==CHUNK_DIMENSION-1) 
+			{
+				Chunk c=this.WF.getChunkByIndex(this.chunkx+1, this.chunky, this.chunkz);
+				if(c!=null) c.changed=true;
+			}
+			if(y==0) 
+			{
+				Chunk c=this.WF.getChunkByIndex(this.chunkx, this.chunky-1, this.chunkz);
+				if(c!=null) c.changed=true;
+			}
+			else if(y==CHUNK_DIMENSION-1) 
+			{
+				Chunk c=this.WF.getChunkByIndex(this.chunkx, this.chunky+1, this.chunkz);
+				if(c!=null) c.changed=true;
+			}
+			if(z==0) 
+			{
+				Chunk c=this.WF.getChunkByIndex(this.chunkx, this.chunky, this.chunkz-1);
+				if(c!=null) c.changed=true;
+			}
+			else if(z==CHUNK_DIMENSION-1) 
+			{
+				Chunk c=this.WF.getChunkByIndex(this.chunkx, this.chunky, this.chunkz+1);
+				if(c!=null) c.changed=true;
+			}
+			this.changed=true;
+			
+			if(cpm!=null){
+				synchronized(this.updateCubes)
+				{
+					if(this.updateCubes.size()==0) this.WF.insertChunkInUpdateList(this);
+					this.updateCubes.add(new CubePosition(x,y,z,cpm));
+				}
+			}
+			
+			this.chunkCubes.set(x,y,z,val);
+			return true;
+		}
+		else
+		{
+			int cx=this.chunkx;
+			int cy=this.chunky;
+			int cz=this.chunkz;
+			if(x>=CHUNK_DIMENSION) {cx++;x=x-CHUNK_DIMENSION;} else if(x<0) {cx--;x=x+CHUNK_DIMENSION;}
+			if(y>=CHUNK_DIMENSION) {cy++;y=y-CHUNK_DIMENSION;} else if(y<0) {cy--;y=y+CHUNK_DIMENSION;}
+			if(z>=CHUNK_DIMENSION) {cz++;z=z-CHUNK_DIMENSION;} else if(z<0) {cz--;z=z+CHUNK_DIMENSION;}
+			Chunk c=this.WF.getChunkByIndex(cx, cy, cz);
+			if(c!=null) return c.setPhisicsAffectedCubeAt(x, y, z,val,cpm);
+			return false;
 		}
 	}
 	

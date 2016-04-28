@@ -42,7 +42,7 @@ public class World implements Cleanable, KeyToggleListener
 	private static final float[] DAY_TIME_SPEED={3600,200,50,20,10,5,1,0.5f};
 	public int PLAYER_VIEW_FIELD=10;
 	public static final int HEIGHT=8;
-	private static final float CHUNK_UPDATE_TICK=0.3f;
+	public static final float CHUNK_UPDATE_TICK=0.3f;
 	private int[] DIFTABLE;	//Table storing the rendering circle x width for each z coordinate
 	
 	private int vao;
