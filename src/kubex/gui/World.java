@@ -43,6 +43,7 @@ public class World implements Cleanable, KeyToggleListener
 	public int PLAYER_VIEW_FIELD=10;
 	public static final int HEIGHT=8;
 	public static final float CHUNK_UPDATE_TICK=0.3f;
+	public static final float ATMOSPHERIC_DRAG=(float)Math.pow(0.985f, CHUNK_UPDATE_TICK*10);
 	private int[] DIFTABLE;	//Table storing the rendering circle x width for each z coordinate
 	
 	private int vao;

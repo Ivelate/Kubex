@@ -210,7 +210,6 @@ void main()
 	
 	outcolor=outcolor*vec4(finalBrightness,finalBrightness,finalBrightness,1.0); //out color multiplied by light
 	float fog = clamp(exp(-fogdensity * trueDepth * trueDepth), 0.2, 1); //Aplying fog
-  	outcolor = mix(fogcolor*((daylightAmount-0.35)*1.5384), outcolor, fog); //Mixing final color with fog
   		
   	//Applies scattering and absorbtion to the water
 	if(water)
@@ -219,6 +218,8 @@ void main()
 		vec4 crefracted=vec4((outcolor.xyz*exp(-vec3(0.46,0.09,0.06)*(waterd/*+(1-Brightness.x)*16*/))).xyz,1);
 		outcolor=mix(vec4(0.05,0.05,0.1,1),crefracted,exp(-0.01*waterd));
 	}
+	
+	outcolor = mix(fogcolor*((daylightAmount-0.35)*1.5384), outcolor, fog); //Mixing final color with fog
 	
 	outcolor.w=water? (waterShadowAttenuation>0.5?(0.8*(clamp((daylightAmount-0.629)*4,0.0,1.0))):0.0) : 1.0; //The w coord marks if specular reflects are possible in water. Diminish them
 																										      //in function of the day hour and if the water is shadowed or not

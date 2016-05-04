@@ -195,7 +195,8 @@ public class Player implements KeyToggleListener, KeyValueListener
 		if(action_createNextBlock)
 		{
 			action_createNextBlock=false;
-			RaycastResult res=raycast(this.pitch,this.yaw,this.xpos,this.ypos+EYE_POS,this.zpos,wf,MAX_RAYCAST_DISTANCE);
+			//A little-hack kinda thing. Raycast is way higher if TNT is selected |TODO change
+			RaycastResult res=raycast(this.pitch,this.yaw,this.xpos,this.ypos+EYE_POS,this.zpos,wf,this.selectedBlock==14?MAX_RAYCAST_DISTANCE*20:MAX_RAYCAST_DISTANCE);
 			if(res!=null)
 			{
 				Chunk c=null;
