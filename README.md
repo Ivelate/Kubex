@@ -1,10 +1,9 @@
-# Monecruft
+# Kubex
 
 Voxel Graphic Engine with eh, cubes. Final Computer Science degree project by **Víctor Arellano Vicente** (Ivelate). Java / LWJGL / OpenGL
 
 For now, it implements:
 
-- Game name that doesnt sounds like Minecraft in any way.
 - Glorious 3D cubes
 - Optimization via culling: Supports up to 2500 32x32x32 simultaneous chunks in screen without lagging significantly (81.920.000  cubes, more or less. Awesome.)
 - 3D "infinite" procedural world (Using a 3D perlin noise function). The world loads dinamically around the player position. Total map width/length ~= 4 million km, area ~= 16 trillion km^2 (Almost 32.000 times the area of the earth) . Upon this place integers overflow and some weird (Fun) things happen.
@@ -16,7 +15,10 @@ For now, it implements:
 - Day-night cycle (Atmospheric Scattering)
 - Cool sunsets.
 - Complex HUD: A gray point in the center of the screen
-- Ugly textures: Paint, 5 minutes, atonishing results
 - Collisions, walking, swimming, flying
+- Cascaded Shadow Mapping (Good quality shadows in all distances of the scene)
+- Realistic water
+- Mip mapping / Anisotropic Filtering
+- EXPLOSIONS
 
 And much more yet to come!
