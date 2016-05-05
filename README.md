@@ -22,3 +22,5 @@ For now, it implements:
 - EXPLOSIONS
 
 And much more yet to come!
+
+Do you want to play? Download the .jar from https://github.com/Ivelate/Kubex/releases/tag/1.0
