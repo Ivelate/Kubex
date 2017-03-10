@@ -37,9 +37,10 @@ public class InputHandler
 	public static final int CTRL_VALUE=21;
 	public static final int P_VALUE=22;
 	public static final int O_VALUE=23;
+	public static final int SCREENSHOT_VALUE=24;
 	
-	private static boolean[] keyInfo=new boolean[24];
-	private static LinkedList[] listenerList=new LinkedList[24];
+	private static boolean[] keyInfo=new boolean[25];
+	private static LinkedList[] listenerList=new LinkedList[25];
 	static
 	{
 		for(int i=0;i<listenerList.length;i++)
@@ -91,6 +92,10 @@ public class InputHandler
 	{
 		return keyInfo[MOUSE_BUTTON2_VALUE];
 	}
+	public static boolean isScreenshotKeyPressed()
+	{
+		return keyInfo[SCREENSHOT_VALUE];
+	}
 	public static void setW(boolean v)
 	{
 		setKey(W_VALUE,v);
@@ -130,6 +135,10 @@ public class InputHandler
 	public static void setO(boolean v)
 	{
 		setKey(O_VALUE,v);
+	}
+	public static void setScreenshotKey(boolean v)
+	{
+		setKey(SCREENSHOT_VALUE,v);
 	}
 	public static void setNum(boolean v,int num)
 	{

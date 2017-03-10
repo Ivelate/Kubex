@@ -51,6 +51,7 @@ import static org.lwjgl.opengl.GL30.glGenFramebuffers;
 import static org.lwjgl.opengl.GL30.glGenRenderbuffers;
 import static org.lwjgl.opengl.GL30.glRenderbufferStorage;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -58,6 +59,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.Arrays;
@@ -66,6 +68,7 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.Scanner;
 
+import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
 
 import org.lwjgl.BufferUtils;
@@ -188,6 +191,7 @@ public class KubexGame implements Cleanable
 	private Texture nightDomeTexture; //The nightdome texture will be uploaded separately, using the Slick-Utils library. It will be switched with the tiles texture, so binding one or another
 									  //depending on the rendering needs is neccesary
 	
+	private boolean screenshotRequestFlag=false; //If a screenshot is requested
 	private boolean hasFocus=true;	//If the screen has focus
 	private Thread shutdownHook;	//If the program is closed via a way other than ESC, this thread will execute before app is closed
 	
@@ -237,6 +241,7 @@ public class KubexGame implements Cleanable
 		
 		//Main loop
 		boolean running=true;
+		boolean screenshotRequested=false;
 		Mouse.setGrabbed(true); //Grabs the mouse
 		
 		shutdownHook=new Thread() { //If the app is closed unusually, safelly terminates it anyways (Saving chunks in disk)
@@ -267,6 +272,13 @@ public class KubexGame implements Cleanable
 					running=false;
 					InputHandler.setESC(false);
 				}
+				if(InputHandler.isScreenshotKeyPressed()){
+					if(!screenshotRequested){
+						screenshotRequested=true;
+						this.screenshotRequestFlag=true;
+					}
+				}
+				else screenshotRequested=false;
 				update(TM.getDeltaTime());
 				render();
 				if(Display.isActive()&&!hasFocus)
@@ -363,6 +375,12 @@ public class KubexGame implements Cleanable
 		TextureImpl.bindNone();
 		
 		this.textManager.draw(X_RES,Y_RES); //Draws text, if needed
+		
+		if(this.screenshotRequestFlag){
+			//Take screenshot!
+			this.screenshotRequestFlag=false;
+			if(takeScreenshotAndSave()) GlobalTextManager.insertText("Screenshot saved!");
+		}
 	}
 	
 	/**
@@ -557,6 +575,45 @@ public class KubexGame implements Cleanable
 	}
 	
 	/**
+	 * Takes an screenshot and saves it creating if needed a screenshots directory. Returns true if succeeded
+	 */
+	private boolean takeScreenshotAndSave()
+	{
+		int cont=0;
+		File screenshotFolder=new File("kubex_screenshots"); screenshotFolder.mkdir();
+		File outFile=null;
+		do
+		{
+			outFile=new File(screenshotFolder,"screenshot_"+cont+".png");
+			cont++;
+		}while(outFile.exists());
+		
+		ByteBuffer buffer = BufferUtils.createByteBuffer(X_RES*Y_RES*4);
+		GL11.glReadPixels(0, 0, X_RES, Y_RES, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer );
+		BufferedImage image = new BufferedImage(X_RES, Y_RES, BufferedImage.TYPE_INT_RGB);
+		   
+		for(int x = 0; x < X_RES; x++) 
+		{
+		    for(int y = 0; y < Y_RES; y++)
+		    {
+		        int i = (x + (X_RES * y)) * 4;
+		        int r = buffer.get(i) & 0xFF;
+		        int g = buffer.get(i + 1) & 0xFF;
+		        int b = buffer.get(i + 2) & 0xFF;
+		        image.setRGB(x, Y_RES - (y + 1), (0xFF << 24) | (r << 16) | (g << 8) | b);
+		    }
+		}
+		   
+		try {
+		    ImageIO.write(image, "png", outFile);
+		} catch (IOException e) {
+			System.err.println("Error storing screenshot");
+			return false;
+		}
+		return true;
+	}
+	
+	/**
 	 * Handles keyboard inputs, settings the appropiate values on the InputHandler
 	 */
 	private void handleKeyboardInput()
@@ -626,6 +683,9 @@ public class KubexGame implements Cleanable
 		case Keyboard.KEY_O:
 			InputHandler.setO(Keyboard.getEventKeyState());
 			break;	
+		case Keyboard.KEY_SYSRQ:
+			InputHandler.setScreenshotKey(Keyboard.getEventKeyState());
+			break;
 		}
 	}
 	

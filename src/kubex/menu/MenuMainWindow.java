@@ -114,10 +114,9 @@ public class MenuMainWindow extends JPanel
 		add(btnControls);
 		
 		windowResComboBox = new JComboBox<String>();
-		windowResComboBox.setModel(new DefaultComboBoxModel(SUPPORTED_RESOLUTIONS_TEXT_TABLE));
 		windowResComboBox.setEnabled(!settings.FULLSCREEN_ENABLED);
 		//Lets see what resolution we have stored
-		int res=0;
+		int res=SUPPORTED_RESOLUTIONS.length;
 		for(int i=0;i<SUPPORTED_RESOLUTIONS.length;i++)
 		{
 			if(	SUPPORTED_RESOLUTIONS[i].x == settings.WINDOW_XRES && 
@@ -126,6 +125,8 @@ public class MenuMainWindow extends JPanel
 				break;
 			}
 		}
+		String[] resTable=res==SUPPORTED_RESOLUTIONS.length?addIndexToTable(SUPPORTED_RESOLUTIONS_TEXT_TABLE,	settings.WINDOW_XRES+"x"+settings.WINDOW_YRES):SUPPORTED_RESOLUTIONS_TEXT_TABLE;
+		windowResComboBox.setModel(new DefaultComboBoxModel(resTable));
 		windowResComboBox.setSelectedIndex(res);
 		windowResComboBox.setBounds(135, 198, 98, 20);
 		add(windowResComboBox);
@@ -267,8 +268,10 @@ public class MenuMainWindow extends JPanel
  	   settings.FULLSCREEN_ENABLED=chckbxFullScreen.isSelected();
  	   settings.SHADOWS_ENABLED=chckbxDisableShadows.isSelected();
  	   settings.REFLECTIONS_ENABLED=chckbxNewCheckBox.isSelected();
- 	   settings.WINDOW_XRES=SUPPORTED_RESOLUTIONS[windowResComboBox.getSelectedIndex()].x;
- 	   settings.WINDOW_YRES=SUPPORTED_RESOLUTIONS[windowResComboBox.getSelectedIndex()].y;
+ 	   if(!(windowResComboBox.getSelectedIndex()>=SUPPORTED_RESOLUTIONS.length)){
+ 	 	   settings.WINDOW_XRES=SUPPORTED_RESOLUTIONS[windowResComboBox.getSelectedIndex()].x;
+ 	 	   settings.WINDOW_YRES=SUPPORTED_RESOLUTIONS[windowResComboBox.getSelectedIndex()].y;
+ 	   }
  	   settings.RENDER_DISTANCE=(int)renderDistanceSpinner.getValue();
  	   settings.WATER_LAYERS=(int)spinnerWaterLayers.getValue();
  	   settings.MOUSE_SENSITIVITY=sliderMouse.getValue()/(float)(100);
@@ -287,6 +290,17 @@ public class MenuMainWindow extends JPanel
 		{
 			ret[i]=supportedResolutions[i].x+"x"+supportedResolutions[i].y;
 		}
+		
+		return ret;
+	}
+	private static String[] addIndexToTable(String[] table,String index) {
+		String[] ret=new String[table.length + 1];
+		
+		for(int i=0;i<table.length;i++)
+		{
+			ret[i]=table[i];
+		}
+		ret[table.length]=index;
 		
 		return ret;
 	}
