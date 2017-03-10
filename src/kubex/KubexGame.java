@@ -380,6 +380,7 @@ public class KubexGame implements Cleanable
 			//Take screenshot!
 			this.screenshotRequestFlag=false;
 			if(takeScreenshotAndSave()) GlobalTextManager.insertText("Screenshot saved!");
+			InputHandler.setScreenshotKey(false); //SYSRQ doesn't trigger a unpressed event
 		}
 	}
 	
