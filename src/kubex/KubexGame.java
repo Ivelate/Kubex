@@ -150,6 +150,8 @@ public class KubexGame implements Cleanable
 	public static final int DEFERREDFBO_COLOR_TEXTURE_LOCATION=6;			//The texture which contains the final color from the second deferred rendering pass will be located on GL_TEXTURE6
 	public static final int WATER_NORMAL_TEXTURE_LOCATION=7; 				//The texture which contains the normal water perturbation texture LOADED FROM DISK will be located on GL_TEXTURE7
 	
+	private static final String NATIVE_LWJGL_FOLDER_NAME = "lib/lwjgl_native"; //Place to look for OS-specific libs for LWJGL
+	
 	private KubexSettings settings;
 	
 	private int X_RES=1400; //Window width. Uses settings width
@@ -725,6 +727,7 @@ public class KubexGame implements Cleanable
 		if(menu.waitForClose()) {
 			try{
 				storeDefaultConfigFile(settings,defaultConfigFile); //Stores the default menu configs in the file.
+				loadNatives(); //Loads OS-specific native libraries
 				new KubexGame(settings); //Inits the game
 			}	
 			//Error handling
@@ -741,6 +744,31 @@ public class KubexGame implements Cleanable
 				JOptionPane.showMessageDialog(null, "A fatal error happened. Kubex will exit now.\n\n"+e,"Fatal Error",JOptionPane.ERROR_MESSAGE);
 			}
 		}
+	}
+	
+	private static void loadNatives() throws IOException
+	{
+		File nativesFolder=new File(NATIVE_LWJGL_FOLDER_NAME);
+		if(!nativesFolder.exists()||!nativesFolder.isDirectory()||!nativesFolder.canRead()) throw new IOException("Can't read native libraries folder");
+		
+		//Load the natives lib dynamically in function of the OS
+		String osName=System.getProperty("os.name");
+		if(osName.startsWith("Windows")){
+			nativesFolder = new File(nativesFolder,"windows");
+		}
+		//Both of those are untested. If you have a linux or mac distro, and os.name doesn't return this exact String, please raise an issue in the github and i'll add it manually here
+		else if(osName.startsWith("Linux")){
+			nativesFolder = new File(nativesFolder,"linux");
+		}
+		else if(osName.startsWith("Mac")){
+			nativesFolder = new File(nativesFolder,"macosx");
+		}
+		else{
+			//I don't know which OS do you have :<
+			throw new IOException("Unknown OS: "+osName);
+		}
+		
+		System.setProperty("org.lwjgl.librarypath", nativesFolder.getAbsolutePath());
 	}
 	
 	/**

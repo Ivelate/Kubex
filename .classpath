@@ -3,14 +3,10 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry excluding="src/" kind="src" path=""/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
-	<classpathentry kind="lib" path="C:/Users/Ivelate/Documents/Games Workspace/PNGDecoder.jar"/>
-	<classpathentry kind="lib" path="C:/Users/Ivelate/Documents/Games Workspace/slick-util.jar"/>
-	<classpathentry kind="lib" path="C:/Users/Ivelate/Documents/Games Workspace/lwjgl-2.9.1/jar/lwjgl.jar">
-		<attributes>
-			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="C:/Users/Ivelate/Documents/Games Workspace/lwjgl-2.9.1/native/windows"/>
-		</attributes>
-	</classpathentry>
-	<classpathentry kind="lib" path="C:/Users/Ivelate/Documents/Games Workspace/lwjgl-2.9.1/jar/lwjgl_util.jar"/>
-	<classpathentry kind="lib" path="jgoodies-forms-1.8.0.jar" sourcepath="jgoodies-forms-1.8.0-sources.jar"/>
+	<classpathentry kind="lib" path="lib/jgoodies-forms-1.8.0.jar"/>
+	<classpathentry kind="lib" path="lib/lwjgl_util.jar"/>
+	<classpathentry kind="lib" path="lib/lwjgl.jar"/>
+	<classpathentry kind="lib" path="lib/PNGDecoder.jar"/>
+	<classpathentry kind="lib" path="lib/slick-util.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
